@@ -15,18 +15,19 @@ import { Panels } from './panels.js';
 import { Browser } from './browser.js';
 import { Recorder } from './record.js';
 import { mkFx } from './effects.js';
-import { AUTOPILOT, serializeComposition, deserializeComposition } from './composition.js';
+import { AUTOPILOT, serializeComposition, deserializeComposition, SETTINGS } from './composition.js';
+import { Menubar, openDialog, askText, confirmBox, installShortcuts, shortcutsDialog } from './menus.js';
 import { initSplitters } from './splitters.js';
 import { paintScan } from './laser-model.js';
 
-const COLS = 8, COMP_W = 1920, COMP_H = 1080;
+let COLS = 8; const COMP_W = 1920, COMP_H = 1080;
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 const D = window.projDesktop || null;
 
 let seq = 1;
 const mkLayer = (n) => ({ id: seq++, name: typeof n === 'string' ? n : 'Camada ' + n, opacity: 1, blend: 'normal', bypass: false, on: -1, clips: Array(COLS).fill(null), autopilot: AUTOPILOT(), fx: [], transform: IDENT_TR(), transition: 0, prev: null });
-const state = { name: '', layers: [mkLayer(3), mkLayer(2), mkLayer(1)], selLayer: 0, sel: null, master: 1, opacity: 1, speed: 1, compAutopilot: AUTOPILOT() };   // layers[0] = a de cima
+const state = { name: '', layers: [mkLayer(3), mkLayer(2), mkLayer(1)], selLayer: 0, sel: null, master: 1, opacity: 1, speed: 1, compAutopilot: AUTOPILOT(), settings: SETTINGS(), colNames: {} };   // layers[0] = a de cima
 let drag = null;
 
 // o motor desenha num canvas escondido; o monitor da composição é um canvas 2D que recebe a cópia
@@ -41,6 +42,7 @@ function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add
 
 // ---------- clipes na grade ----------
 function putClip(li, col, clip) {
+  if (clip && clip.trig === 'normal' && state.settings.trig !== 'normal') clip.trig = state.settings.trig;
   const L = state.layers[li], old = L.clips[col];
   if (old) { if (L.on === col) { C.stopClip(old); L.on = -1; } dropClip(old); }
   L.clips[col] = clip; state.sel = { l: li, c: col }; render();
@@ -118,7 +120,7 @@ function trigger(li, col) {
 function eject(li) { const L = state.layers[li]; C.stopClip(L.clips[L.on]); L.on = -1; L.prev = null; render(); }
 function triggerColumn(col) {
   state.layers.forEach((L, li) => {
-    if (L.clips[col] && L.clips[col].ignoreColumn) return;   // a casa ignora o disparo de coluna
+    if (L.ignoreColumn || (L.clips[col] && L.clips[col].ignoreColumn)) return;   // a camada ou a casa ignora o disparo de coluna
     if (L.clips[col]) { if (L.on !== col) { const old = L.on >= 0 ? L.clips[L.on] : null; if (old && L.transition > 0) L.prev = { clip: old, t0: engine.time, dur: L.transition }; else C.stopClip(old); L.on = col; C.startClip(L.clips[col], state.speed); } L.bypass = false; }
     else { C.stopClip(L.clips[L.on]); L.on = -1; L.prev = null; }
   });
@@ -152,10 +154,63 @@ function moveClip(fl, fc, tl, tc, copy) {
   state.sel = { l: tl, c: tc };
   render();
 }
+// ---------- menus: camadas, colunas, área de transferência ----------
+function insertLayer(at, name) { state.layers.splice(at, 0, mkLayer(name || state.layers.length + 1)); if (state.sel && state.sel.l >= at) state.sel.l++; state.selLayer = at; render(); }
+function duplicateLayer(li) {
+  const L = state.layers[li], n = mkLayer(L.name + ' cópia');
+  n.opacity = L.opacity; n.blend = L.blend; n.autopilot = { ...L.autopilot }; n.fx = L.fx.map(f => ({ ...f, params: { ...f.params } })); n.transform = { ...L.transform }; n.transition = L.transition; n.ignoreColumn = L.ignoreColumn;
+  n.clips = L.clips.map(c => c ? C.cloneClip(c) : null);
+  state.layers.splice(li, 0, n); if (state.sel && state.sel.l >= li) state.sel.l++; state.selLayer = li; render();
+}
+function clearLayer(li) { state.layers[li].clips.forEach((c, i) => { if (c) clearCell(li, i); }); }
+function setCols(n) {
+  n = Math.max(1, Math.min(64, n | 0));
+  for (const L of state.layers) { while (L.clips.length < n) L.clips.push(null); while (L.clips.length > n) { const c = L.clips.pop(); if (c) { if (L.on === L.clips.length) { C.stopClip(c); L.on = -1; } dropClip(c); } } if (L.on >= n) L.on = -1; }
+  COLS = n; if (state.sel && state.sel.c >= n) state.sel = null; render();
+}
+const shiftNames = (fn) => { const o = {}; for (const k in state.colNames) { const i = fn(+k); if (i >= 0) o[i] = state.colNames[k]; } state.colNames = o; };
+function insertColumn(at) {
+  for (const L of state.layers) { L.clips.splice(at, 0, null); if (L.on >= at) L.on++; }
+  shiftNames(i => i >= at ? i + 1 : i); COLS++; if (state.sel && state.sel.c >= at) state.sel.c++; render();
+}
+function removeColumn(at) {
+  if (COLS <= 1) return;
+  for (const L of state.layers) { const c = L.clips[at]; if (c) { if (L.on === at) { C.stopClip(c); L.on = -1; } dropClip(c); } L.clips.splice(at, 1); if (L.on > at) L.on--; }
+  shiftNames(i => i === at ? -1 : i > at ? i - 1 : i); COLS--;
+  if (state.sel) { if (state.sel.c === at) state.sel = null; else if (state.sel.c > at) state.sel.c--; }
+  render();
+}
+function clearColumn(at) { state.layers.forEach((L, li) => clearCell(li, at)); }
+function duplicateColumn(at) { insertColumn(at + 1); for (const L of state.layers) if (L.clips[at]) L.clips[at + 1] = C.cloneClip(L.clips[at]); if (state.colNames[at]) state.colNames[at + 1] = state.colNames[at] + ' cópia'; render(); }
+let clipboard = null, fxClipboard = null;
+const fxCopy = (list) => list.map(f => ({ ...f, params: { ...f.params } }));
+function copyClip(cut) { const s = selectedCell(); if (!s) { toast('Selecione um clipe'); return; } clipboard = C.cloneClip(s.clip); if (cut) clearCell(state.layers.indexOf(s.L), s.idx); toast(cut ? 'Clipe recortado' : 'Clipe copiado'); }
+function pasteClip() {
+  if (!clipboard) { toast('Nada copiado'); return; }
+  const l = state.sel ? state.sel.l : state.selLayer, c = state.sel ? state.sel.c : state.layers[l].clips.findIndex(x => !x);
+  putClip(l, c < 0 ? 0 : c, C.cloneClip(clipboard)); state.sel = { l, c: c < 0 ? 0 : c }; render();
+}
+function playAll(dir) { for (const L of state.layers) { const c = L.on >= 0 ? L.clips[L.on] : null; if (c && c.kind === 'video') { if (dir === 0) C.pauseClip(c); else C.playClip(c, dir, state.speed); } } render(); }
+function stopAll() { state.layers.forEach((_, li) => eject(li)); }
+// instantâneo: PNG da composição (ou do clipe selecionado) na pasta das gravações
+async function snapshot(what) {
+  const cv = what === 'clip' ? prevCanvas : monCanvas; if (what === 'clip' && !selectedCell()) { toast('Selecione um clipe'); return; }
+  const blob = await new Promise(r => cv.toBlob(r, 'image/png')); const bytes = new Uint8Array(await blob.arrayBuffer());
+  const name = (what === 'clip' ? 'clipe' : 'composicao') + '-' + new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '').replace(/(\d{8})/, '$1-') + '.png';
+  if (!D) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); return; }
+  try { const r = await D.rec.save(name, bytes, recorder.c.dir); toast('Instantâneo salvo: ' + r.path); recorder.refresh && recorder.refresh(); } catch (e) { toast('Não consegui salvar: ' + e.message); }
+}
+// Test Card: uma camada por cima com a fonte Test Card; o menu liga e desliga
+function toggleTestCard() {
+  const i = state.layers.findIndex(L => L.testCard);
+  if (i >= 0) { removeLayer(i); return; }
+  const L = mkLayer('Test Card'); L.testCard = true; state.layers.unshift(L); if (state.sel) state.sel.l++;
+  const c = C.sourceClip('testcard'); L.clips[0] = c; L.on = 0; render();
+}
 function removeLayer(li) {
   const L = state.layers[li]; if (state.layers.length <= 1) return;
   L.clips.forEach(c => { if (c) { C.stopClip(c); dropClip(c); } });
-  state.layers.splice(li, 1); state.sel = null; state.selLayer = Math.min(state.selLayer, state.layers.length - 1); render();
+  state.layers.splice(li, 1); if (state.sel) { if (state.sel.l === li) state.sel = null; else if (state.sel.l > li) state.sel.l--; } state.selLayer = Math.min(state.selLayer, state.layers.length - 1); render();
 }
 function applySpeed() { for (const L of state.layers) for (const c of L.clips) if (c && c.kind === 'video' && c.el) C.setRate(c, state.speed); }
 // a casa selecionada (clique no nome) ou, sem seleção, o que está no ar na camada selecionada
@@ -201,7 +256,7 @@ function render() {
   add.onclick = () => { state.layers.unshift(mkLayer(state.layers.length + 1)); state.selLayer = 0; if (state.sel) state.sel.l++; render(); };
   corner.appendChild(add); g.appendChild(corner);
   for (let c = 0; c < COLS; c++) {
-    const b = el('button', 'gh col', 'Coluna ' + (c + 1)); b.type = 'button'; b.dataset.col = c;
+    const b = el('button', 'gh col', state.colNames[c] || 'Coluna ' + (c + 1)); b.type = 'button'; b.dataset.col = c;
     const tem = state.layers.filter(L => L.clips[c]);
     if (tem.length && tem.every(L => L.on === c) && state.layers.every(L => L.clips[c] || L.on < 0)) b.classList.add('on');
     b.title = 'Dispara a coluna: camada sem clipe nela fica preta';
@@ -352,7 +407,7 @@ function renderScreens() {
 setInterval(renderScreens, 1000);
 
 const ao = new AdvancedOutput({
-  compW: COMP_W, compH: COMP_H, compCanvas: monCanvas,
+  get compW() { return state.settings.w; }, get compH() { return state.settings.h; }, compCanvas: monCanvas,
   screens: () => state.screens, setScreens, layers: () => state.layers, screenCanvas,
   onChange: renderScreens, helpers, toast,
   displays: () => displays, displayLabel: (id) => (displays.find(d => d.id === id) || {}).label,
@@ -381,18 +436,76 @@ const comps = {
 function resetComposition() {
   for (const L of state.layers) for (const c of L.clips) if (c) { C.stopClip(c); dropClip(c); }
   state.layers = [mkLayer(3), mkLayer(2), mkLayer(1)]; state.name = ''; state.sel = null; state.selLayer = 0; state.master = state.opacity = state.speed = 1; engine.master = 1;
-  engine.compFx = []; engine.compTransform = IDENT_TR(); state.compAutopilot = AUTOPILOT(); render(); renderScreens();
+  engine.compFx = []; engine.compTransform = IDENT_TR(); state.compAutopilot = AUTOPILOT(); state.colNames = {}; setCols(8); applySettings(SETTINGS()); render(); renderScreens();
 }
 async function loadComposition(json, name) {
-  const d = await deserializeComposition(json, { mkLayer, toast, laserClip: (f) => C.laserClip(f, laser.thumbSvg(f)) });
+  const d = await deserializeComposition(json, { mkLayer, toast, setCols, laserClip: (f) => C.laserClip(f, laser.thumbSvg(f)) });
   for (const L of state.layers) for (const c of L.clips) if (c) { C.stopClip(c); dropClip(c); }
   state.layers = d.layers.length ? d.layers : [mkLayer(1)]; state.name = name || d.name || ''; state.sel = null; state.selLayer = 0;
-  state.master = d.master; state.opacity = 1; state.speed = d.speed; engine.master = state.master; engine.compFx = d.compFx; state.compAutopilot = d.compAutopilot;
+  state.master = d.master; state.opacity = 1; state.speed = d.speed; engine.master = state.master; engine.compFx = d.compFx; state.compAutopilot = d.compAutopilot; state.colNames = d.colNames; applySettings(d.settings);
   for (const L of state.layers) if (L.on >= 0 && L.clips[L.on]) C.startClip(L.clips[L.on], state.speed); else L.on = -1;
   if (d.screens && d.screens.length) setScreens(d.screens);
   if (d.laser) { laser.frames = d.laser.frames; laser.settings = d.laser.settings; laser.active = d.laser.active; laser.sel = laser.frames[0] || null; if (laser.open) laser.refresh(); }
   if (d.missing) toast(d.missing + (d.missing === 1 ? ' clipe não abriu' : ' clipes não abriram') + ' (arquivo faltando)');
   render(); renderScreens();
+  if (state.settings.firstCol) triggerColumn(0);
+}
+// ---------- Configurações da composição ----------
+const SIZES = [[1920, 1080, 'Full HD 1920×1080'], [1280, 720, 'HD 1280×720'], [3840, 2160, '4K UHD 3840×2160'], [1080, 1920, 'Em pé 1080×1920'], [1920, 1200, '1920×1200'], [2560, 1440, '2560×1440'], [1024, 768, '1024×768'], [3840, 1080, 'Dois Full HD lado a lado 3840×1080']];
+function applySettings(s) {
+  const old = { w: engine.W, h: engine.H };
+  state.settings = s = Object.assign(SETTINGS(), s);
+  s.w = Math.max(64, Math.min(8192, s.w | 0)); s.h = Math.max(64, Math.min(8192, s.h | 0));
+  if (s.w !== old.w || s.h !== old.h) {
+    engine.setSize(s.w, s.h); monCanvas.width = prevCanvas.width = s.w; monCanvas.height = prevCanvas.height = s.h;
+    // slices que recortavam a composição inteira continuam recortando a inteira
+    for (const sc of state.screens) for (const it of sc.items) if (it.in && it.in.x === 0 && it.in.y === 0 && it.in.w === old.w && it.in.h === old.h) { it.in.w = s.w; it.in.h = s.h; M.touch(it); }
+    if (ao.open) ao.layout();
+  }
+  $('compInfo').textContent = s.w + '×' + s.h;
+  const c = parseInt(s.bg.slice(1), 16); engine.bg = [((c >> 16) & 255) / 255, ((c >> 8) & 255) / 255, (c & 255) / 255];
+  renderScreens();
+}
+function settingsDialog() {
+  const s = { ...state.settings, name: state.name };
+  openDialog({
+    title: 'Configurações da composição', width: 520,
+    build: (body, K) => {
+      body.appendChild(K.phead('Geral'));
+      body.appendChild(K.ptext('Nome', 'Nome|Aparece na barra de cima e no arquivo salvo.', s.name, v => { s.name = v; }));
+      body.appendChild(K.ptext('Descrição', '', s.desc, v => { s.desc = v; }));
+      body.appendChild(K.phead('Tamanho', 'Tamanho|A imagem da composição em pixels. As telas da Saída avançada recortam dela.'));
+      const cur = SIZES.find(z => z[0] === s.w && z[1] === s.h);
+      body.appendChild(K.pselect('Preset', '', [...SIZES.map(z => [z[0] + 'x' + z[1], z[2]]), ['custom', 'Personalizado']], cur ? cur[0] + 'x' + cur[1] : 'custom', v => { if (v !== 'custom') { const [w, h] = v.split('x').map(Number); s.w = w; s.h = h; } }));
+      body.appendChild(K.pnum('Largura', '', s.w, { min: 64, max: 8192, step: 8, unit: ' px' }, v => { s.w = v; }));
+      body.appendChild(K.pnum('Altura', '', s.h, { min: 64, max: 8192, step: 8, unit: ' px' }, v => { s.h = v; }));
+      body.appendChild(K.phead('Vídeo'));
+      body.appendChild(K.pselect('Taxa de quadros', 'Taxa de quadros|Quantas vezes por segundo a composição é desenhada e mandada às saídas.', [['24', '24 fps'], ['25', '25 fps'], ['30', '30 fps'], ['50', '50 fps'], ['60', '60 fps']], String(s.fps), v => { s.fps = +v; }));
+      body.appendChild(K.pcolor('Cor de fundo', 'Cor de fundo|O que aparece onde nenhuma camada pinta.', s.bg, v => { s.bg = v; }));
+      body.appendChild(K.phead('Clipes'));
+      body.appendChild(K.pselect('Disparo padrão', 'Disparo padrão|Como as casas novas disparam: Normal (clique toca), Piano (toca enquanto segura) ou Alternar (clique toca, outro clique para).', [['normal', 'Normal'], ['piano', 'Piano'], ['toggle', 'Alternar']], s.trig, v => { s.trig = v; }));
+      body.appendChild(K.pcheck('Ao abrir', 'Disparar primeira coluna ao abrir|Quando a composição é aberta, a coluna 1 já entra no ar.', s.firstCol, v => { s.firstCol = v; }, s.firstCol ? 'dispara a coluna 1' : 'abre parada'));
+    },
+    buttons: [{ label: 'Cancelar' }, { label: 'OK', primary: true, fn: () => { state.name = s.name; applySettings(s); render(); } }],
+  });
+}
+function preferencesDialog() {
+  const p = { recDir: recorder.c.dir || '', showFps: !$('fpsBox').hidden };
+  openDialog({
+    title: 'Preferências', width: 520,
+    build: (body, K) => {
+      body.appendChild(K.phead('Gravações e instantâneos'));
+      body.appendChild(K.ptext('Pasta', 'Pasta|Onde ficam as gravações e os instantâneos. Vazio = Vídeos\\Projecionista.', p.recDir, v => { p.recDir = v; }));
+      body.appendChild(K.phead('Janela'));
+      body.appendChild(K.pcheck('FPS', 'FPS e estatísticas|Mostra na barra de cima quantos quadros por segundo o programa está desenhando.', p.showFps, v => { p.showFps = v; }, p.showFps ? 'mostra' : 'esconde'));
+      const b = K.pbutton('Voltar as divisórias ao tamanho padrão', '', () => { for (const sp of document.querySelectorAll('.split')) sp.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); }); body.appendChild(b);
+    },
+    buttons: [{ label: 'Cancelar' }, { label: 'OK', primary: true, fn: () => { recorder.c.dir = p.recDir; $('fpsBox').hidden = !p.showFps; if (D) D.prefs.get().then(q => D.prefs.set({ ...q, recDir: p.recDir, showFps: p.showFps })).catch(() => { }); } }],
+  });
+}
+function aboutDialog() {
+  const ua = /Chrome\/([\d.]+)/.exec(navigator.userAgent), ev = /Electron\/([\d.]+)/.exec(navigator.userAgent);
+  openDialog({ title: 'Sobre o Projecionista', width: 420, build: (body) => { body.appendChild(el('p', 'dtext', 'Projecionista — projeção e laser ao vivo, no jeito de trabalhar do Resolume. Projeto de Felipe Spencer, 2026.')); body.appendChild(el('p', 'dtext', 'Electron ' + (ev ? ev[1] : '?') + ' · Chromium ' + (ua ? ua[1] : '?') + ' · WebGL2 · WebCodecs')); }, buttons: [{ label: 'Fechar', primary: true }] });
 }
 
 // ---------- painéis e navegador ----------
@@ -408,9 +521,105 @@ const browser = new Browser({
   addEffectToSelection: (id) => { const c = selectedClip(); if (!c) { toast('Selecione um clipe primeiro'); return; } c.fx.push(mkFx(id)); render(); },
 });
 
+// ---------- barra de menus (no formato do Resolume) ----------
+const selL = () => state.layers[state.selLayer] ? state.selLayer : 0;
+const selC = () => state.sel ? state.sel.c : 0;
+const withClip = (fn) => () => { const s = selectedCell(); if (!s) { toast('Selecione um clipe'); return; } fn(s.clip, state.layers.indexOf(s.L), s.idx); };
+const menuDefs = () => [
+  { label: 'Projecionista', items: () => [
+    { label: 'Preferências…', key: 'Ctrl+,', fn: preferencesDialog }, '-',
+    { label: 'Sobre', fn: aboutDialog }, '-',
+    { label: 'Sair', key: 'Ctrl+Q', fn: () => window.close() }] },
+  { label: 'Composição', items: () => [
+    { label: 'Nova', key: 'Ctrl+N', fn: () => comps.newComp() },
+    { label: 'Abrir…', key: 'Ctrl+O', fn: () => { browser.setTab('comps'); toast('Duplo clique numa composição da lista para abrir'); } },
+    { label: 'Abrir recente', sub: () => (browser.compList || []).length ? browser.compList.map(n => ({ label: n, fn: () => comps.open(n) })) : [{ label: 'nenhuma salva', disabled: true }] },
+    { label: 'Salvar', key: 'Ctrl+S', fn: () => state.name ? comps.save(state.name) : browser.saveAs() },
+    { label: 'Salvar como…', key: 'Ctrl+Shift+S', fn: () => { browser.setTab('comps'); browser.saveAs(); } }, '-',
+    { label: 'Copiar efeitos', fn: () => { fxClipboard = fxCopy(engine.compFx); toast(fxClipboard.length + ' efeito(s) copiado(s)'); } },
+    { label: 'Colar efeitos', disabled: !fxClipboard, fn: () => { engine.compFx.push(...fxCopy(fxClipboard)); panels.render(); } }, '-',
+    { label: 'Transporte global', sub: () => [{ label: 'Tocar', fn: () => playAll(1) }, { label: 'Pausar', fn: () => playAll(0) }, { label: 'Tocar para trás', fn: () => playAll(-1) }, { label: 'Parar (tirar tudo do ar)', fn: stopAll }] },
+    { label: 'Disparo de clipe', sub: () => [['normal', 'Normal'], ['piano', 'Piano'], ['toggle', 'Alternar']].map(([v, t]) => ({ label: t, check: state.settings.trig === v, fn: () => { state.settings.trig = v; for (const L of state.layers) for (const c of L.clips) if (c) c.trig = v; panels.render(); } })) },
+    { label: 'Disparar primeira coluna ao abrir', check: state.settings.firstCol, fn: () => { state.settings.firstCol = !state.settings.firstCol; } }, '-',
+    { label: 'Configurações…', key: 'Ctrl+Shift+C', fn: settingsDialog }] },
+  { label: 'Camada', items: () => { const li = selL(), L = state.layers[li]; return [
+    { label: 'Nova (por cima)', fn: () => insertLayer(0) },
+    { label: 'Inserir acima', fn: () => insertLayer(li) },
+    { label: 'Inserir abaixo', fn: () => insertLayer(li + 1) },
+    { label: 'Duplicar', fn: () => duplicateLayer(li) },
+    { label: 'Renomear…', fn: async () => { const n = await askText('Renomear camada', 'Nome', L.name); if (n) { L.name = n; render(); } } }, '-',
+    { label: 'Copiar efeitos', fn: () => { fxClipboard = fxCopy(L.fx); toast(fxClipboard.length + ' efeito(s) copiado(s)'); } },
+    { label: 'Colar efeitos', disabled: !fxClipboard, fn: () => { L.fx.push(...fxCopy(fxClipboard)); panels.render(); } }, '-',
+    { label: 'Ignorar disparo de coluna', check: !!L.ignoreColumn, fn: () => { L.ignoreColumn = !L.ignoreColumn; } }, '-',
+    { label: 'Limpar clipes', fn: () => clearLayer(li) },
+    { label: 'Remover', disabled: state.layers.length <= 1, fn: () => removeLayer(li) }]; } },
+  { label: 'Coluna', items: () => { const c = selC(); return [
+    { label: 'Nova (no fim)', fn: () => insertColumn(COLS) },
+    { label: 'Inserir antes', fn: () => insertColumn(c) },
+    { label: 'Inserir depois', fn: () => insertColumn(c + 1) },
+    { label: 'Duplicar', fn: () => duplicateColumn(c) },
+    { label: 'Renomear…', fn: async () => { const n = await askText('Renomear coluna', 'Nome', state.colNames[c] || 'Coluna ' + (c + 1)); if (n) { state.colNames[c] = n; render(); } } }, '-',
+    { label: 'Limpar clipes', fn: () => clearColumn(c) },
+    { label: 'Remover', disabled: COLS <= 1, fn: () => removeColumn(c) },
+    { label: 'Remover todas antes', disabled: c === 0, fn: () => { for (let i = 0; i < c; i++) removeColumn(0); } },
+    { label: 'Remover todas depois', disabled: c >= COLS - 1, fn: () => { while (COLS > c + 1) removeColumn(COLS - 1); } }]; } },
+  { label: 'Clipe', items: () => { const s = selectedCell(), k = s ? s.clip : null, isV = k && k.kind === 'video'; return [
+    { label: 'Transporte', disabled: !isV, sub: () => [['loop', 'Loop'], ['bounce', 'Vai e volta'], ['once', 'Uma vez'], ['random', 'Aleatório']].map(([v, t]) => ({ label: t, check: k.tr.mode === v, fn: () => { k.tr.mode = v; panels.render(); } })) },
+    { label: 'Alvo (autopilot)', disabled: !k, sub: () => [['layer', 'Como a camada'], ['next', 'Próximo'], ['prev', 'Anterior'], ['random', 'Ao acaso'], ['stop', 'Parar']].map(([v, t]) => ({ label: t, check: k.ap && k.ap.mode === v, fn: () => { k.ap = { ...(k.ap || {}), mode: v }; panels.render(); } })) },
+    { label: 'Estilo de disparo', disabled: !k, sub: () => [['normal', 'Normal'], ['piano', 'Piano'], ['toggle', 'Alternar']].map(([v, t]) => ({ label: t, check: k.trig === v, fn: () => { k.trig = v; panels.render(); } })) },
+    { label: 'Ignorar disparo de coluna', disabled: !k, check: !!(k && k.ignoreColumn), fn: () => { k.ignoreColumn = !k.ignoreColumn; panels.render(); } },
+    { label: 'Ajuste', disabled: !k, sub: () => [['contain', 'Encaixar'], ['cover', 'Preencher'], ['stretch', 'Esticar']].map(([v, t]) => ({ label: t, check: k.fit === v, fn: () => { k.fit = v; panels.render(); } })) },
+    { label: 'Miniatura do quadro atual', disabled: !k || k.kind !== 'video', fn: withClip((c) => { const cv = document.createElement('canvas'); const kk = Math.min(240 / c.w, 240 / c.h); cv.width = Math.round(c.w * kk); cv.height = Math.round(c.h * kk); try { cv.getContext('2d').drawImage(c.player ? c.player.frame : c.el, 0, 0, cv.width, cv.height); c.thumb = cv.toDataURL('image/jpeg', 0.75); render(); } catch { toast('Não consegui tirar a miniatura'); } }) }, '-',
+    { label: 'Recortar', key: 'Ctrl+X', disabled: !k, fn: () => copyClip(true) },
+    { label: 'Copiar', key: 'Ctrl+C', disabled: !k, fn: () => copyClip(false) },
+    { label: 'Colar', key: 'Ctrl+V', disabled: !clipboard, fn: pasteClip },
+    { label: 'Copiar efeitos', disabled: !k, fn: withClip((c) => { fxClipboard = fxCopy(c.fx); toast(fxClipboard.length + ' efeito(s) copiado(s)'); }) },
+    { label: 'Colar efeitos', disabled: !k || !fxClipboard, fn: withClip((c) => { c.fx.push(...fxCopy(fxClipboard)); panels.render(); }) }, '-',
+    { label: 'Renomear…', disabled: !k, fn: withClip(async (c) => { const n = await askText('Renomear clipe', 'Nome', c.name); if (n) { c.name = n; render(); } }) },
+    { label: 'Limpar', key: 'Delete', disabled: !k, fn: withClip((c, l, col) => clearCell(l, col)) },
+    { label: 'Mostrar no Explorer', disabled: !k || !k.path || !D, fn: withClip((c) => D.rec.show(c.path)) },
+    { label: 'Preparar (H.264 todo intra)', disabled: !isV || !k.path || k.prepared || !D, fn: withClip((c, l, col) => prepareClip(l, col, 'h264')) },
+    { label: 'Instantâneo do clipe (PNG)', disabled: !k, fn: () => snapshot('clip') }]; } },
+  { label: 'Saída', items: () => { const sc = state.screens[0], open = state.screens.some(s => s.win && !s.win.closed); return [
+    { label: 'Desligada', check: !open, fn: () => { for (const s of state.screens) if (s.win && !s.win.closed) s.win.close(); renderScreens(); } },
+    { label: 'Tela cheia', sub: () => displays.length ? displays.map(d => ({ label: d.label, check: open && sc.device === d.id, fn: () => { sc.device = d.id; sc.enabled = true; if (sc.win && !sc.win.closed) sc.win.close(); openOutputs(); } })) : [{ label: 'nenhum monitor listado', disabled: true }] },
+    { label: 'Janela', check: open && sc.device === 'window', fn: () => { sc.device = 'window'; sc.enabled = true; if (sc.win && !sc.win.closed) sc.win.close(); openOutputs(); } },
+    { label: 'Automático (projetor ligado)', check: open && sc.device === 'auto', fn: () => { sc.device = 'auto'; sc.enabled = true; if (sc.win && !sc.win.closed) sc.win.close(); openOutputs(); } }, '-',
+    { label: 'Avançada…', fn: () => ao.show() }, '-',
+    { label: 'Identificar telas', fn: () => { ao.identify(); if (!open) toast('Abra a saída para ver o nome em cada tela'); } },
+    { label: 'Mostrar Test Card', check: state.layers.some(L => L.testCard), fn: toggleTestCard },
+    { label: 'Instantâneo da composição (PNG)', fn: () => snapshot('comp') }]; } },
+  { label: 'Atalhos', items: () => [{ label: 'Teclado…', fn: () => shortcutsDialog(SHORTCUTS) }] },
+  { label: 'Ver', items: () => [
+    { label: 'Laser', fn: () => laser.show() },
+    { label: 'Saída avançada', fn: () => ao.show() }, '-',
+    { label: 'FPS e estatísticas', check: !$('fpsBox').hidden, fn: () => { $('fpsBox').hidden = !$('fpsBox').hidden; } }, '-',
+    { label: 'Painel Composição', fn: () => { panels.tab = 'comp'; panels.render(); } },
+    { label: 'Painel Camada', fn: () => { panels.tab = 'layer'; panels.render(); } }, '-',
+    ...[['files', 'Arquivos'], ['comps', 'Composições'], ['fx', 'Efeitos'], ['src', 'Fontes'], ['rec', 'Gravar']].map(([t, n]) => ({ label: n, check: browser.tab === t, fn: () => browser.setTab(t) }))] },
+];
+const menubar = new Menubar($('menubar'), menuDefs);
+const SHORTCUTS = [
+  { combo: 'Ctrl+N', keys: 'Ctrl+N', what: 'Composição nova', fn: () => comps.newComp() },
+  { combo: 'Ctrl+O', keys: 'Ctrl+O', what: 'Abrir composição (aba Composições)', fn: () => browser.setTab('comps') },
+  { combo: 'Ctrl+S', keys: 'Ctrl+S', what: 'Salvar composição', fn: () => state.name ? comps.save(state.name) : (browser.setTab('comps'), browser.saveAs()) },
+  { combo: 'Ctrl+Shift+S', keys: 'Ctrl+Shift+S', what: 'Salvar como…', fn: () => { browser.setTab('comps'); browser.saveAs(); } },
+  { combo: 'Ctrl+Shift+C', keys: 'Ctrl+Shift+C', what: 'Configurações da composição', fn: settingsDialog },
+  { combo: 'Ctrl+,', keys: 'Ctrl+,', what: 'Preferências', fn: preferencesDialog },
+  { combo: 'Ctrl+X', keys: 'Ctrl+X', what: 'Recortar o clipe selecionado', fn: () => copyClip(true) },
+  { combo: 'Ctrl+C', keys: 'Ctrl+C', what: 'Copiar o clipe selecionado', fn: () => copyClip(false) },
+  { combo: 'Ctrl+V', keys: 'Ctrl+V', what: 'Colar na casa selecionada', fn: pasteClip },
+  { combo: 'Delete', keys: 'Delete', what: 'Limpar a casa selecionada', fn: () => { const s = selectedCell(); if (s) clearCell(state.layers.indexOf(s.L), s.idx); } },
+  { combo: 'Enter', keys: 'Enter', what: 'Disparar a casa selecionada', fn: () => { if (state.sel) trigger(state.sel.l, state.sel.c); } },
+  { combo: 'Escape', keys: 'Esc', what: 'Tirar do ar a camada selecionada', when: () => !ao.open && !laser.open, fn: () => eject(selL()) },
+  { combo: 'Ctrl+Q', keys: 'Ctrl+Q', what: 'Sair', fn: () => window.close() },
+];
+installShortcuts(SHORTCUTS);
+
 // ---------- divisórias ----------
 (async () => {
   let prefs = {}; if (D) { try { prefs = await D.prefs.get(); } catch { } }
+  if (prefs.recDir && !window.__recDir) recorder.c.dir = prefs.recDir; $('fpsBox').hidden = !prefs.showFps;
   initSplitters(prefs).onSave((sizes) => { if (D) D.prefs.get().then(p => D.prefs.set({ ...p, sizes })).catch(() => { }); });
 })();
 
@@ -421,6 +630,10 @@ function loop() {
   // transporte dos vídeos no ar: entrada/saída, modo e direção
   for (const L of state.layers) { const c = L.on >= 0 ? L.clips[L.on] : null; if (c && c.kind === 'video') { if (C.tickTransport(c, dt, state.speed)) c.endedAt = now; } }
   panels.tick();
+  // taxa de quadros da composição: desenha só quando passou 1/fps
+  if (now - (loop.lastDraw || 0) < 1 / state.settings.fps - 0.0015) { tickAutopilot(now); requestAnimationFrame(loop); return; }
+  loop.lastDraw = now; loop.frames = (loop.frames || 0) + 1;
+  if (now - (loop.fpsAt || 0) >= 1) { if (!$('fpsBox').hidden) $('fpsBox').textContent = loop.frames + ' fps · ' + state.layers.filter(L => L.on >= 0).length + ' no ar · ' + COLS + ' colunas'; loop.frames = 0; loop.fpsAt = now; }
   // espelho do laser: o desenho do LaserCube vai para a projeção
   { const s = selectedCell(); for (const L of state.layers) { const c = L.on >= 0 ? L.clips[L.on] : null; for (const m of [c, s && s.clip]) if (m && m.kind === 'lasermirror' && m.paintedAt !== now) { m.paintedAt = now; paintScan(m.el.getContext('2d'), 1080, 1080, laser.scanNow(now), false); m.rev++; } } }
   engine.render(state.layers, engine.neededLayers(state.screens), now);
@@ -443,7 +656,7 @@ loop();
 render();
 
 // usado pelo teste automático (tools/selftest-main.js); não é interface de usuário
-window.projecionista = { state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
+window.projecionista = { menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
   probe: (pts) => engine.probe(state.layers, pts),
   probeScreen: (sc, pts) => engine.probeScreen(sc, state.layers, state.screens, pts),
   serialize: () => serializeComposition(state, laser, COLS), load: loadComposition, reset: resetComposition,

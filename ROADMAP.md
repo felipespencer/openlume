@@ -61,6 +61,13 @@ casa específica (camada + coluna) ou parar; no fim do clipe ou depois de N segu
   no palco da aba Laser. Falta provar no aparelho real (sentido dos eixos pode exigir o
   espelho da saída junto)
 
+- **Barra de menus e Configurações da composição** (pedido em 2026-10-14: "tem que ter
+  configs da composição e todos aqueles menus do Resolume que tem lá em cima"): feito com os
+  menus Projecionista · Composição · Camada · Coluna · Clipe · Saída · Atalhos · Ver, cada
+  item ligado a uma ação real (`app/menus.js`). Colunas agora são em número livre. **Deck e
+  Grupo ficaram de fora** até existirem (itens 7 e 8); em Atalhos só o teclado, MIDI vem
+  com a APC40. Sem "Media Manager", "Fixture Editor" (DMX) e "Importar da versão 6"
+
 ## Ordem de trabalho
 
 1. **Advanced Output**, como no Resolume — feito, menos slices em polígono

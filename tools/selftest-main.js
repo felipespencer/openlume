@@ -236,6 +236,20 @@ module.exports = (win, app, laser) => {
           P.eject(2);
         }catch(e){ prep={erro:e.message}; } }
         R.prep=prep;
+        // menus, configurações da composição, colunas e área de transferência
+        const mn={};
+        mn.barra=[...document.querySelectorAll('#menubar .mb')].map(b=>b.textContent);
+        P.menubar.show(1); await S(50); mn.itens=[...document.querySelectorAll('.menu .mi .lb')].map(e=>e.textContent); P.menubar.close(); mn.fechou=!document.querySelector('.menuLayer .menu');
+        P.settingsDialog(); await S(50); mn.dialogo=!!document.querySelector('.dlgOver'); mn.linhas=document.querySelectorAll('.dlgOver .prow').length; document.querySelector('.dlgOver .dfoot button').click(); await S(50); mn.dialogoFechou=!document.querySelector('.dlgOver');
+        const scN=M.mkScreen('Tela N',{w:1920,h:1080}); scN.items.push(M.mkSlice('S',{x:0,y:0,w:1920,h:1080},{x:0,y:0,w:1920,h:1080})); P.screens().push(scN);
+        P.applySettings({...P.state.settings, w:1280, h:720, bg:'#204060'}); await S(120); mn.tam=[P.engine.W,P.engine.H,P.engine.canvas.width, document.getElementById('compInfo').textContent]; mn.fundo=P.probe(mid)[0]; mn.slice=scN.items[0].in.w;
+        P.putSource(0,0,'solidcolor'); P.state.layers[0].clips[0].params.hue=0.33; P.trigger(0,0); await S(100); mn.verde=P.probe(mid)[0]; P.eject(0);
+        P.applySettings({...P.state.settings, w:1920, h:1080, bg:'#000000'}); await S(100); mn.volta=[P.engine.W, scN.items[0].in.w]; P.screens().pop();
+        const c0=P.cols(); P.insertColumn(1); mn.col=[c0,P.cols(),P.state.layers[0].clips.length, P.state.layers[0].clips[1]===null, !!P.state.layers[0].clips[0]]; P.removeColumn(1); mn.col.push(P.cols(), P.state.layers[0].clips.length);
+        P.state.sel={l:0,c:0}; P.copyClip(false); P.state.sel={l:1,c:3}; P.pasteClip(); mn.cola=[!!P.state.layers[1].clips[3], P.state.layers[1].clips[3]&&P.state.layers[1].clips[3].kind, P.state.layers[1].clips[3]!==P.state.layers[0].clips[0]];
+        P.toggleTestCard(); const tcOn=P.state.layers[0].testCard===true; P.trigger(0,0); await S(100); const tcPx=P.probe([[0.5,0.5],[0.1,0.5]]); P.toggleTestCard(); mn.testCard=[tcOn, P.state.layers.some(L=>L.testCard), tcPx[0].join()!=='0,0,0'];
+        P.state.layers[1].clips[3]=null; P.state.layers[0].clips[0]=null; P.render();
+        R.menus=mn;
         // GIF animado: vira clipe de vídeo de 20 quadros, toca e anda para trás
         let gif={erro:''};
         try{
@@ -323,6 +337,13 @@ module.exports = (win, app, laser) => {
       const Pp = r.prep;
       ok('preparar e reprodutor próprio', Pp && !Pp.erro && Pp.player && Pp.intra && Pp.n >= 70 && Pp.w === 320 && Pp.h === 180 && Pp.thumb.startsWith('data:image') && nz(Pp.px) && Pp.anda[1] > Pp.anda[0] && Pp.re[1] < Pp.re[0] && Pp.re[3] < Pp.re[2] && Pp.re[3] > 1.0 && Pp.pulo[0] === Pp.pulo[1] && Pp.rapido > 1.0,
         Pp && Pp.erro ? Pp.erro : Pp.n + ' quadros todo intra ' + Pp.w + '×' + Pp.h + ' ' + (Pp.dur || 0).toFixed(2) + ' s; toca ' + Pp.anda[0] + '→' + Pp.anda[1] + '; ré ' + Pp.re[0] + '→' + Pp.re[1] + ' (' + Pp.re[2].toFixed(2) + '→' + Pp.re[3].toFixed(2) + ' s); pulo para 0,5 s mostra o quadro ' + Pp.pulo[1] + ' (esperado ' + Pp.pulo[0] + '); 4x andou ' + (Pp.rapido || 0).toFixed(2) + ' s em 0,4');
+      const Mn = r.menus;
+      ok('barra de menus e diálogos', Mn.barra.join() === 'Projecionista,Composição,Camada,Coluna,Clipe,Saída,Atalhos,Ver' && Mn.itens.includes('Configurações…') && Mn.itens.includes('Salvar como…') && Mn.fechou && Mn.dialogo && Mn.linhas >= 9 && Mn.dialogoFechou,
+        Mn.barra.length + ' menus; Composição com ' + Mn.itens.length + ' itens; Configurações com ' + Mn.linhas + ' linhas; ' + JSON.stringify([Mn.fechou, Mn.dialogo, Mn.dialogoFechou]));
+      ok('configurações da composição', Mn.tam[0] === 1280 && Mn.tam[1] === 720 && Mn.tam[2] >= 1280 && Mn.tam[3] === '1280×720' && Mn.fundo[2] > 80 && Mn.fundo[0] < 60 && Mn.verde[1] > 200 && Mn.slice === 1280 && Mn.volta[0] === 1920 && Mn.volta[1] === 1920,
+        '1280×720: motor ' + Mn.tam.join('/') + ', fundo ' + Mn.fundo + ', clipe verde ' + Mn.verde + ', slice recorta ' + Mn.slice + '; de volta a ' + Mn.volta.join('/'));
+      ok('colunas, copiar/colar, Test Card', Mn.col.join() === '8,9,9,true,true,8,8' && Mn.cola.join() === 'true,source,true' && Mn.testCard.join() === 'true,false,true',
+        'colunas ' + Mn.col.join('/') + '; colar ' + Mn.cola.join('/') + '; test card ' + Mn.testCard.join('/'));
       const G = r.gif;
       ok('GIF animado como clipe', G && !G.erro && G.kind === 'video' && G.anim && G.frames === 20 && G.w === 160 && G.h === 90 && Math.abs(G.dur - 2) < 0.1 && G.thumb.startsWith('data:image') && nz(G.px) && G.anda[1] > G.anda[0] && G.re[1] < G.re[0] && G.copia,
         G && G.erro ? G.erro : G.frames + ' quadros ' + G.w + '×' + G.h + ' ' + (G.dur || 0).toFixed(2) + ' s; toca ' + G.anda[0] + '→' + G.anda[1] + '; ré ' + G.re[0] + '→' + G.re[1] + '; cópia independente=' + G.copia);

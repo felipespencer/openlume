@@ -118,7 +118,17 @@ export class Engine {
     this.srcProg = new Map();      // source id → programa
     this.srcFbo = new Map();       // clip.id → fbo da fonte gerada
     this.scratch = [this.fbo(width, height), this.fbo(width, height), this.fbo(width, height)];   // efeitos: entrada e pingue-pongue
-    this.compFx = [];
+    this.compFx = []; this.bg = [0, 0, 0];
+  }
+  // Configurações da composição: tamanho novo refaz as texturas que dependem dele
+  setSize(w, h) {
+    const gl = this.gl, del = (f) => { if (f && f.fb) { gl.deleteFramebuffer(f.fb); gl.deleteTexture(f.t); } };
+    this.W = w; this.H = h; this.canvas.width = w; this.canvas.height = h;
+    del(this.comp); this.comp = this.fbo(w, h);
+    this.scratch.forEach(del); this.scratch = [this.fbo(w, h), this.fbo(w, h), this.fbo(w, h)];
+    for (const f of this.srcFbo.values()) del(f); this.srcFbo.clear();
+    for (const f of this.layerFbo.values()) del(f); this.layerFbo.clear();
+    for (const f of this.screenFbo.values()) del(f); this.screenFbo.clear();
   }
 
   program(vs, fs, uniforms) {
@@ -305,7 +315,7 @@ export class Engine {
     const gl = this.gl, W = this.W, H = this.H; this.time = time;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.comp.fb);
     gl.viewport(0, 0, W, H);
-    gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.clearColor(this.bg[0], this.bg[1], this.bg[2], 1); gl.clear(gl.COLOR_BUFFER_BIT);
     for (let i = layers.length - 1; i >= 0; i--) this.drawLayer(layers[i], W, H, this.comp.fb);
     for (const L of layers) {
       if (!layerIds.has(L.id)) continue;

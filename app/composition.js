@@ -5,10 +5,12 @@ import * as M from './screens.js';
 import { serializeLaser, deserializeLaser } from './laser-model.js';
 
 export const AUTOPILOT = () => ({ dir: 'off', dur: 'clip', secs: 5, loop: true });
+// Configurações da composição (menu Composição → Configurações…)
+export const SETTINGS = () => ({ w: 1920, h: 1080, fps: 60, bg: '#000000', desc: '', trig: 'normal', firstCol: false });
 
 export function serializeComposition(state, laser, cols) {
   return JSON.stringify({
-    v: 1, name: state.name || 'Composição', cols, master: state.master, speed: state.speed, compFx: state.compFx, compAutopilot: state.compAutopilot,
+    v: 1, name: state.name || 'Composição', cols, colNames: state.colNames || {}, settings: state.settings, master: state.master, speed: state.speed, compFx: state.compFx, compAutopilot: state.compAutopilot,
     layers: state.layers.map(L => ({ name: L.name, opacity: L.opacity, blend: L.blend, bypass: L.bypass, autopilot: L.autopilot, fx: L.fx, transform: L.transform, transition: L.transition, on: L.on, clips: L.clips.map(serializeClip) })),
     screens: JSON.parse(M.serialize(state.screens)),
     laser: JSON.parse(serializeLaser(laser.frames, laser.settings, laser.frames.indexOf(laser.active))),
@@ -20,6 +22,7 @@ export async function deserializeComposition(json, ctx) {
   const lz = d.laser ? deserializeLaser(d.laser) : null;
   const laserById = (id) => lz && d.laser.frames ? lz.frames[d.laser.frames.findIndex((f, i) => i === id)] : null;
   let missing = 0;
+  if (ctx.setCols && d.cols) ctx.setCols(d.cols);
   const layers = [];
   for (const l of d.layers || []) {
     const L = ctx.mkLayer(l.name || 'Camada');
@@ -34,5 +37,5 @@ export async function deserializeComposition(json, ctx) {
     }
     layers.push(L);
   }
-  return { name: d.name, master: d.master ?? 1, speed: d.speed ?? 1, compFx: d.compFx || [], compAutopilot: Object.assign(AUTOPILOT(), d.compAutopilot || {}), layers, screens: d.screens ? M.deserialize({ screens: d.screens.screens || d.screens }) : null, laser: lz, missing };
+  return { name: d.name, settings: Object.assign(SETTINGS(), d.settings || {}), colNames: d.colNames || {}, master: d.master ?? 1, speed: d.speed ?? 1, compFx: d.compFx || [], compAutopilot: Object.assign(AUTOPILOT(), d.compAutopilot || {}), layers, screens: d.screens ? M.deserialize({ screens: d.screens.screens || d.screens }) : null, laser: lz, missing };
 }

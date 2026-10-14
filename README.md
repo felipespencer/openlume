@@ -26,6 +26,28 @@ npm start
   nele em tela cheia. Numa janela comum, F ou duplo clique alterna a tela cheia.
 - Abrir o programa começa sempre do zero.
 
+### Barra de menus (como no Resolume)
+
+**Projecionista** (Preferências: pasta das gravações, FPS na barra, divisórias; Sobre; Sair) ·
+**Composição** (Nova, Abrir, Abrir recente, Salvar, Salvar como, Copiar/Colar efeitos,
+Transporte global, Disparo de clipe padrão, Disparar primeira coluna ao abrir,
+**Configurações…**) · **Camada** (nova, inserir acima/abaixo, duplicar, renomear, efeitos,
+ignorar disparo de coluna, limpar, remover) · **Coluna** (nova, inserir, duplicar, renomear,
+limpar, remover, remover todas antes/depois — o número de colunas é livre) · **Clipe**
+(transporte, alvo, estilo de disparo, ignorar coluna, ajuste, miniatura do quadro atual,
+recortar/copiar/colar, efeitos, renomear, limpar, mostrar no Explorer, preparar, instantâneo)
+· **Saída** (desligada, tela cheia por monitor, janela, automático, Avançada…, identificar,
+Test Card, instantâneo) · **Atalhos** (Teclado… lista os atalhos que funcionam) · **Ver**
+(Laser, Saída avançada, FPS, painéis e abas). Deck e Grupo entram quando existirem.
+
+**Configurações da composição** (Ctrl+Shift+C): nome, descrição, tamanho (presets de Full HD
+a 4K, em pé, dois Full HD lado a lado, ou personalizado — o motor, a prévia e os slices que
+recortam a composição inteira acompanham), taxa de quadros (24–60), cor de fundo, disparo
+padrão das casas novas, disparar a coluna 1 ao abrir. Tudo vai para o arquivo da composição.
+
+Atalhos: Ctrl+N/O/S/Shift+S, Ctrl+Shift+C, Ctrl+, (preferências), Ctrl+X/C/V (clipe),
+Delete (limpar casa), Enter (disparar casa), Esc (tirar a camada do ar), Ctrl+Q.
+
 ### Janela
 
 As divisórias entre a grade e os monitores, entre o meio e o rodapé e entre os três painéis
