@@ -28,8 +28,10 @@ npm start
 
 ### Saída avançada
 
-O botão "Saída avançada", no monitor da composição, abre o editor de telas, no formato do
-Advanced Output do Resolume:
+O botão "Saída avançada", no monitor da composição, abre o editor de telas, copiado do
+Advanced Output do Resolume (Presets e telas à esquerda com a caixa de ajuda embaixo, abas
+Seleção de entrada e Transformação de saída, propriedades à direita, Cancelar e Salvar e
+fechar embaixo). Ctrl+Z desfaz, Ctrl+Y refaz; a barra de espaço arrasta a vista.
 
 - **Tela** é um projetor (ou uma janela). Cada tela tem destino, tamanho, opacidade e cor.
 - **Slice** recorta um pedaço da composição (aba Entrada: posição, tamanho, giro, fonte) e o

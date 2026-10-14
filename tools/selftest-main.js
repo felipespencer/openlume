@@ -93,10 +93,12 @@ module.exports = (win, app) => {
         if(window.projDesktop){ await window.projDesktop.presets.save('teste-automatico',json); const lista=await window.projDesktop.presets.list(); const lido=await window.projDesktop.presets.load('teste-automatico'); await window.projDesktop.presets.remove('teste-automatico'); R.preset={na:lista.includes('teste-automatico'),igual:lido===json, depois:(await window.projDesktop.presets.list()).includes('teste-automatico')}; }
         // editor: abre, mostra as duas abas, cancelar devolve o que estava
         P.ao.show(); await S(300);
-        R.editor={aberto:!document.getElementById('ao').hidden, linhas:document.querySelectorAll('#aoList .row').length, slices:document.querySelectorAll('#aoSvg .slice').length, grupos:document.querySelectorAll('#aoProps .grp').length};
+        R.editor={aberto:!document.getElementById('ao').hidden, linhas:document.querySelectorAll('#aoList .row').length, slices:document.querySelectorAll('#aoSvg .slice').length, grupos:document.querySelectorAll('#aoProps .prow').length};
         P.ao.setTab('out'); await S(100);
         R.editorOut={slices:document.querySelectorAll('#aoSvg .slice').length, ancoras:0};
         P.ao.select(sc,s1); P.ao.setMode('pts'); await S(50); R.editorOut.ancoras=document.querySelectorAll('#aoSvg .hd.anc').length;
+        // desfazer: apaga o slice 2 e volta
+        P.ao.removeItem(s2); const n1=sc.items.length; P.ao.undo(); await S(100); R.desfazer={depoisApagar:n1, depoisDesfazer:P.screens()[0].items.length, refazer:(P.ao.redo(), P.screens()[0].items.length)}; P.ao.undo();
         window.__shotEditor=true;
         return R;
       })()`, true);
@@ -133,8 +135,9 @@ module.exports = (win, app) => {
       ok('espelhar', r.flipAntes[0] < 30 && r.flipDepois[0][0] > 200 && r.flipDepois[1].join() === '0,0,0', 'borda direita: ' + r.flipAntes + ' → ' + r.flipDepois[0] + '; a faixa preta foi para a esquerda ' + r.flipDepois[1]);
       ok('salvar e abrir', r.serial.telas === 1 && r.serial.itens === 2 && r.serial.in && r.serial.pts, 'preset volta com os mesmos retângulos e pontos');
       ok('preset em disco', r.preset && r.preset.na && r.preset.igual && !r.preset.depois, r.preset ? 'gravado, lido igual e apagado' : 'sem ponte com o processo principal');
-      ok('editor', r.editor.aberto && r.editor.linhas === 3 && r.editor.slices === 2 && r.editor.grupos >= 6 && r.editorOut.slices === 2 && r.editorOut.ancoras === 8,   // malha 3×1 = 4×2 âncoras
-        r.editor.linhas + ' linhas na árvore, ' + r.editor.slices + ' slices na Entrada, ' + r.editorOut.slices + ' na Saída, ' + r.editorOut.ancoras + ' âncoras, ' + r.editor.grupos + ' grupos de propriedades');
+      ok('editor', r.editor.aberto && r.editor.linhas === 3 && r.editor.slices === 2 && r.editor.grupos >= 8 && r.editorOut.slices === 2 && r.editorOut.ancoras === 8,   // malha 3×1 = 4×2 âncoras
+        r.editor.linhas + ' linhas na árvore, ' + r.editor.slices + ' slices na Entrada, ' + r.editorOut.slices + ' na Saída, ' + r.editorOut.ancoras + ' âncoras, ' + r.editor.grupos + ' linhas de propriedades');
+      ok('desfazer e refazer', r.desfazer.depoisApagar === 1 && r.desfazer.depoisDesfazer === 2 && r.desfazer.refazer === 1, 'apagar → 1 item, desfazer → 2, refazer → 1');
 
       await shot(win, 'pc-editor-saida.png');
       await win.webContents.executeJavaScript(`window.projecionista.ao.setTab('in'); true`, true); await sleep(200);

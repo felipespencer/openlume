@@ -23,12 +23,21 @@ de trabalhar.
    - **Painel do Resolume na janela principal** (pedido em 2026-10-14): as abas Arquivos,
      Composições, Efeitos, Fontes e Gravar, copiadas do jeito que ele as tem. Arquivos navega
      as pastas do computador; Composições lista as salvas; Efeitos e Fontes se arrastam para a
-     grade; Gravar grava a saída
+     grade; Gravar grava a saída. Reforçado logo depois: "copie o autopilot, os efeitos mais
+     novos que tiver, as fontes e o gravar" — o Autopilot (próximo clipe sozinho, por camada)
+     entra junto, e os efeitos a copiar são os mais recentes do Resolume
+   - A Saída avançada tem de ficar **mais parecida com a do Resolume** (2026-10-14). Referência:
+     capturas reais do Advanced Output 7.26 feitas nesta máquina
 2. **Transição** entre clipes da mesma camada (duração e modo)
 3. **Transporte do clipe**: trecho de entrada e saída, vai e volta, tocar uma vez, ré
 4. **Efeitos** no clipe, na camada e na composição (os 24 do Projecionista antigo primeiro)
 5. **Salvar e abrir a composição**, com os arquivos de mídia por caminho
 6. **Fontes além de arquivo**: texto, câmera, cor sólida, shader gerador
+   - **LaserCube** (pedido em 2026-10-14: "ligar meu lasercube como fonte assim como a câmera").
+     O LaserCube é um projetor a laser da Wicked Lasers (USB ou Wi-Fi) que recebe trajetórias
+     de pontos, não pixels. A confirmar com o Felipe o que ele quer: (a) o laser como **tela**
+     da Saída avançada, desenhando os contornos da composição ou formas vetoriais, ou (b) uma
+     fonte que mostra na composição o que o laser está desenhando
 7. **Decks**
 8. **Grupos de camadas**, solo, máscara de camada, crossfader A/B
 9. **MIDI**: clicar no controle e mexer na controladora para amarrar; teclado também
