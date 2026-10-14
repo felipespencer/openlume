@@ -7,12 +7,27 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node tools/selftest.mjs"
+    "test": "node tools/selftest.mjs",
+    "dist": "electron-builder --win nsis --x64"
+  },
+  "author": "Felipe Spencer",
+  "build": {
+    "appId": "br.com.projecionista",
+    "productName": "Projecionista",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "lasercube.js", "app/**/*", "package.json"],
+    "extraResources": [{ "from": "tools/ffmpeg", "to": "ffmpeg", "filter": ["ffmpeg.exe"] }],
+    "asar": false,
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "zip", "arch": ["x64"] }], "signAndEditExecutable": false },
+    "msi": { "oneClick": false, "perMachine": false, "runAfterFinish": true, "createDesktopShortcut": true, "shortcutName": "Projecionista", "additionalLightArgs": ["-sval"] },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "Projecionista", "language": "1046" }
   },
   "devDependencies": {
-    "electron": "^33.4.11"
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
   },
   "dependencies": {
-    "mp4box": "^2.4.1"
+    "mp4box": "^2.4.1",
+    "onnxruntime-web": "^1.19.2"
   }
 }

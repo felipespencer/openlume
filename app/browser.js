@@ -2,6 +2,7 @@
 // Fontes · Gravar, com a caixa de ajuda embaixo.
 import { el, ICON } from './panel.js';
 import { EFFECTS } from './effects.js';
+import { AUDIO_FX } from './audio.js';
 import { SOURCES } from './sources.js';
 import { isVideoName, isImageName, mediaUrl } from './clips.js';
 import { isPrepared } from './player.js';
@@ -117,8 +118,16 @@ export class Browser {
       r.ondblclick = () => this.c.addEffectToSelection(e.id);
       list.appendChild(r);
     }
-    list.appendChild(el('div', 'grp dim', 'EFEITOS DE ÁUDIO'));
-    list.appendChild(el('div', 'vazio', 'Entram com a camada de áudio (item 13 do rumo).'));
+    list.appendChild(el('div', 'grp', 'EFEITOS DE ÁUDIO'));
+    for (const e of AUDIO_FX) {
+      if (!this.match(e.name)) continue;
+      const r = el('div', 'item fx'); r.draggable = true; r.dataset.help = e.name + '|' + e.desc + ' Arraste para um clipe de vídeo; duplo clique põe no clipe selecionado.';
+      r.append(el('span', '', e.name));
+      r.ondragstart = (ev) => { ev.dataTransfer.effectAllowed = 'copy'; ev.dataTransfer.setData('text/plain', 'afx:' + e.id); this.c.setDrag({ afx: e.id }); };
+      r.ondragend = () => this.c.setDrag(null);
+      r.ondblclick = () => this.c.addAudioFxToSelection(e.id);
+      list.appendChild(r);
+    }
   }
   // ---------- Fontes ----------
   async renderSrc(P) {

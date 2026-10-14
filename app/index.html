@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob: data:; media-src 'self' blob: mediastream:; style-src 'self' 'unsafe-inline'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; img-src 'self' blob: data:; media-src 'self' blob: mediastream:; style-src 'self' 'unsafe-inline'">
 <title>Projecionista</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -14,6 +14,7 @@
     <span id="fpsBox" class="st" hidden></span>
     <span class="sp"></span>
     <button id="btnLaser" type="button" title="LaserCube: desenhar, escrever e mandar SVG para o laser">Laser</button>
+    <span id="midiState" class="st" title="Akai APC40 mkII: o programa acha sozinho quando o cabo está ligado"></span>
     <span id="outState" class="st">saída fechada</span>
     <button id="btnOut" type="button" title="Abre uma janela de saída por tela. Com um projetor ligado, ela já abre nele em tela cheia.">Abrir saída</button>
   </div>
@@ -21,6 +22,7 @@
   <div id="mid">
     <div id="gridCol">
       <div id="gridWrap"><div id="grid"></div></div>
+      <div id="bpmBar" title="Relógio de BPM: tudo que anima na batida segue este relógio"></div>
       <div id="xfade" title="Crossfader: as camadas e grupos no bus A ficam à esquerda, as do bus B à direita"></div>
       <div id="decks" title="Decks: cada um guarda os seus clipes; as camadas são as mesmas"></div>
     </div>
@@ -43,6 +45,7 @@
   <div id="toast"></div>
   <div id="ao" hidden></div>
   <div id="lz" hidden></div>
+  <script src="vendor/ort/ort.min.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -15,6 +15,7 @@ import { softWidths, allSlices } from './screens.js';
 import { effectById, EFFECT_HELPERS } from './effects.js';
 import { sourceById } from './sources.js';
 import { FS_MIX, mixerCode, normMixer, hexRgb, MIXER_OPT } from './mixers.js';
+import { animValue } from './beat.js';
 
 // camada/clipe: quad com ajuste, posição, escala e giro
 const VS_LAYER = `#version 300 es
@@ -81,11 +82,12 @@ const FS_COPY = `#version 300 es
 precision highp float; in vec2 v; out vec4 o; uniform sampler2D uTex; uniform int uOpaque;
 void main(){ vec4 c = texture(uTex, v); o = uOpaque != 0 ? vec4(c.rgb, 1.0) : c; }`;
 const FX_HEAD = `#version 300 es
-precision highp float; in vec2 v; out vec4 o; uniform sampler2D uTex; uniform vec2 uRes; uniform float uTime;
+precision highp float; in vec2 v; out vec4 o; uniform sampler2D uTex; uniform sampler2D uPrev; uniform vec2 uRes; uniform float uTime;
 `;
 
 export const FITS = { contain: 'Encaixar', cover: 'Preencher', stretch: 'Esticar' };
-export const IDENT_TR = () => ({ x: 0, y: 0, scale: 1, rot: 0 });
+export const IDENT_TR = () => ({ x: 0, y: 0, scale: 1, sx: 1, sy: 1, rot: 0 });   // tamanho final: largura = scale*sx, altura = scale*sy
+const trIdent = (t) => !t || !(t.x || t.y || t.scale !== 1 || t.rot || (t.sx ?? 1) !== 1 || (t.sy ?? 1) !== 1);
 
 export class Engine {
   constructor(width, height) {
@@ -122,7 +124,8 @@ export class Engine {
     this.mixFbo = [this.fbo(width, height), this.fbo(width, height), this.fbo(width, height), this.fbo(width, height)];   // mistura: clipe antigo, clipe novo, camada pronta, cópia do alvo
     this.compFx = []; this.bg = [0, 0, 0];
     this.groupFbo = new Map();    // group.id → fbo (as camadas do grupo juntas)
-    this.groups = []; this.xfade = null; this.soloL = false;
+    this.groups = []; this.xfade = null; this.soloL = false; this.beat = null;   // beat: o relógio de BPM (app.js)
+    this.fxMem = new WeakMap();   // instância de efeito com feedback → { a, b, i, w, h }: a saída do quadro anterior
   }
   // Configurações da composição: tamanho novo refaz as texturas que dependem dele
   setSize(w, h) {
@@ -189,8 +192,10 @@ export class Engine {
     }
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, e.t);
     const el = clip.el; if (!el && !clip.player) return e.t;
-    if (clip.player) {   // reprodutor próprio: o quadro decodificado pela placa de vídeo
-      const p = clip.player; if (p.frame && e.rev !== p.frameId) { try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, p.frame); e.rev = p.frameId; } catch { } }
+    if (clip.player) {   // reprodutor próprio: tocando a 1x é o <video> escondido; parado, esfregando ou na ré é o quadro do WebCodecs
+      const p = clip.player;
+      if (p.live && p.audio && p.audio.readyState >= 2) { try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, p.audio); e.rev = -1; } catch { } }
+      else if (p.frame && e.rev !== p.frameId) { try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, p.frame); e.rev = p.frameId; } catch { } }
     } else if (clip.kind === 'video' || clip.kind === 'camera') {
       if (el.readyState >= 2) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
     } else if (clip.kind === 'text' || clip.kind === 'lasermirror') {
@@ -221,18 +226,24 @@ export class Engine {
     gl.bindFramebuffer(gl.FRAMEBUFFER, f.fb); gl.viewport(0, 0, f.w, f.h); gl.disable(gl.BLEND);
     gl.useProgram(pr.p); gl.bindVertexArray(this.quadVao);
     gl.uniform2f(pr.u.uRes, f.w, f.h); gl.uniform1f(pr.u.uTime, this.time + (clip.seed || 0));
-    for (const p of def.params) gl.uniform1f(pr.u[p.key], clip.params[p.key] ?? p.def);
+    for (const p of def.params) gl.uniform1f(pr.u[p.key], this.paramValue(clip, p));
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.enable(gl.BLEND); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return f.t;
   }
 
+  // o valor de um parâmetro de efeito ou de fonte agora: o guardado, ou o animado na batida
+  paramValue(holder, p) {
+    const a = holder.panim && holder.panim[p.key];
+    if (a && a.shape && this.beat) return animValue(a, this.beat);
+    return holder.params[p.key] ?? p.def;
+  }
   // ---------- efeitos ----------
   fxProgram(def) {
     let pr = this.fxProg.get(def.id);
     if (!pr) {
       const fs = FX_HEAD + def.params.map(p => 'uniform float ' + p.key + ';').join('\n') + '\n' + EFFECT_HELPERS + def.glsl + '\nvoid main(){ o = fx(v); }';
-      pr = this.program(VS_QUAD, fs, ['uTex', 'uRes', 'uTime', ...def.params.map(p => p.key)]); this.fxProg.set(def.id, pr);
+      pr = this.program(VS_QUAD, fs, ['uTex', 'uPrev', 'uRes', 'uTime', ...def.params.map(p => p.key)]); this.fxProg.set(def.id, pr);
     }
     return pr;
   }
@@ -244,14 +255,23 @@ export class Engine {
     let src = tex, i = 0;
     for (const f of live) {
       const def = effectById(f.id), pr = this.fxProgram(def);
-      let dst = this.scratch[1 + (i & 1)];
-      if (dst.w !== w || dst.h !== h) { gl.deleteFramebuffer(dst.fb); gl.deleteTexture(dst.t); dst = this.scratch[1 + (i & 1)] = this.fbo(w, h); }
-      if (dst.t === src) { dst = this.scratch[1 + ((i + 1) & 1)]; }
+      let dst, prev = this.white;
+      if (def.feedback) {   // a saída anterior entra em uPrev; desenha na outra textura do par
+        let m = this.fxMem.get(f);
+        if (!m || m.w !== w || m.h !== h) { if (m) { for (const q of [m.a, m.b]) { gl.deleteFramebuffer(q.fb); gl.deleteTexture(q.t); } } m = { a: this.fbo(w, h), b: this.fbo(w, h), i: 0, w, h }; this.fxMem.set(f, m); }
+        dst = m.i ? m.b : m.a; prev = (m.i ? m.a : m.b).t; m.i ^= 1;
+      } else {
+        if (def.mask && f._maskTex) prev = f._maskTex;   // Background Removal: a máscara da segmentação
+        dst = this.scratch[1 + (i & 1)];
+        if (dst.w !== w || dst.h !== h) { gl.deleteFramebuffer(dst.fb); gl.deleteTexture(dst.t); dst = this.scratch[1 + (i & 1)] = this.fbo(w, h); }
+        if (dst.t === src) { dst = this.scratch[1 + ((i + 1) & 1)]; }
+      }
       gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fb); gl.viewport(0, 0, w, h);
       gl.useProgram(pr.p);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, prev); gl.uniform1i(pr.u.uPrev, 1);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src); gl.uniform1i(pr.u.uTex, 0);
       gl.uniform2f(pr.u.uRes, w, h); gl.uniform1f(pr.u.uTime, this.time);
-      for (const p of def.params) gl.uniform1f(pr.u[p.key], f.params[p.key] ?? p.def);
+      for (const p of def.params) gl.uniform1f(pr.u[p.key], this.paramValue(f, p));
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       src = dst.t; i++;
     }
@@ -274,7 +294,7 @@ export class Engine {
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(P.u.uTex, 0);
     const [sx, sy] = clip ? this.fitScale(clip, W, H) : [1, 1];
     const t = tr || IDENT_TR();
-    gl.uniform2f(P.u.uScale, sx * t.scale, sy * t.scale);
+    gl.uniform2f(P.u.uScale, sx * t.scale * (t.sx ?? 1), sy * t.scale * (t.sy ?? 1));
     gl.uniform2f(P.u.uPos, t.x, t.y); gl.uniform1f(P.u.uRot, -t.rot * Math.PI / 180); gl.uniform1f(P.u.uAspect, W / H);
     gl.uniform1f(P.u.uOp, opacity);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -320,7 +340,7 @@ export class Engine {
   compositeInto(target, tex, fx, transform, op, blend, opt, W, H, seed) {
     const gl = this.gl, F = this.mixFbo, tr = transform || IDENT_TR();
     let src = this.applyChain(tex, W, H, fx);
-    if (src !== tex || tr.x || tr.y || tr.scale !== 1 || tr.rot) {
+    if (src !== tex || !trIdent(tr)) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, F[2].fb); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
       this.drawClipQuad(src, null, tr, 1, W, H, 'normal'); src = F[2].t;
     }
@@ -350,7 +370,7 @@ export class Engine {
         const c = clip, chain = [...(c.fx || []), ...(L.fx || [])];
         let tex = this.texFor(c), tr = L.transform || IDENT_TR();
         gl.bindFramebuffer(gl.FRAMEBUFFER, target.fb); gl.viewport(0, 0, W, H);
-        if (chain.length || (c.transform && (c.transform.x || c.transform.y || c.transform.scale !== 1 || c.transform.rot))) {
+        if (chain.length || !trIdent(c.transform)) {
           const s = this.scratch[0];
           gl.bindFramebuffer(gl.FRAMEBUFFER, s.fb); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
           this.drawClipQuad(tex, c, c.transform, 1, W, H, 'normal');
@@ -414,10 +434,11 @@ export class Engine {
     }
     // efeitos da composição e o master
     const out = this.applyChain(this.comp.t, W, H, this.compFx);
-    if (out !== this.comp.t || this.master < 1) {
+    const ct = this.compTransform;   // posição, escala e giro da composição inteira (painel Composição)
+    if (out !== this.comp.t || this.master < 1 || !trIdent(ct)) {
       const s = this.scratch[0];
       gl.bindFramebuffer(gl.FRAMEBUFFER, s.fb); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
-      this.drawClipQuad(out, null, null, this.master, W, H, 'normal');
+      this.drawClipQuad(out, null, ct, this.master, W, H, 'normal');
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.comp.fb);
       this.copyInto(s.t, W, H, true);
     }

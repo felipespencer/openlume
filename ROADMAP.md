@@ -86,7 +86,10 @@ casa específica (camada + coluna) ou parar; no fim do clipe ou depois de N segu
    feitos pelo que se vê no programa. Os quatro modos antigos (Normal/Somar/Tela/Multiplicar) viraram
    Alpha/Add/Screen/Multiply com o comportamento do Resolume (Add a 100 % é normal por cima)
 3. **Transporte do clipe**: trecho de entrada e saída, vai e volta, tocar uma vez, ré
-4. **Efeitos** no clipe, na camada e na composição (os 24 do Projecionista antigo primeiro)
+4. **Efeitos** no clipe, na camada e na composição — **feito em 2026-10-14**: os 90 de vídeo do
+   Resolume (`app/effects.js` e `app/effects2.js`, com memória de quadro para os de rastro) e os
+   6 de áudio (`app/audio.js`). Fora: Text Animator (o Text Block é fonte) e Depth (modelos de
+   profundidade pesados)
 5. **Salvar e abrir a composição**, com os arquivos de mídia por caminho
 6. **Fontes além de arquivo**: texto, câmera, cor sólida, shader gerador
    - **LaserCube** (pedido em 2026-10-14: "ligar meu lasercube como fonte assim como a câmera").
@@ -110,17 +113,30 @@ casa específica (camada + coluna) ou parar; no fim do clipe ou depois de N segu
    (recolher, X, B, S, fader, disparo de coluna do grupo), painel Grupo, menu Grupo completo,
    solo de camada e de grupo, crossfader com bus A/B por camada ou grupo, curva e botões A/B.
    Fora: máscara de camada (entra com os efeitos de máscara, item 4)
-9. **MIDI**: clicar no controle e mexer na controladora para amarrar; teclado também
+9. **MIDI**: clicar no controle e mexer na controladora para amarrar; teclado também — amarrar
+   na mão ainda não; a APC40 mkII entrou nativa (abaixo)
    - **Akai APC40 mkII com compatibilidade nativa total** (pedido do Felipe em 2026-10-13): ligar
      o cabo e funcionar, sem amarrar nada. Os 40 pads são a grade (8 colunas × 5 camadas) e
      acendem na cor do estado de cada casa (vazia, guardada, no ar); faders, knobs, botões de
      pista, de cena e o crossfader já saem ligados aos controles equivalentes. O programa põe a
-     controladora no modo certo por SysEx ao conectar
-10. **BPM**: tempo, sincronia de clipe e de efeito com a batida
+     controladora no modo certo por SysEx ao conectar — **feito em 2026-10-14** (`app/apc40.js`):
+     o mapa é o do Resolume (lido de `default/Shortcuts/MIDI/APC 40 MK II.xml`), estendido para
+     4 camadas, 8 colunas, crossfader, decks, BPM e knobs nos parâmetros. **Falta provar com a
+     controladora de verdade** (cores dos pads, modo SysEx, anéis dos knobs)
+10. **BPM**: tempo, sincronia de clipe e de efeito com a batida — **feito em 2026-10-14**: relógio
+    com TAP, nudge, /2 ×2, RESYNC, pausa, metrônomo e luzes; Beat Snap da composição e por coluna;
+    BPM Sync no transporte do clipe; parâmetros de efeito e fonte animados na batida com as formas
+    dos presets do Resolume (`app/beat.js`); autopilot em batidas. Fora: Ableton Link, SMPTE e
+    animação por FFT (item 13)
 11. **Autopilot**: próximo clipe sozinho
-12. **Tirar o fundo da webcam** e efeitos de profundidade (novidades do Resolume 7.28)
-13. **Áudio** do clipe e reação ao som (FFT)
-14. **Instalador** para Windows e publicação como projeto aberto
+12. **Tirar o fundo da webcam** e efeitos de profundidade — **Background Removal feito em
+    2026-10-14** (`app/segment.js`, PP-HumanSeg em ONNX no onnxruntime-web). Profundidade fica
+    para depois (Depth Anything é 99 MB)
+13. **Áudio** do clipe e reação ao som (FFT) — **feito em 2026-10-14**: grafo WebAudio por clipe,
+    efeitos de áudio, FFT da composição ou do microfone, forma "FFT" nos parâmetros animados
+14. **Instalador** para Windows e publicação como projeto aberto — instalador **feito em
+    2026-10-14** (`npm run dist`, electron-builder/NSIS); LICENSE MIT no repositório; publicar no
+    GitHub depende do Felipe (nome do repositório e conta)
 
 Fora, por enquanto: DMX e luminárias (Lumiverse), NDI e Spout.
 

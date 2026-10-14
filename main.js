@@ -1,13 +1,40 @@
 // Projecionista — processo principal (Electron).
 // Serve a pasta app/ por um esquema próprio (app://projecionista/), abre a janela de controle
 // e põe cada janela de saída no monitor que a tela pede.
-const { app, BrowserWindow, Menu, protocol, net, session, screen, ipcMain, shell } = require('electron');
+const { app, crashReporter, BrowserWindow, Menu, protocol, net, session, screen, ipcMain, shell } = require('electron');
 const { Readable } = require('node:stream');
 const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const { LaserCube } = require('./lasercube.js');
+
+// ---------- registro de travamentos ----------
+// Tudo que derruba o programa vai para projecionista.log na pasta de dados (menu Projecionista →
+// Abrir o registro): erros do processo principal, janela que caiu (com o motivo do Chromium),
+// processo de GPU que caiu, e os erros que a própria janela manda. Os minidumps ficam em crashDumps.
+const LOG_FILE = () => path.join(app.getPath('userData'), 'projecionista.log');
+let lastCrash = '';
+function logLine(kind, msg) {
+  try { const f = LOG_FILE(); try { if (fs.statSync(f).size > 2e6) fs.renameSync(f, f + '.old'); } catch { } fs.appendFileSync(f, new Date().toISOString() + ' [' + kind + '] ' + String(msg).replace(/\r?\n/g, ' | ').slice(0, 4000) + '\n'); } catch { }
+}
+process.on('uncaughtException', (e) => { logLine('principal', (e && e.stack) || e); });
+process.on('unhandledRejection', (e) => { logLine('principal-promise', (e && e.stack) || e); });
+try { crashReporter.start({ submitURL: '', uploadToServer: false, compress: false }); } catch { }
+const RECOVER_FILE = () => path.join(app.getPath('userData'), 'recuperar.txt');
+app.on('child-process-gone', (_e, d) => {
+  logLine('processo', (d.type || '?') + ' ' + (d.name || '') + ' caiu: ' + d.reason + ' (código ' + d.exitCode + ')');
+  if (d.type === 'GPU' && !process.env.PROJ_TEST && !relaunching) {
+    // depois que o processo de GPU cai, o WebGL desta sessão não volta confiável: reabre o programa
+    // inteiro (a janela já salvou a composição automática ao perder o contexto) e recupera ao abrir
+    relaunching = true; logLine('processo', 'reabrindo o programa por causa da placa de vídeo');
+    try { fs.writeFileSync(RECOVER_FILE(), 'a placa de vídeo travou (' + d.reason + ' ' + d.exitCode + ')'); } catch { }
+    setTimeout(() => { app.relaunch(); app.exit(0); }, 1200);
+  }
+});
+let relaunching = false;
+// opções de teste da placa de vídeo: PROJ_FLAGS="disable-accelerated-video-decode,use-angle=gl"
+for (const f of (process.env.PROJ_FLAGS || '').split(',').map(s => s.trim()).filter(Boolean)) { const [k, v] = f.split('='); if (v != null) app.commandLine.appendSwitch(k, v); else app.commandLine.appendSwitch(k); logLine('abriu', 'opção: --' + f); }
 
 const APP_DIR = path.join(__dirname, 'app');
 const MIME = { mp4: 'video/mp4', m4v: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', mkv: 'video/x-matroska', ogv: 'video/ogg', avi: 'video/x-msvideo', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', avif: 'image/avif', svg: 'image/svg+xml' };
@@ -77,7 +104,7 @@ const COMP_DIR = () => path.join(app.getPath('userData'), 'composicoes');
 const REC_DIR = (dir) => dir || path.join(app.getPath('videos'), 'Projecionista');
 const safeName = (name) => { const s = String(name).replace(/[\\/:*?"<>|]/g, '').trim(); if (!s) throw new Error('nome vazio'); return s; };
 const ORIGIN = 'app://projecionista';
-const ALLOWED = /^\/[\w./-]+\.(html|css|js|mjs|png|svg|ico)$/;
+const ALLOWED = /^\/[\w./-]+\.(html|css|js|mjs|png|svg|ico|wasm|onnx|txt)$/;
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
@@ -114,6 +141,12 @@ function createMain() {
     backgroundColor: '#1b1c1f', title: 'Projecionista', autoHideMenuBar: true,
     webPreferences: { ...PREFS, preload: path.join(APP_DIR, 'preload.js') },
   });
+  win.webContents.on('render-process-gone', (_e, d) => {
+    lastCrash = 'a janela caiu: ' + d.reason + ' (código ' + d.exitCode + ')'; logLine('janela', lastCrash + ' — reabrindo');
+    if (d.reason !== 'clean-exit' && d.reason !== 'killed' && !win.isDestroyed()) setTimeout(() => { try { win.webContents.reload(); } catch { } }, 500);
+  });
+  win.webContents.on('unresponsive', () => logLine('janela', 'parou de responder'));
+  win.webContents.on('responsive', () => logLine('janela', 'voltou a responder'));
   // janela de saída: output.html?screen=ID&display=<id do monitor | window | auto>
   // "auto" pega o primeiro monitor que não é o do controle e ainda não tem saída aberta
   const taken = new Map();   // display id → janela de saída que o ocupa
@@ -164,6 +197,13 @@ app.whenReady().then(async () => {
   try { await session.defaultSession.clearCache(); } catch {}
 
   ipcMain.handle('displays', () => displayList());
+  ipcMain.on('log', (_e, kind, msg) => logLine('janela:' + String(kind).slice(0, 20), msg));
+  ipcMain.handle('log:show', () => { try { fs.appendFileSync(LOG_FILE(), ''); } catch { } shell.showItemInFolder(LOG_FILE()); return LOG_FILE(); });
+  ipcMain.handle('log:lastCrash', () => { let c = lastCrash; lastCrash = ''; try { const f = RECOVER_FILE(); if (fs.existsSync(f)) { c = c || fs.readFileSync(f, 'utf8'); fs.unlinkSync(f); } } catch { } return c; });
+  ipcMain.handle('log:path', () => LOG_FILE());
+  ipcMain.handle('env:test', () => !!process.env.PROJ_TEST);
+  ipcMain.handle('app:relaunch', () => { try { fs.writeFileSync(RECOVER_FILE(), 'a placa de vídeo não voltou'); } catch { } app.relaunch(); app.exit(0); });
+  logLine('abriu', 'Projecionista ' + app.getVersion() + ' · Electron ' + process.versions.electron + ' · ' + process.platform + ' ' + process.arch + (app.isPackaged ? ' · instalado' : ' · desenvolvimento'));
   // diagnóstico: onde cada janela está de verdade (bounds em DIP, tela cheia, monitor que a contém)
   ipcMain.handle('windows', () => BrowserWindow.getAllWindows().map(w => ({ title: w.getTitle(), bounds: w.getBounds(), content: w.getContentBounds(), full: w.isFullScreen(), display: String(screen.getDisplayMatching(w.getBounds()).id) })));
   ipcMain.handle('presets:list', () => {
@@ -181,7 +221,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('prefs:get', () => { try { return JSON.parse(fs.readFileSync(PREFS_FILE(), 'utf8')); } catch { return {}; } });
   ipcMain.handle('prefs:set', (_e, p) => { fs.writeFileSync(PREFS_FILE(), JSON.stringify(p || {})); return true; });
   ipcMain.handle('comps:list', () => {
-    try { return fs.readdirSync(COMP_DIR()).filter(f => f.endsWith('.json')).map(f => { const full = path.join(COMP_DIR(), f); let layers = 0; try { layers = (JSON.parse(fs.readFileSync(full, 'utf8')).layers || []).length; } catch { } return { name: f.slice(0, -5), mtime: fs.statSync(full).mtimeMs, layers }; }).sort((a, b) => b.mtime - a.mtime); } catch { return []; }
+    try { return fs.readdirSync(COMP_DIR()).filter(f => f.endsWith('.json') && !f.startsWith('_')).map(f => { const full = path.join(COMP_DIR(), f); let layers = 0; try { layers = (JSON.parse(fs.readFileSync(full, 'utf8')).layers || []).length; } catch { } return { name: f.slice(0, -5), mtime: fs.statSync(full).mtimeMs, layers }; }).sort((a, b) => b.mtime - a.mtime); } catch { return []; }
   });
   ipcMain.handle('comps:load', (_e, name) => fs.readFileSync(path.join(COMP_DIR(), safeName(name) + '.json'), 'utf8'));
   ipcMain.handle('comps:save', (_e, name, json) => { if (typeof json !== 'string' || json.length > 50e6) throw new Error('composição inválida'); fs.mkdirSync(COMP_DIR(), { recursive: true }); fs.writeFileSync(path.join(COMP_DIR(), safeName(name) + '.json'), json); return true; });
@@ -191,6 +231,13 @@ app.whenReady().then(async () => {
   ipcMain.handle('rec:show', (_e, p) => { shell.showItemInFolder(String(p)); return true; });
   ipcMain.handle('media:prepare', (e, src, fmt) => prepareMedia(String(src), fmt, (f) => { if (!e.sender.isDestroyed()) e.sender.send('media:progress', { src, f }); }));
   ipcMain.handle('media:read', (_e, p) => { const b = fs.readFileSync(String(p)); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); });
+  // um trecho do arquivo: o reprodutor próprio lê o cabeçalho em pedaços e depois só os quadros que vai mostrar
+  ipcMain.handle('media:readRange', (_e, p, off, len) => {
+    off = Math.max(0, Number(off) || 0); len = Math.max(0, Math.min(64 * 1024 * 1024, Number(len) || 0));
+    const fd = fs.openSync(String(p), 'r');
+    try { const size = fs.fstatSync(fd).size; len = Math.max(0, Math.min(len, size - off)); const b = Buffer.alloc(len); let got = 0; while (got < len) { const n = fs.readSync(fd, b, got, len - got, off + got); if (!n) break; got += n; } return { size, data: b.buffer.slice(b.byteOffset, b.byteOffset + got) }; }
+    finally { fs.closeSync(fd); }
+  });
 
   // laser: um LaserCube por vez, controlado pela janela principal
   const laser = new LaserCube();

@@ -10,7 +10,9 @@ export class Menubar {
   constructor(root, defs) {
     this.root = root; this.defs = defs; this.open = -1; this.layer = null;
     this.render();
-    addEventListener('pointerdown', (e) => { if (this.open >= 0 && !this.root.contains(e.target) && !(this.layer && this.layer.contains(e.target))) this.close(); });
+    // clicar fora fecha (a camada transparente que cobre a tela é "fora"; só os menus em si são "dentro")
+    addEventListener('pointerdown', (e) => { if (this.open >= 0 && !this.root.contains(e.target) && !(this.layer && e.target !== this.layer && this.layer.contains(e.target))) this.close(); });
+    addEventListener('wheel', () => { if (this.open >= 0) this.close(); }, { passive: true });
     addEventListener('keydown', (e) => { if (e.key === 'Escape' && this.open >= 0) { this.close(); e.stopPropagation(); } });
     addEventListener('blur', () => this.close());
   }
@@ -29,6 +31,7 @@ export class Menubar {
     this.close(); this.open = i; this.syncButtons();
     const b = this.root.children[i], r = b.getBoundingClientRect();
     this.layer = el('div', 'menuLayer'); document.body.appendChild(this.layer);
+    this.layer.onpointerdown = (e) => { if (e.target === this.layer) this.close(); };
     this.popup(this.defs()[i].items(), r.left, r.bottom, null);
   }
   close() { if (this.layer) this.layer.remove(); this.layer = null; if (this.open >= 0) { this.open = -1; this.syncButtons(); } }

@@ -4,11 +4,17 @@
 //   node tools/drive.mjs evalfile <arquivo.js>       (idem, lendo a expressão de um arquivo)
 //   node tools/drive.mjs shot <arquivo.png> [título]  (captura a janela; padrão: Projecionista)
 //   node tools/drive.mjs list                          (lista as janelas abertas)
+//   node tools/drive.mjs close-outputs                 (fecha as janelas de saída)
 const [, , cmd, a1, a2] = process.argv;
 const base = 'http://127.0.0.1:' + (process.env.PROJ_CDP || 9333);
 const pages = await (await fetch(base + '/json')).json();
 if (cmd === 'list') { for (const p of pages) console.log(p.type, '|', p.title, '|', p.url); process.exit(0); }
-const want = cmd === 'shot' ? (a2 || 'Projecionista') : 'Projecionista';
+if (cmd === 'close-outputs') {   // fecha as janelas de saída (mesmo as que a janela de controle já não conhece)
+  const v = await (await fetch(base + '/json/version')).json(); const bws = new WebSocket(v.webSocketDebuggerUrl); await new Promise(r => bws.onopen = r);
+  let n = 0; for (const p of pages) if (p.type === 'page' && p.url.includes('output.html')) { bws.send(JSON.stringify({ id: ++n, method: 'Target.closeTarget', params: { targetId: p.id } })); }
+  await new Promise(r => setTimeout(r, 500)); console.log('fechadas', n); bws.close(); process.exit(0);
+}
+const want = cmd === 'shot' ? (a2 || 'Projecionista') : (process.env.PROJ_TARGET || 'Projecionista');   // PROJ_TARGET: título de outra janela (ex.: 'Projecionista — saída')
 const page = pages.find(p => p.type === 'page' && p.title === want) || pages.find(p => p.type === 'page' && p.title.includes(want));
 if (!page) { console.error('janela não achada:', want, pages.map(p => p.title)); process.exit(1); }
 const ws = new WebSocket(page.webSocketDebuggerUrl);

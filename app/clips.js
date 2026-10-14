@@ -3,6 +3,10 @@
 import { IDENT_TR } from './engine.js';
 import { sourceById } from './sources.js';
 import { FramePlayer, GifPlayer, isPrepared, isAnimName } from './player.js';
+// o motor de áudio (audio.js) é ligado por app.js; sem ele, volume e mudo vão direto no elemento
+let audioEngine = null;
+export const setAudioEngine = (a) => { audioEngine = a; };
+import { cloneFx } from './effects.js';
 
 let seq = 1;
 export const nextId = () => seq++;
@@ -10,8 +14,8 @@ export const nextId = () => seq++;
 // tr: transporte — in/out em segundos, modo loop|bounce|once|random, dir 1|-1, playing; audio: volume, pan, mudo;
 // blend: mistura do clipe ('' = a da camada); opacity; trig: normal|piano|toggle; ignoreColumn
 const base = (kind, name) => ({ id: seq++, name, kind, url: '', path: '', w: 0, h: 0, dur: 0, fit: 'contain', speed: 1, thumb: '', el: null, fx: [], transform: IDENT_TR(),
-  ap: { mode: 'layer', l: 0, c: 0, dur: 'clip', secs: 5 }, tr: { in: 0, out: 0, mode: 'loop', dir: 1, playing: true }, audio: { vol: 1, pan: 0, mute: false },
-  blend: '', opacity: 1, trig: 'normal', ignoreColumn: false, rev: 1 });
+  ap: { mode: 'layer', l: 0, c: 0, dur: 'clip', secs: 5, beats: 4 }, tr: { in: 0, out: 0, mode: 'loop', dir: 1, playing: true, sync: 'timeline', beats: 8 }, audio: { vol: 1, pan: 0, mute: false }, panim: {},
+  blend: '', opacity: 1, trig: 'normal', ignoreColumn: false, rev: 1, afx: [] });
 export const mediaUrl = (path) => 'app://projecionista/media/' + btoa(unescape(encodeURIComponent(path))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 export const isVideoName = (n) => /\.(mp4|webm|mov|m4v|mkv|ogv|avi)$/i.test(n);
 export const isImageName = (n) => /\.(png|jpe?g|gif|webp|bmp|avif)$/i.test(n);
@@ -131,15 +135,15 @@ export function laserClip(frame, thumbSvg) {
 }
 // cópia para outra casa: mesma mídia, elemento de vídeo próprio (cada casa toca por conta)
 export function cloneClip(c) {
-  const n = { ...c, id: seq++, fx: (c.fx || []).map(f => ({ ...f, params: { ...f.params } })), transform: { ...c.transform } };
+  const n = { ...c, id: seq++, fx: (c.fx || []).map(f => cloneFx(f)), transform: { ...c.transform } };
   if (c.kind === 'video' && c.anim) n.player = c.player.clone();
-  else if (c.kind === 'video') { const v = document.createElement('video'); v.muted = true; v.loop = false; v.playsInline = true; v.preload = 'auto'; v.src = c.url; v.playbackRate = c.speed; n.el = v; if (c.player) { n.player = new FramePlayer(c.path, null, c.url); n.player.config = c.player.config; n.player.samples = c.player.samples; n.player.allIntra = c.player.allIntra; Object.assign(n.player, { w: c.player.w, h: c.player.h, duration: c.player.duration, fps: c.player.fps, codec: c.player.codec }); n.player.newDecoder(); n.player.ready = true; n.player.audio = v; n.player.want(); } }
+  else if (c.kind === 'video') { const v = document.createElement('video'); v.muted = true; v.loop = false; v.playsInline = true; v.preload = 'auto'; v.src = c.url; v.playbackRate = c.speed; n.el = v; if (c.player) { n.player = new FramePlayer(c.path, c.player.desktop, c.url); n.player.config = c.player.config; n.player.samples = c.player.samples; n.player.allIntra = c.player.allIntra; Object.assign(n.player, { w: c.player.w, h: c.player.h, duration: c.player.duration, fps: c.player.fps, codec: c.player.codec }); n.player.newDecoder(); n.player.ready = true; n.player.audio = v; n.player.want(); } }
   n.tr = { ...c.tr }; n.audio = { ...c.audio };
   if (c.kind === 'source') { n.params = { ...c.params }; n.seed = Math.random() * 100; }
   if (c.kind === 'text') { n.text = { ...c.text }; n.el = document.createElement('canvas'); n.el.width = 1920; n.el.height = 1080; renderText(n); }
   if (c.kind === 'camera') { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.srcObject = c.stream; v.play().catch(() => { }); n.el = v; }
   if (c.kind === 'lasermirror') { n.el = document.createElement('canvas'); n.el.width = n.el.height = 1080; }
-  n.ap = { ...c.ap };
+  n.ap = { ...c.ap }; n.panim = JSON.parse(JSON.stringify(c.panim || {})); n.afx = (c.afx || []).map(f => ({ ...f, params: { ...f.params } })); n.srcNode = n.gainNode = n.panNode = null; n.afxNodes = [];
   return n;
 }
 export function stopClip(c) { if (c && c.kind === 'video') { if (c.player) c.player.pause(); if (c.el) c.el.pause(); } }
@@ -164,22 +168,31 @@ export function seekClip(c, s) { try { mediaOf(c).currentTime = Math.max(0, Math
 let actx = null;
 export function applyAudio(c) {
   const el = c.el, a = c.audio; if (!el || c.kind !== 'video') return;
+  if (audioEngine) { audioEngine.attach(c); if (c.gainNode) { audioEngine.apply(c); return; } }
   el.muted = !!a.mute; el.volume = Math.max(0, Math.min(1, a.vol));
-  if (a.pan !== 0 || c.panNode) {
-    try {
-      if (!actx) actx = new AudioContext();
-      if (!c.panNode) { c.srcNode = actx.createMediaElementSource(el); c.panNode = actx.createStereoPanner(); c.srcNode.connect(c.panNode); c.panNode.connect(actx.destination); }
-      c.panNode.pan.value = Math.max(-1, Math.min(1, a.pan));
-      if (actx.state === 'suspended') actx.resume().catch(() => { });
-    } catch { }
-  }
 }
+export function rebuildAudioFx(c) { if (audioEngine && c.srcNode) audioEngine.rebuild(c); }
+export function updateAudioFx(c, f) { if (audioEngine && c.srcNode) audioEngine.updateFx(c, f); }
+// o relógio de BPM (app.js) para o modo BPM Sync
+let clock = null;
+export const setBeatClock = (b) => { clock = b; };
 // laço: aplica entrada/saída, modo e direção a um clipe de vídeo no ar
 export function tickTransport(c, dt, speedMul = 1) {
   const el = mediaOf(c), t = c.tr; if (!el || c.kind !== 'video' || !c.dur) return false;
   if (c.player) c.player.advance(dt, t.playing && t.dir < 0);
   const inP = Math.max(0, Math.min(t.in, c.dur)), outP = Math.max(inP + 0.05, Math.min(t.out || c.dur, c.dur));
   if (!t.playing) return false;
+  if (t.sync === 'bpm' && clock && t.dir > 0) {
+    // BPM Sync: a faixa entre entrada e saída dura N batidas, presa à batida geral (o "hard sync" do Resolume)
+    if (!clock.running) { if (!el.paused) el.pause(); return false; }
+    const beats = t.beats || 8, cycle = beats * 60 / (clock.bpm * (1 + (clock.nudge || 0) / 100)), range = outP - inP;
+    const rate = Math.max(0.0625, Math.min(16, range / cycle));
+    try { if (Math.abs(el.playbackRate - rate) > 0.001) el.playbackRate = rate; if (c.player && c.el && c.el !== el) c.el.playbackRate = rate; } catch { }
+    const target = inP + ((clock.beat / beats) % 1) * range;
+    if (Math.abs(el.currentTime - target) > 0.12) seekClip(c, target);
+    if (el.paused) el.play().catch(() => { });
+    return false;
+  }
   let pos = el.currentTime, ended = false;
   if (t.dir < 0) { pos -= dt * c.speed * speedMul; try { el.currentTime = Math.max(inP, pos); } catch { } }
   if (t.dir > 0 && (pos >= outP - 0.02 || el.ended)) {
@@ -200,7 +213,7 @@ export function releaseClip(c) { if (!c) return; stopClip(c); if (c.kind === 'ca
 // o que vai para o arquivo da composição
 export function serializeClip(c) {
   if (!c) return null;
-  const o = { kind: c.kind, name: c.name, fit: c.fit, speed: c.speed, fx: c.fx, transform: c.transform, ap: c.ap, tr: { in: c.tr.in, out: c.tr.out, mode: c.tr.mode, dir: c.tr.dir }, audio: c.audio, blend: c.blend, opacity: c.opacity, trig: c.trig, ignoreColumn: c.ignoreColumn };
+  const o = { kind: c.kind, name: c.name, fit: c.fit, speed: c.speed, fx: c.fx, transform: c.transform, ap: c.ap, tr: { in: c.tr.in, out: c.tr.out, mode: c.tr.mode, dir: c.tr.dir, sync: c.tr.sync, beats: c.tr.beats }, audio: c.audio, panim: c.panim || {}, afx: c.afx || [], blend: c.blend, opacity: c.opacity, trig: c.trig, ignoreColumn: c.ignoreColumn };
   if (c.kind === 'video' || c.kind === 'image') { if (!c.path) return { ...o, missing: true }; o.path = c.path; }
   if (c.kind === 'source') { o.source = c.source; o.params = c.params; }
   if (c.kind === 'text') o.text = c.text;
@@ -220,7 +233,7 @@ export async function deserializeClip(o, ctx) {
     else if (o.kind === 'lasermirror') c = laserMirrorClip();
   } catch (e) { if (ctx && ctx.toast) ctx.toast('Não abriu ' + o.name + ': ' + e.message); return null; }
   if (!c) return null;
-  c.name = o.name || c.name; c.fit = o.fit || c.fit; c.speed = o.speed || 1; c.fx = (o.fx || []).map(f => ({ ...f, params: { ...f.params } })); c.transform = Object.assign(IDENT_TR(), o.transform || {}); c.ap = Object.assign({ mode: 'layer', l: 0, c: 0, dur: 'clip', secs: 5 }, o.ap || {});
+  c.name = o.name || c.name; c.fit = o.fit || c.fit; c.speed = o.speed || 1; c.panim = JSON.parse(JSON.stringify(o.panim || {})); c.afx = (o.afx || []).map(f => ({ ...f, params: { ...f.params } })); c.fx = (o.fx || []).map(f => cloneFx(f)); c.transform = Object.assign(IDENT_TR(), o.transform || {}); c.ap = Object.assign({ mode: 'layer', l: 0, c: 0, dur: 'clip', secs: 5 }, o.ap || {});
   if (o.tr) Object.assign(c.tr, o.tr, { playing: true }); if (!c.tr.out) c.tr.out = c.dur; Object.assign(c.audio, o.audio || {}); c.blend = o.blend || ''; c.opacity = o.opacity ?? 1; c.trig = o.trig || 'normal'; c.ignoreColumn = !!o.ignoreColumn;
   return c;
 }

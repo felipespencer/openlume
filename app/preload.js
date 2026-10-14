@@ -4,6 +4,8 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('projDesktop', {
   displays: () => ipcRenderer.invoke('displays'),
+  isTest: () => ipcRenderer.invoke('env:test'),
+  log: { write: (kind, msg) => ipcRenderer.send('log', kind, msg), show: () => ipcRenderer.invoke('log:show'), lastCrash: () => ipcRenderer.invoke('log:lastCrash'), path: () => ipcRenderer.invoke('log:path'), relaunch: () => ipcRenderer.invoke('app:relaunch') },
   windows: () => ipcRenderer.invoke('windows'),
   // caminho no disco de um arquivo solto na janela (para salvar a composição por caminho)
   pathOf: (file) => { try { return webUtils.getPathForFile(file) || ''; } catch { return ''; } },
@@ -25,6 +27,7 @@ contextBridge.exposeInMainWorld('projDesktop', {
     prepare: (src, fmt) => ipcRenderer.invoke('media:prepare', src, fmt),
     onProgress: (fn) => ipcRenderer.on('media:progress', (_e, p) => fn(p)),
     read: (p) => ipcRenderer.invoke('media:read', p),
+    readRange: (p, off, len) => ipcRenderer.invoke('media:readRange', p, off, len),
   },
   rec: {
     save: (name, bytes, dir) => ipcRenderer.invoke('rec:save', name, bytes, dir),

@@ -5,8 +5,11 @@ import { FITS } from './engine.js';
 import { MIXER_OPTS, MIXER_OPT, mixerById } from './mixers.js';
 import { EFFECTS, effectById, mkFx } from './effects.js';
 import { sourceById } from './sources.js';
-import { renderText, playClip, pauseClip, seekClip, setRate, applyAudio, mediaOf } from './clips.js';
+import { renderText, playClip, pauseClip, seekClip, setRate, applyAudio, mediaOf, rebuildAudioFx, updateAudioFx } from './clips.js';
 import { AUTOPILOT } from './composition.js';
+import { SHAPES, BEATS, ANIM } from './beat.js';
+import { AUDIO_FX, audioFxById, BANDS } from './audio.js';
+import { isPrepared } from './player.js';
 
 const $ = (id) => document.getElementById(id);
 const fmtT = (s) => { s = Math.max(0, s || 0); return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0'); };
@@ -36,7 +39,8 @@ export class Panels {
   autopilotRows(P, ap, onSet, help) {
     P.appendChild(this.phead('Autopilot', 'Autopilot|Quando o clipe acaba, a camada passa sozinha para o próximo, o anterior ou um ao acaso.' + (help || '')));
     P.appendChild(this.pseg('Direção', 'Direção|◀◀ anterior, OFF parado, ▶▶ próximo, ⤮ ao acaso.', [['prev', '◀◀'], ['off', 'OFF'], ['next', '▶▶'], ['random', '⤮']], ap.dir, v => onSet('dir', v)));
-    P.appendChild(this.pselect('Duração', 'Duração|Quanto tempo cada clipe fica: o comprimento do próprio clipe ou um tempo fixo.', [['clip', 'Clipe inteiro'], ['fixed', 'Tempo fixo']], ap.dur, v => onSet('dur', v)));
+    P.appendChild(this.pselect('Duração', 'Duração|Quanto tempo cada clipe fica: o comprimento do próprio clipe ou um tempo fixo.', [['clip', 'Clipe inteiro'], ['fixed', 'Tempo fixo'], ['beats', 'Batidas']], ap.dur, v => onSet('dur', v)));
+    if (ap.dur === 'beats') P.appendChild(this.pselect('Batidas', 'Batidas|Quantas batidas do relógio de BPM cada clipe fica.', BEATS.filter(b => b >= 1).map(b => [String(b), String(b)]), String(ap.beats || 4), v => onSet('beats', +v)));
     if (ap.dur === 'fixed') P.appendChild(this.pnum('Segundos', 'Segundos|Tempo fixo por clipe.', ap.secs, { min: 0.2, max: 600, step: 0.5, dec: 1, unit: ' s', bar: true, reset: 5 }, v => onSet('secs', v)));
     P.appendChild(this.pcheck('Loop', 'Loop|Chegando ao fim da fileira, volta ao começo.', ap.loop, v => onSet('loop', v), ap.loop ? 'dá a volta' : 'para no último'));
   }
@@ -44,8 +48,28 @@ export class Panels {
     P.appendChild(this.phead('Transform', 'Transform|Posição, escala e giro' + (help || '') + '.'));
     P.appendChild(this.pnum('Posição X', 'Posição X|−100 é a esquerda, 100 a direita.', Math.round(tr.x * 100), { min: -200, max: 200, step: 1, bar: true, reset: 0 }, v => { tr.x = v / 100; }));
     P.appendChild(this.pnum('Posição Y', 'Posição Y|−100 é embaixo, 100 em cima.', Math.round(tr.y * 100), { min: -200, max: 200, step: 1, bar: true, reset: 0 }, v => { tr.y = v / 100; }));
-    P.appendChild(this.pnum('Escala', 'Escala|Tamanho.', Math.round(tr.scale * 100), { min: 1, max: 400, step: 1, unit: ' %', bar: true, reset: 100 }, v => { tr.scale = v / 100; }));
+    // Escala muda largura e altura juntas (guarda a proporção esticada); Largura e Altura mexem cada uma sozinha
+    const sx = tr.sx ?? 1, sy = tr.sy ?? 1;
+    P.appendChild(this.pnum('Escala', 'Escala|Tamanho, largura e altura juntas.', Math.round(tr.scale * 100), { min: 1, max: 400, step: 1, unit: ' %', bar: true, reset: 100 }, v => { tr.scale = v / 100; }));
+    P.appendChild(this.pnum('Largura', 'Largura|Só a largura. 100 % é o tamanho normal; passa de 100 alarga, abaixo estreita.', Math.round(tr.scale * sx * 100), { min: 1, max: 800, step: 1, unit: ' %', bar: true, reset: 100 }, v => { tr.sx = v / 100 / tr.scale; }));
+    P.appendChild(this.pnum('Altura', 'Altura|Só a altura. 100 % é o tamanho normal; passa de 100 estica, abaixo achata.', Math.round(tr.scale * sy * 100), { min: 1, max: 800, step: 1, unit: ' %', bar: true, reset: 100 }, v => { tr.sy = v / 100 / tr.scale; }));
     P.appendChild(this.pnum('Giro', 'Giro|Ângulo em graus.', tr.rot, { min: -180, max: 180, step: 1, unit: ' °', bar: true, reset: 0 }, v => { tr.rot = v; }));
+  }
+  // um parâmetro de efeito ou de fonte: a linha do valor e o botão ♪, que o anima na batida
+  // (forma dos presets do Resolume, ciclo em batidas, mínimo e máximo)
+  paramRows(P, holder, p, help) {
+    const a = holder.panim && holder.panim[p.key];
+    const o = { min: p.min, max: p.max, step: p.step, dec: p.step < 1 ? 2 : 0, unit: p.unit, bar: true };
+    const row = this.pnum(p.label, help, holder.params[p.key] ?? p.def, { ...o, reset: p.def }, v => { holder.params[p.key] = v; });
+    const b = el('button', 'anb' + (a ? ' on' : ''), '♪'); b.type = 'button'; b.title = a ? 'Parar a animação na batida (volta ao valor fixo)' : 'Animar este parâmetro na batida do BPM';
+    b.onclick = (e) => { e.stopPropagation(); holder.panim = holder.panim || {}; if (a) delete holder.panim[p.key]; else holder.panim[p.key] = ANIM(p); this.render(); };
+    row.querySelector('.pv').appendChild(b); P.appendChild(row);
+    if (!a) return;
+    P.appendChild(this.pselect('· Forma', 'Forma|Como o valor anda a cada ciclo: as formas dos presets de animação do Resolume.', SHAPES, a.shape, v => { a.shape = v; }));
+    if (a.shape === 'fft') P.appendChild(this.pselect('· Faixa', 'Faixa|Qual parte do som move o parâmetro.', BANDS, a.band || 'bass', v => { a.band = v; }));
+    else P.appendChild(this.pselect('· Batidas', 'Batidas|Quantas batidas dura um ciclo da forma.', BEATS.map(x => [String(x), x < 1 ? '1/' + Math.round(1 / x) : String(x)]), String(a.beats), v => { a.beats = +v; }));
+    P.appendChild(this.pnum('· Mín', 'Mínimo|O valor no ponto mais baixo da forma.', a.min, { ...o, reset: p.min }, v => { a.min = v; }));
+    P.appendChild(this.pnum('· Máx', 'Máximo|O valor no ponto mais alto da forma.', a.max, { ...o, reset: p.max }, v => { a.max = v; }));
   }
   // cadeia de efeitos: cabeçalho por efeito (nome, desvio, ✕) e os parâmetros; zona para soltar
   fxRows(P, owner, label) {
@@ -59,7 +83,7 @@ export class Panels {
       const up = el('button', 'mini', '▲'); up.type = 'button'; up.title = 'Subir'; up.disabled = i === 0; up.onclick = () => { list.splice(i - 1, 2, list[i], list[i - 1]); this.render(); };
       const x = el('button', 'mini', '✕'); x.type = 'button'; x.title = 'Tirar o efeito'; x.onclick = () => { list.splice(i, 1); this.render(); };
       h.append(by, nm, up, x); P.appendChild(h);
-      if (!f.bypass) for (const p of def.params) P.appendChild(this.pnum(p.label, def.name + ' · ' + p.label + '|' + def.desc, f.params[p.key] ?? p.def, { min: p.min, max: p.max, step: p.step, dec: p.step < 1 ? 2 : 0, unit: p.unit, bar: true, reset: p.def }, v => { f.params[p.key] = v; }));
+      if (!f.bypass) for (const p of def.params) this.paramRows(P, f, p, def.name + ' · ' + p.label + '|' + def.desc);
     });
     const dz = el('div', 'dropzone', list.length ? 'Solte outro efeito aqui' : 'Solte um efeito aqui'); dz.dataset.help = 'Soltar efeito|Arraste do painel Efeitos.';
     dz.ondragover = (e) => { const d = this.ctx.drag(); if (d && d.effect) { e.preventDefault(); dz.classList.add('over'); } };
@@ -77,6 +101,15 @@ export class Panels {
     P.appendChild(this.pnum('Velocidade', 'Velocidade|Multiplica a velocidade de todos os vídeos.', S.speed, { min: 0.1, max: 4, step: 0.05, dec: 2, unit: 'x', bar: true, reset: 1 }, v => { S.speed = v; this.ctx.applySpeed(); }));
     P.appendChild(this.phead('Vídeo', 'Vídeo|Opacidade da composição.'));
     P.appendChild(this.pnum('Opacidade', 'Opacidade|Esmaece a composição inteira.', Math.round(S.opacity * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v => { S.opacity = v / 100; E.master = S.master * S.opacity; }));
+    const AU = this.ctx.audio;
+    if (AU) {
+      P.appendChild(this.phead('Áudio e FFT', 'Áudio e FFT|A reação ao som: os níveis de graves, médios e agudos alimentam os parâmetros animados com a forma "FFT" (botão ♪ de cada parâmetro).'));
+      P.appendChild(this.pselect('Fonte', 'Fonte da FFT|Composição: o som dos clipes. Microfone: a entrada de áudio do computador (placa de som ou microfone).', [['comp', 'Composição'], ['mic', 'Microfone / entrada']], AU.settings.source, v => { AU.setSource(v).then(() => this.render()); }));
+      P.appendChild(this.pnum('Ganho', 'Ganho|Multiplica os níveis.', AU.settings.gain, { min: 0, max: 8, step: 0.1, dec: 1, unit: 'x', bar: true, reset: 1 }, v => { AU.settings.gain = v; }));
+      P.appendChild(this.pnum('Queda', 'Queda (fallback)|Quão rápido o nível cai depois do pico, por segundo.', AU.settings.fallback, { min: 0.2, max: 30, step: 0.2, dec: 1, unit: '/s', bar: true, reset: 4 }, v => { AU.settings.fallback = v; }));
+      const m = el('div', 'pv meters'); for (const [k, nm] of BANDS) { const w = el('div', 'meter'); w.dataset.band = k; w.title = nm; w.appendChild(el('i')); m.appendChild(w); } P.appendChild(this.prow('Níveis', 'Níveis|Graves, médios-graves, médios, agudos e tudo, agora.', m));
+      if (AU.err) P.appendChild(this.prow('Aviso', '', el('span', 'pinfo', AU.err)));
+    }
     const X = S.xfade;
     P.appendChild(this.phead('Crossfader', 'Crossfader|Camadas e grupos no bus A ficam de um lado, os do bus B do outro; o fader embaixo da grade passa de um para o outro. O bus de cada camada é escolhido no painel Camada.'));
     P.appendChild(this.pnum('Posição', 'Posição|0 % mostra só o bus A, 100 % só o bus B.', Math.round(X.pos * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 50 }, v => { X.pos = v / 100; X.target = null; this.ctx.renderDecks(); }));
@@ -102,6 +135,7 @@ export class Panels {
     P.appendChild(this.pnum('Master', 'Master|Opacidade da camada; o fader da grade é o mesmo.', Math.round(L.opacity * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v => { L.opacity = v / 100; this.ctx.renderGrid(); }));
     P.appendChild(this.phead('Vídeo', 'Vídeo|Como a camada entra na composição.'));
     P.appendChild(this.pselect('Mistura', 'Mistura|Como a camada entra sobre o que está embaixo, com os modos do Resolume. Até 50 % do fader a camada mistura; de 50 a 100 % vai ficando normal por cima. Os modos "50" misturam no fader inteiro.', MIXER_OPTS, L.blend === 'normal' ? 'alpha' : L.blend, v => { L.blend = v; }));
+    P.appendChild(this.pseg('Rápidos', 'Rápidos|Cinco modos de mistura a um clique; a lista acima tem todos os outros.', [['alpha', 'Alpha'], ['add', 'Add'], ['multiply', 'Mult'], ['screen', 'Screen'], ['overlay', 'Over']], L.blend === 'normal' ? 'alpha' : L.blend, v => { L.blend = v; }));
     this.mixerOptRows(P, L.blend, L.blendOpt || (L.blendOpt = MIXER_OPT()), 'da mistura');
     P.appendChild(this.pselect('Bus', 'Bus do crossfader|A ou B: o crossfader embaixo da grade esmaece entre os dois lados. Nenhum: a camada não entra no crossfader.', [['', 'Nenhum'], ['A', 'A'], ['B', 'B']], L.bus || '', v => { L.bus = v || null; }));
     P.appendChild(this.pselect('Grupo', 'Grupo|Em que grupo a camada está. Grupos juntam camadas vizinhas numa só, com opacidade, mistura e efeitos próprios.', [['', 'Nenhum'], ...S.groups.map(g => [String(g.id), g.name])], L.group != null ? String(L.group) : '', v => this.ctx.setLayerGroup(S.selLayer, v ? +v : null)));
@@ -160,6 +194,8 @@ export class Panels {
       btn('−1q', 'Um quadro para trás|', false, () => { pauseClip(clip); seekClip(clip, v.currentTime - 1 / 30); }),
       btn('+1q', 'Um quadro para a frente|', false, () => { pauseClip(clip); seekClip(clip, v.currentTime + 1 / 30); }));
     P.appendChild(this.prow('Tocar', '', tr));
+    P.appendChild(this.pseg('Sincronia', 'Sincronia|Linha do tempo: a velocidade é a sua. BPM Sync: a faixa entre a entrada e a saída dura N batidas, presa ao relógio de BPM (como no Resolume).', [['timeline', 'Linha do tempo'], ['bpm', 'BPM Sync']], t.sync || 'timeline', v2 => { t.sync = v2; if (v2 !== 'bpm') setRate(clip, S.speed); }));
+    if (t.sync === 'bpm') P.appendChild(this.pselect('Batidas', 'Batidas|Quantas batidas a faixa do clipe dura.', BEATS.filter(x => x >= 1).map(x => [String(x), String(x)]), String(t.beats || 8), v2 => { t.beats = +v2; }));
     P.appendChild(this.pseg('Modo', 'Modo|Loop repete; vai e volta inverte nas pontas; uma vez para na saída; aleatório pula pelo clipe.', [['loop', 'Loop'], ['bounce', 'Vai e volta'], ['once', 'Uma vez'], ['random', 'Aleatório']], t.mode, v2 => { t.mode = v2; }));
     P.appendChild(this.pnum('Velocidade', 'Velocidade|1x é a do arquivo; até 10x.', clip.speed, { min: 0.05, max: 10, step: 0.05, dec: 2, unit: 'x', bar: true, reset: 1 }, v2 => { clip.speed = v2; setRate(clip, S.speed); }));
     P.appendChild(this.pnum('Entrada', 'Entrada (cut in)|Onde o clipe começa, em segundos.', t.in, { min: 0, max: dur, step: 0.1, dec: 1, unit: ' s', bar: true, reset: 0 }, v2 => { t.in = Math.min(v2, (t.out || dur) - 0.1); }));
@@ -170,16 +206,39 @@ export class Panels {
     if (clip.anim) P.appendChild(this.prow('Arquivo', 'Animação|GIF (ou WebP/AVIF) animado, quadro a quadro: ré, pulo e velocidade funcionam como num vídeo preparado.', el('span', 'pinfo ok', 'animação · ' + clip.player.frames + ' quadros · ' + clip.player.fps.toFixed(0) + ' fps')));
     else if (clip.player) P.appendChild(this.prow('Arquivo', 'Preparado|Cada quadro é chave e o Projecionista decodifica por conta própria: ré, pulo e esfregar sem travar.', el('span', 'pinfo ok', 'preparado · ' + (clip.player.allIntra ? 'todo intra' : clip.player.codec) + ' · ' + clip.player.fps.toFixed(0) + ' fps')));
     else if (prog != null) P.appendChild(this.prow('Preparando', '', el('span', 'pinfo', Math.round(prog * 100) + ' %')));
-    else if (clip.path) { P.appendChild(this.pbutton('Preparar (H.264 todo intra)', 'Preparar|Converte para H.264 com todos os quadros chave, como o DXV do Resolume: ré, pulo e esfregar ficam lisos. Cria nome.proj.mp4 ao lado do original.', () => this.ctx.prepare('h264'))); }
+    else if (clip.path && !isPrepared(clip.name)) { P.appendChild(this.pbutton('Preparar (H.264 todo intra)', 'Preparar|Converte para H.264 com todos os quadros chave, como o DXV do Resolume: ré, pulo e esfregar ficam lisos. Cria nome.proj.mp4 ao lado do original.', () => this.ctx.prepare('h264'))); }
     else P.appendChild(this.prow('Arquivo', '', el('span', 'pinfo', 'solto na janela sem caminho; abra pelo painel Arquivos para poder preparar')));
     const a = clip.audio;
     P.appendChild(this.phead('Áudio', 'Áudio|O som do arquivo.'));
     P.appendChild(this.pnum('Volume', 'Volume|', Math.round(a.vol * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v2 => { a.vol = v2 / 100; applyAudio(clip); }));
     P.appendChild(this.pnum('Pan', 'Pan|Esquerda −100, direita 100.', Math.round(a.pan * 100), { min: -100, max: 100, step: 1, bar: true, reset: 0 }, v2 => { a.pan = v2 / 100; applyAudio(clip); }));
     P.appendChild(this.pcheck('Mudo', 'Mudo|', a.mute, v2 => { a.mute = v2; applyAudio(clip); }, a.mute ? 'sem som' : 'com som'));
+    this.audioFxRows(P, clip);
+  }
+  // cadeia de efeitos de áudio do clipe (os seis do Resolume), com os parâmetros
+  audioFxRows(P, clip) {
+    const list = clip.afx || (clip.afx = []);
+    P.appendChild(this.phead('Efeitos de áudio', 'Efeitos de áudio|Arraste um efeito de áudio do painel Efeitos para cá. A ordem é de cima para baixo.'));
+    list.forEach((f, i) => {
+      const def = audioFxById(f.id); if (!def) return;
+      const h = el('div', 'phead fxh'); h.dataset.help = def.name + '|' + def.desc;
+      const by = el('label', 'ck' + (f.bypass ? '' : ' on')); by.innerHTML = f.bypass ? ICON.itemOff : ICON.item; by.title = 'Liga e desliga o efeito'; by.onclick = () => { f.bypass = !f.bypass; rebuildAudioFx(clip); this.render(); };
+      const up = el('button', 'mini', '▲'); up.type = 'button'; up.title = 'Subir'; up.disabled = i === 0; up.onclick = () => { list.splice(i - 1, 2, list[i], list[i - 1]); rebuildAudioFx(clip); this.render(); };
+      const x = el('button', 'mini', '✕'); x.type = 'button'; x.title = 'Tirar o efeito'; x.onclick = () => { list.splice(i, 1); rebuildAudioFx(clip); this.render(); };
+      h.append(by, el('span', '', def.name), up, x); P.appendChild(h);
+      if (!f.bypass) for (const p of def.params) P.appendChild(this.pnum(p.label, def.name + ' · ' + p.label + '|' + def.desc, f.params[p.key] ?? p.def, { min: p.min, max: p.max, step: p.step, dec: p.step < 1 ? 2 : 0, unit: p.unit, bar: true, reset: p.def }, v => { f.params[p.key] = v; updateAudioFx(clip, f); }));
+    });
+    const dz = el('div', 'dropzone', list.length ? 'Solte outro efeito de áudio aqui' : 'Solte um efeito de áudio aqui'); dz.dataset.help = 'Soltar efeito de áudio|Arraste do painel Efeitos (parte de baixo).';
+    dz.ondragover = (e) => { const d = this.ctx.drag(); if (d && d.afx) { e.preventDefault(); dz.classList.add('over'); } };
+    dz.ondragleave = () => dz.classList.remove('over');
+    dz.ondrop = (e) => { e.preventDefault(); dz.classList.remove('over'); const d = this.ctx.drag(); if (d && d.afx) { const f = AUDIO_FX.find(a => a.id === d.afx); if (f) { const params = {}; for (const p of f.params) params[p.key] = p.def; list.push({ id: f.id, params, bypass: false }); rebuildAudioFx(clip); this.render(); } } };
+    P.appendChild(dz);
   }
   // chamado a cada quadro: move o cursor da linha do tempo sem redesenhar o painel
-  tick() { if (this.tl && mediaOf(this.tl.clip) && document.body.contains(this.tl.place ? $('clipPan') : null)) { try { this.tl.place(); } catch { } } }
+  tick() {
+    if (this.tl && mediaOf(this.tl.clip) && document.body.contains(this.tl.place ? $('clipPan') : null)) { try { this.tl.place(); } catch { } }
+    const AU = this.ctx.audio; if (AU && this.tab === 'comp') for (const w of $('leftPan').querySelectorAll('.meter')) w.firstChild.style.height = Math.round((AU.levels[w.dataset.band] || 0) * 100) + '%';
+  }
   renderClip(P, clip) {
     this.tl = null;
     P.textContent = '';
@@ -191,7 +250,7 @@ export class Panels {
     else if (clip.kind === 'source') {
       const def = sourceById(clip.source);
       P.appendChild(this.phead(def.name, def.name + '|' + def.desc));
-      for (const p of def.params) P.appendChild(this.pnum(p.label, def.name + ' · ' + p.label + '|' + def.desc, clip.params[p.key] ?? p.def, { min: p.min, max: p.max, step: p.step, dec: p.step < 1 ? 2 : 0, unit: p.unit, bar: true, reset: p.def }, v => { clip.params[p.key] = v; }));
+      for (const p of def.params) this.paramRows(P, clip, p, def.name + ' · ' + p.label + '|' + def.desc);
     } else if (clip.kind === 'text') {
       const t = clip.text, up = () => { renderText(clip); this.ctx.renderGrid(); };
       P.appendChild(this.phead('Texto', 'Texto|O texto desenhado na composição.'));

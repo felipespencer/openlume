@@ -449,7 +449,7 @@ export class AdvancedOutput {
     $('aoPropT').textContent = it ? it.name : sc.name;
     if (!it) {
       const devs = [['auto', 'Automático (projetor, se houver)'], ['window', 'Janela'], ...this.c.displays().map(d => [d.id, d.label + ' (' + d.w + '×' + d.h + ')' + (d.primary ? ' principal' : '')])];
-      P.appendChild(this.pselect('Dispositivo', 'Dispositivo|Escolha para qual monitor ou janela esta tela vai.', devs, sc.device, v => { sc.device = v; const d = this.c.displays().find(x => x.id === v); if (d) M.resizeScreen(sc, d.w, d.h); this.layout(); }));
+      P.appendChild(this.pselect('Dispositivo', 'Dispositivo|Escolha para qual monitor ou janela esta tela vai.', devs, sc.device, v => { if (this.c.setDevice) this.c.setDevice(sc, v); else { sc.device = v; const d = this.c.displays().find(x => x.id === v); if (d) M.resizeScreen(sc, d.w, d.h); } this.layout(); }));
       P.appendChild(this.pnum('Largura', 'Largura da tela|Largura da tela em pixels. Num monitor, é o monitor que manda.', sc.w, { min: 16, max: 16384, step: 1 }, v => { M.resizeScreen(sc, v, sc.h); this.layout(); }));
       P.appendChild(this.pnum('Altura', 'Altura da tela|Altura da tela em pixels. Num monitor, é o monitor que manda.', sc.h, { min: 16, max: 16384, step: 1 }, v => { M.resizeScreen(sc, sc.w, v); this.layout(); }));
       P.appendChild(this.pnum('Opacidade', 'Opacidade|Escurece ou acende a tela inteira.', Math.round(sc.opacity * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v => { sc.opacity = v / 100; }));

@@ -57,10 +57,13 @@ export function propsKit(host) {
     const plus = el('button', 'pm', '+'); plus.type = 'button'; plus.onclick = () => commit(v + (o.step || 1));
     box.append(val, minus, plus);
     if (o.bar) {
-      const bar = el('div', 'bar'), fill = el('div', 'fill'); fill.style.width = ((v - o.min) / (o.max - o.min) * 100) + '%'; bar.appendChild(fill);
+      const bar = el('div', 'bar'), fill = el('div', 'fill'); bar.appendChild(fill);
+      // barra com zero no meio (posição, giro…) enche a partir do centro; as outras, da esquerda
+      const paint = (n) => { const f = (n - o.min) / (o.max - o.min); if (o.min < 0 && o.max > 0) { const z = -o.min / (o.max - o.min); fill.style.left = Math.min(f, z) * 100 + '%'; fill.style.width = Math.abs(f - z) * 100 + '%'; } else { fill.style.left = '0'; fill.style.width = f * 100 + '%'; } };
+      paint(v);
       bar.onpointerdown = (e) => {
         host.pushUndo(); bar.setPointerCapture(e.pointerId);
-        const at = (ev) => { const r = bar.getBoundingClientRect(); const f = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)); let n = o.min + f * (o.max - o.min); n = Math.round(n / (o.step || 1)) * (o.step || 1); set(n); fill.style.width = f * 100 + '%'; val.textContent = fmtN(n, o.dec || 0) + (o.unit || ''); host.c.onChange(); };
+        const at = (ev) => { const r = bar.getBoundingClientRect(); const f = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)); let n = o.min + f * (o.max - o.min); n = Math.round(n / (o.step || 1)) * (o.step || 1); set(n); paint(n); val.textContent = fmtN(n, o.dec || 0) + (o.unit || ''); host.c.onChange(); };
         at(e); bar.onpointermove = (ev) => { if (bar.hasPointerCapture(ev.pointerId)) at(ev); }; bar.onpointerup = () => { bar.onpointermove = null; host.draw(); host.renderProps(); };
       };
       bar.oncontextmenu = (e) => { e.preventDefault(); commit(o.reset ?? o.min); };

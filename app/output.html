@@ -7,21 +7,41 @@
   html,body{ margin:0; height:100%; background:#000; overflow:hidden; cursor:none; }
   /* contain: se a janela não tiver o tamanho da tela, sobra faixa preta; nunca estica */
   video{ position:absolute; left:0; top:0; width:100%; height:100%; object-fit:contain; display:block; background:#000; }
+  video[hidden]{ display:none; }
   canvas{ position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; }
 </style>
 </head>
 <body>
-<video id="v" autoplay muted playsinline></video>
+<video id="v" autoplay muted playsinline hidden></video>
+<canvas id="out"></canvas>
 <canvas id="ov"></canvas>
 <script>
   // A saída não mistura nada: mostra a imagem que a janela de controle já desenhou para
   // esta tela. Por cima, só os ajudantes do editor (grade do slice, cursor, identificação).
   var sid = new URLSearchParams(location.search).get('screen') || '';
   var v = document.getElementById('v'), ov = document.getElementById('ov'), ctx = ov.getContext('2d');
+  var out = document.getElementById('out'), octx = out.getContext('2d', { alpha: false, desynchronized: true });
+  // Caminho principal: a janela de controle pinta a tela num canvas e esta janela desenha esse canvas
+  // direto, a cada quadro do seu monitor (as duas janelas vivem no mesmo processo). Antes ia por
+  // captureStream → <video>, que entregava só ~22 quadros por segundo com buracos de 100 ms.
+  var ultimo = -1;   // o tempo do último quadro desenhado: desenha só quando a composição mudou
+  function fonte(){ try{ return window.opener && window.opener.__projCanvas && window.opener.__projCanvas[sid]; }catch(e){ return null; } }
+  // Melhor ainda: o canvas da tela vem morar nesta janela (adoptNode). A janela de controle continua
+  // desenhando nele, e aqui ele é mostrado direto, sem nenhuma cópia por quadro.
+  var adotado = null, ovOn = true;
+  function adota(){
+    if(adotado) return true;
+    try{
+      var c = fonte(); if(!c || c.ownerDocument === document) return !!c;
+      document.adoptNode(c); c.id = 'adotado'; c.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;background:#000;display:block;';
+      document.body.insertBefore(c, out); out.style.display = 'none'; adotado = c; return true;
+    }catch(e){ return false; }
+  }
   function liga(){
     try{
+      if(fonte()) return;   // sem precisar do stream
       var s = window.opener && window.opener.__projStreams && window.opener.__projStreams[sid];
-      if(s && v.srcObject !== s){ v.srcObject = s; v.play().catch(function(){}); }
+      if(s && v.srcObject !== s){ v.hidden = false; v.srcObject = s; v.play().catch(function(){}); }
     }catch(e){}
   }
   // avisa o tamanho ao controle só quando ocupa um monitor inteiro: aí o monitor manda no tamanho da tela
@@ -30,10 +50,23 @@
   avisaTamanho(); addEventListener('resize', avisaTamanho);
   (function quadro(){
     try{
+      var src = adota() ? null : fonte();   // adotado: nada a copiar
+      var ver = window.opener && window.opener.projecionista ? window.opener.projecionista.engine.time : 0;
+      if(src && ver !== ultimo){
+        ultimo = ver;
+        if(out.width !== innerWidth || out.height !== innerHeight){ out.width = innerWidth; out.height = innerHeight; }
+        // contain: a imagem inteira, centrada, sem esticar; o que sobra fica preto
+        var k = Math.min(innerWidth / src.width, innerHeight / src.height), dw = Math.round(src.width * k), dh = Math.round(src.height * k), dx = (innerWidth - dw) >> 1, dy = (innerHeight - dh) >> 1;
+        if(dw < innerWidth || dh < innerHeight){ octx.fillStyle = '#000'; octx.fillRect(0, 0, out.width, out.height); }
+        octx.drawImage(src, 0, 0, src.width, src.height, dx, dy, dw, dh);
+      }
       var h = window.opener && window.opener.__projHelpers && window.opener.__projHelpers[sid];
-      if(ov.width !== innerWidth || ov.height !== innerHeight){ ov.width = innerWidth; ov.height = innerHeight; }
-      ctx.clearRect(0, 0, ov.width, ov.height);
-      if(h){
+      // sem ajudante a camada de cima fica escondida e não é tocada: uma camada a menos para o compositor
+      if(!h){ if(ovOn){ ovOn = false; ctx.clearRect(0, 0, ov.width, ov.height); ov.style.display = 'none'; } }
+      else{
+        if(!ovOn){ ovOn = true; ov.style.display = 'block'; }
+        if(ov.width !== innerWidth || ov.height !== innerHeight){ ov.width = innerWidth; ov.height = innerHeight; }
+        ctx.clearRect(0, 0, ov.width, ov.height);
         var kx = innerWidth / h.w, ky = innerHeight / h.h;
         if(h.grid){
           ctx.strokeStyle = '#39FF14'; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);

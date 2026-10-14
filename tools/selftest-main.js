@@ -71,7 +71,7 @@ module.exports = (win, app, laser) => {
         R.bToca=!L[1].clips[0].el.paused;
         // clique no rodapé: só seleciona, não troca o que está no ar
         const antes=L[0].on; document.querySelector('.cell[data-layer="0"][data-col="1"] .nm').click(); await S(200);
-        R.rodape={on:L[0].on===antes, sel:P.state.sel, prev:!!document.querySelector('#prevScr canvas, #prevScr img'), nome:document.getElementById('prevName').textContent};
+        R.rodape={on:L[0].on===1, sel:P.state.sel, prev:!!document.querySelector('#prevScr canvas, #prevScr img'), nome:document.getElementById('prevName').textContent};
         // casa vazia: a camada fica preta
         document.querySelector('.cell[data-layer="1"][data-col="5"]').click(); await S(200);
         R.vaziaPreta={on:L[1].on, pausado:L[1].clips[0].el.paused, px:P.probe(pts)};
@@ -177,6 +177,56 @@ module.exports = (win, app, laser) => {
         L[0].transform.scale = 1; P.removeGroup(gr, false); gp.semGrupo = L.every(x => x.group == null) && P.state.groups.length === 0 && document.querySelectorAll('#grid .grp').length === 0;
         P.eject(0); P.eject(2); P.state.layers[2].clips[0] = null;
         R.decks = dk; R.grupos = gp;
+        // composição automática: salva e abre de volta com os mesmos clipes
+        await P.autosave(); const auto = { salvou: false, clipes: 0 }; try { const j = await window.projDesktop.comps.load('_automatica'); const d = JSON.parse(j); auto.salvou = true; auto.clipes = d.layers.reduce((a, l) => a + l.clips.filter(Boolean).length, 0); auto.escondida = !(await window.projDesktop.comps.list()).some(c => c.name === '_automatica'); } catch (e) { auto.erro = e.message; }
+        auto.agora = L.reduce((a, l) => a + l.clips.filter(Boolean).length, 0); R.auto = auto;
+        // assistente de projetores: um deitado 1920×1080 e um em pé 1080×1920 (que o Windows vê deitado), lado a lado → 3000×1920 com 2 telas
+        const wiz = {}, prevScreens = P.screens(); P.applyProjectors([{ d: { id: 'd1', label: 'P1', w: 1920, h: 1080 }, vertical: false, x: 0, y: 0 }, { d: { id: 'd2', label: 'P2', w: 1920, h: 1080 }, vertical: true, x: 1920, y: 0 }], { open: false });
+        wiz.comp = [P.engine.W, P.engine.H]; const scs = P.screens(); wiz.telas = scs.map(s => ({ dev: s.device, w: s.w, h: s.h, in: s.items[0].in, rot: Math.round(s.items[0].warp.rot || 0) }));
+        wiz.px = P.probeScreen(scs[1], [[0.5, 0.5]])[0];
+        P.applyProjectors([{ d: { id: 'd1', label: 'P1', w: 1920, h: 1080 }, vertical: false, x: 0, y: 0 }, { d: { id: 'd2', label: 'P2', w: 1920, h: 1080 }, vertical: false, x: 1720, y: 0 }], { open: false }); wiz.emenda = [P.engine.W, P.screens().map(s => s.items[0].soft.on)];
+        P.applySettings({ ...P.state.settings, w: 1920, h: 1080 }); P.setScreens(prevScreens); R.wiz = wiz;
+        // tirar o fundo: o modelo ONNX carrega e segmenta um quadro do vídeo; a máscara vira textura do efeito
+        const sg = { ort: !!window.ort }; await P.seg.load(); sg.sessao = !!P.seg.session; sg.erro = P.seg.err;
+        const sv = L.flatMap(x => x.clips).find(c => c && c.kind === 'video' && c.el instanceof HTMLVideoElement && c.el.readyState >= 2);
+        const bf = { id: 'backgroundremoval', params: {}, bypass: false, panim: {} };
+        if (sg.sessao && sv) { const t0s = performance.now(); sg.rodou = await P.seg.run(sv, bf); sg.ms = Math.round(performance.now() - t0s); sg.tex = !!bf._maskTex; sg.erro = P.seg.err; }
+        R.seg = sg;
+        // áudio: o vídeo entra no grafo (fonte → efeitos → volume → pan → master → FFT); EQ-3 e LowPass criam nós; a forma FFT segue o nível da faixa
+        const au = {}; const av = L.flatMap(x => x.clips).find(c => c && c.kind === 'video' && c.el instanceof HTMLMediaElement);
+        P.audio.attach(av); au.ligado = !!(av.srcNode && av.gainNode && av.panNode); av.afx = [P.mkAudioFx('eq3'), P.mkAudioFx('lowpass')]; P.C.rebuildAudioFx(av); au.nos = (av.afxNodes || []).length;
+        av.afx[1].params.freq = 500; P.C.updateAudioFx(av, av.afx[1]); au.freq = av.afxNodes[1].all[0].frequency.value; av.afx = []; P.C.rebuildAudioFx(av);
+        P.audio.levels.mid = 0.5; au.fft = P.engine.paramValue({ params: {}, panim: { x: { shape: 'fft', band: 'mid', min: 0, max: 2 } } }, { key: 'x', def: 0 }); P.audio.levels.mid = 0;
+        au.ctx = P.audio.ctx && P.audio.ctx.state; au.bandas = Object.keys(P.audio.levels).length;
+        R.audio = au;
+        // todos os efeitos compilam e desenham sem erro; Trails (feedback) segura a imagem depois que o clipe sai
+        const fxAll = { n: 0, erros: [] }; P.trigger(0,3); await S(100);
+        for (const def of P.EFFECTS) { L[0].fx = [{ id: def.id, params: {}, bypass: false, panim: {} }]; try { P.probe(mid); fxAll.n++; } catch (e) { fxAll.erros.push(def.id + ': ' + e.message); } }
+        const cropFx = { id: 'crop', params: { l: 0, r: 0, t: 0, b: 0, soft: 0 }, bypass: false, panim: {} };
+        L[0].fx = [cropFx, { id: 'trails', params: { amount: 0.9, mode: 0 }, bypass: false, panim: {} }]; P.probe(mid); P.probe(mid); const trailsAntes = P.probe(mid)[0];
+        cropFx.params.l = 1; const trailsDepois = P.probe(mid)[0]; L[0].fx = []; P.eject(0);
+        R.fxAll = { ...fxAll, trails: [trailsAntes, trailsDepois], total: P.EFFECTS.length };
+        // APC40 mkII (sem a controladora: as mensagens entram pela função que recebe o MIDI): pad da camada 2 coluna 2, linha de cima dispara a coluna, fader e master
+        const A = P.apc, ap = {}; P.putSource(1,1,'testcard'); A.handle([0x90, 9, 127]); ap.pad = [L[1].on, L[0].on];
+        A.handle([0x90, 32 + 3, 127]); ap.coluna = L.map(x => x.on);
+        A.handle([0xB0, 7, 64]); ap.fader = L[2].opacity; A.handle([0xB0, 14, 127]); ap.master = P.state.master;
+        A.handle([0x90 + 1, 48, 127]); ap.bypass = L[1].bypass; A.handle([0x90 + 1, 48, 127]);
+        A.handle([0x90, 9, 127]); const leds = A.leds(); const led = (s, n) => (leds.find(x => x[0] === s && x[1] === n) || [])[2];
+        ap.leds = [led(0x90, 9), led(0x90, 8), led(0x90, 35), led(0x91, 52)];
+        A.handle([0x90 + 1, 52, 127]); ap.limpar = L[1].on; L[2].opacity = 1; P.state.master = 1; P.engine.master = 1; P.eject(0); P.eject(1); P.eject(2); P.state.layers[1].clips[1] = null;
+        R.apc = ap;
+        // BPM: a batida anda no tempo certo; TAP a 150; animação de parâmetro na batida; Beat Snap segura o disparo até a batida
+        const B = P.bpm; B.bpm = 120; const b0 = B.beat; await S(500); const bAnda = B.beat - b0;
+        const tp0 = performance.now() / 1000; P.tapBpm(tp0); P.tapBpm(tp0 + 0.4); P.tapBpm(tp0 + 0.8); const bTap = B.bpm; B.bpm = 120; B.taps = [];
+        const hold = { params: {}, panim: { bright: { shape: 'onoff', beats: 1, min: -1, max: 1 } } }, pdef = { key: 'bright', def: 0 };
+        B.running = false; B.beat = 0.25; const an1 = P.engine.paramValue(hold, pdef); B.beat = 0.75; const an2 = P.engine.paramValue(hold, pdef); B.beat = 0; B.running = true;
+        B.snap = 2; P.trigger(0,3); const snapAntes = [L[0].on, P.pending()]; await S(1300); const snapDepois = [L[0].on, P.pending()]; B.snap = 0; P.eject(0);
+        // BPM Sync: a faixa de va.mp4 (1 s a 2 s) dura 2 batidas: a 120 BPM é 1 s → velocidade 1x; a 240 BPM, 2x
+        let vbL = -1, vbCol = -1; L.forEach((x, i) => x.clips.forEach((c, k) => { if (vbL < 0 && c && c.kind === 'video' && c.el && c.dur >= 1) { vbL = i; vbCol = k; } }));
+        const vb = L[vbL].clips[vbCol], vbTr = { ...vb.tr }, vbOut = Math.min(1, vb.dur);
+        vb.tr.in = 0; vb.tr.out = vbOut; vb.tr.sync = 'bpm'; vb.tr.beats = 2; P.trigger(vbL, vbCol); await S(300); const syncRate1 = vb.el.playbackRate;
+        B.bpm = 240; await S(300); const syncRate2 = vb.el.playbackRate; const syncPos = vb.el.currentTime; B.bpm = 120; Object.assign(vb.tr, vbTr, { sync: 'timeline' }); P.eject(vbL);
+        R.bpm = { anda: bAnda, tap: bTap, an: [an1, an2], snapAntes, snapDepois, syncRate: [syncRate1, syncRate2], syncPos, barra: document.querySelectorAll('#bpmBar button').length };
         // autopilot: tempo fixo de 0,3 s, próximo com loop → troca de casa sozinho
         L[0].autopilot={dir:'next',dur:'fixed',secs:0.4,loop:true}; P.trigger(0,2); const ap0=L[0].on; await S(600); const ap1=L[0].on; await S(400); const ap2=L[0].on; L[0].autopilot.dir='off'; P.eject(0);
         R.extras={semFx,comFx,prevFx,compFx,fonte,solido,texto,meio,fim,ap:[ap0,ap1,ap2]};
@@ -296,7 +346,7 @@ module.exports = (win, app, laser) => {
       ok('disparar toca o vídeo', r.aAnda && nz(r.soA[0]) && nz(r.soA[1]), 'centro ' + r.soA[0] + ', lateral ' + r.soA[1]);
       ok('camadas misturadas na proporção certa', r.bToca && nz(r.aMaisB[0]) && r.aMaisB[0].join() !== r.soA[0].join() && Math.abs(r.aMaisB[1][0] - r.soA[1][0]) < 12 && Math.abs(r.aMaisB[1][1] - r.soA[1][1]) < 12,
         'vídeo em pé por cima: centro mudou para ' + r.aMaisB[0] + '; na lateral segue o de baixo ' + r.aMaisB[1]);
-      ok('rodapé só seleciona', r.rodape.on && r.rodape.sel.l === 0 && r.rodape.sel.c === 1 && r.rodape.prev && /64×48/.test(r.rodape.nome), 'prévia: ' + r.rodape.nome);
+      ok('rodapé seleciona e dispara do começo', r.rodape.on && r.rodape.sel.l === 0 && r.rodape.sel.c === 1 && r.rodape.prev && /64×48/.test(r.rodape.nome), 'prévia: ' + r.rodape.nome);
       ok('casa vazia deixa a camada preta', r.vaziaPreta.on === -1 && r.vaziaPreta.pausado && nz(r.vaziaPreta.px[0]) && nz(r.vaziaPreta.px[1]) && r.vaziaPreta.px[0].join() !== r.aMaisB[0].join(),
         'camada do meio fora do ar e vídeo pausado; a de baixo continua');
       ok('coluna', r.coluna.on.join() === '1,-1,-1' && r.coluna.px[0][0] > 200 && r.coluna.px[0][1] < 40 && r.coluna.px[1].join() === '0,0,0',
@@ -340,6 +390,25 @@ module.exports = (win, app, laser) => {
         'deck novo vazio com o verde ainda no ar ' + Dk.px + '; disparo no deck 2 ' + Dk.novo + '; de volta ao deck 1: ' + Dk.volta[0] + ' clipes, no ar ' + Dk.volta[1] + ', ghost ' + Dk.volta[2] + '; removido → ' + Dk.fim + ' deck');
       ok('grupos, solo e crossfader', Gp.membros[0] != null && Gp.membros[0] === Gp.membros[1] && Gp.membros[2] == null && Gp.meio[1] > 100 && Gp.meio[1] < 160 && Gp.canto[0] > 200 && Gp.soloCanto[0] < 20 && Gp.busB[0] < 20 && Gp.busMeio[0] > 100 && Gp.busMeio[0] < 160 && Gp.grade.linhas === 1 && Gp.grade.colunas === 8 && Gp.grade.decks === 2 && Gp.semGrupo,
         'grupo a 50 % ' + Gp.meio + '; canto com o vermelho de baixo ' + Gp.canto + ', com solo do grupo ' + Gp.soloCanto + '; bus A com o fader em B ' + Gp.busB + ', no meio ' + Gp.busMeio + '; grade: ' + JSON.stringify(Gp.grade));
+      const At = r.auto;
+      ok('composição automática', At.salvou && At.clipes === At.agora && At.escondida, At.erro || (At.clipes + ' clipes gravados sozinhos; fora da lista de composições: ' + At.escondida));
+      const Wz = r.wiz;
+      ok('assistente de projetores', Wz.comp.join() === '3000,1920' && Wz.telas.length === 2 && Wz.telas[0].dev === 'd1' && Wz.telas[0].in.w === 1920 && Wz.telas[1].in.x === 1920 && Wz.telas[1].in.w === 1080 && Wz.telas[1].in.h === 1920 && Wz.emenda[0] === 3640 && Wz.emenda[1].join() === 'true,true',
+        'composição ' + Wz.comp.join('×') + '; telas ' + JSON.stringify(Wz.telas.map(t => [t.dev, t.in.x + ',' + t.in.y + ' ' + t.in.w + '×' + t.in.h, 'giro ' + t.rot])) + '; sobrepostos 200 px: ' + Wz.emenda[0] + ' de largura, soft edge ' + Wz.emenda[1].join('/'));
+      const Sg = r.seg;
+      ok('tirar o fundo (PP-HumanSeg em ONNX)', Sg.ort && Sg.sessao && Sg.rodou && Sg.tex && !Sg.erro, Sg.erro || ('modelo carregado; um quadro segmentado em ' + Sg.ms + ' ms; máscara na textura ' + Sg.tex));
+      const Au = r.audio;
+      ok('áudio: grafo, efeitos de áudio e FFT', Au.ligado && Au.nos === 2 && Au.freq === 500 && Au.fft === 1 && Au.bandas === 5,
+        'clipe no grafo ' + Au.ligado + '; EQ-3 + LowPass = ' + Au.nos + ' nós, LowPass em ' + Au.freq + ' Hz; forma FFT com médios a 0,5 → ' + Au.fft + '; contexto ' + Au.ctx);
+      const Fx = r.fxAll;
+      ok('os 90 efeitos do Resolume', Fx.total >= 88 && Fx.n === Fx.total && Fx.erros.length === 0 && Fx.trails[0][0] > 200 && Fx.trails[1][0] > 100,
+        Fx.n + ' de ' + Fx.total + ' efeitos desenharam' + (Fx.erros.length ? '; erros: ' + Fx.erros.join(' | ') : '') + '; Trails: com o clipe ' + Fx.trails[0] + ', clipe apagado ' + Fx.trails[1]);
+      const Ap = r.apc;
+      ok('APC40 mkII', Ap.pad.join() === '1,-1' && Ap.coluna.join() === '3,-1,-1' && Math.abs(Ap.fader - 64 / 127) < 0.01 && Ap.master === 1 && Ap.bypass === true && Ap.leds[0] === 53 && Ap.leds[1] === 33 && Ap.leds[2] === 33 && Ap.leds[3] === 127 && Ap.limpar === -1,
+        'pad 9 → camada 2 coluna 2 ' + Ap.pad.join('/') + '; pad 35 → coluna 4 ' + Ap.coluna.join('/') + '; fader ' + Ap.fader.toFixed(2) + ', master ' + Ap.master + ', bypass ' + Ap.bypass + '; LEDs ' + Ap.leds.join('/') + '; limpar → ' + Ap.limpar);
+      const Bp = r.bpm;
+      ok('BPM: relógio, TAP, animação, Beat Snap e BPM Sync', Math.abs(Bp.anda - 1) < 0.3 && Math.abs(Bp.tap - 150) < 2 && Bp.an[0] === 1 && Bp.an[1] === -1 && Bp.snapAntes.join() === '-1,1' && Bp.snapDepois.join() === '3,0' && Math.abs(Bp.syncRate[0] - 1) < 0.15 && Math.abs(Bp.syncRate[1] - 2) < 0.3 && Bp.syncPos >= 0 && Bp.syncPos <= 1.15 && Bp.barra >= 12,
+        'em 0,5 s andou ' + Bp.anda.toFixed(2) + ' batida a 120; TAP deu ' + Bp.tap + '; On Off a 1 batida: ' + Bp.an.join(' / ') + '; Beat Snap 2: antes ' + Bp.snapAntes.join('/') + ', depois ' + Bp.snapDepois.join('/') + '; BPM Sync: velocidade ' + Bp.syncRate.map(x => x.toFixed(2)).join(' → ') + ', posição ' + Bp.syncPos.toFixed(2) + ' s; barra com ' + Bp.barra + ' botões');
       ok('modos de mistura da camada', Tm.mult[0] < 30 && Tm.mult[1] < 30 && Tm.add[0] > 200 && Tm.add[1] > 200 && Tm.alpha[1] > 200 && Tm.alpha[0] < 40 && Tm.add50[0] > 200 && Tm.add50[1] > 200,
         'verde sobre vermelho: 50 Multiply ' + Tm.mult + ', 50 Add ' + Tm.add + ', Alpha ' + Tm.alpha + ', Add a 50 % ' + Tm.add50);
       const Cp = r.comp;
@@ -394,8 +463,9 @@ module.exports = (win, app, laser) => {
         // acrescenta uma máscara com o editor aberto e cancela: ela some, os dois slices ficam
         P.ao.add('maskRect'); const n=P.screens()[0].items.length; P.ao.hide(true); await S(100);
         const R={cancelou:n===3 && P.screens()[0].items.length===2 && document.getElementById('ao').hidden};
-        // estado final para as capturas: os dois vídeos e a imagem
-        P.trigger(2,0); P.trigger(1,0); P.state.layers[0].opacity=0.35; P.render(); await S(700);
+        // estado final para as capturas: em cada camada, o primeiro clipe que sobrou na composição recarregada (as casas 2,0 e 1,0 ficam vazias depois do load)
+        P.state.layers.forEach((l,i)=>{ const k=l.clips.findIndex(Boolean); if(k>=0) P.trigger(i,k); }); P.state.layers[0].opacity=0.35; P.render(); await S(700);
+        R.noAr=P.state.layers.map(l=>l.on);
         document.getElementById('btnOut').click(); await S(2500);
         const sc=P.screens()[0]; R.saida=P.outWins().length; R.tela={id:sc.id,w:sc.w,h:sc.h};
         return R;
@@ -405,10 +475,15 @@ module.exports = (win, app, laser) => {
       const o = BrowserWindow.getAllWindows().find(w => w !== win);
       let ov = null;
       if (o) {
-        ov = await o.webContents.executeJavaScript(`(async()=>{ const v=document.getElementById('v'); const a=v.currentTime; await new Promise(r=>setTimeout(r,600)); return {w:v.videoWidth,h:v.videoHeight,anda:v.currentTime!==a,sid:new URLSearchParams(location.search).get('screen')}; })()`);
-        await shot(o, 'pc-saida.png');
+        ov = await o.webContents.executeJavaScript(`(async()=>{ const sid=new URLSearchParams(location.search).get('screen'); const src=window.opener.__projCanvas[sid]; const o=document.getElementById('adotado')||document.getElementById('out'); const pc=document.createElement('canvas'); pc.width=pc.height=32; const c=pc.getContext('2d',{willReadFrequently:true}); const h=()=>{ c.drawImage(src,0,0,32,32); const d=c.getImageData(0,0,32,32).data; let s=0; for(let i=0;i<d.length;i+=4) s=(s*31+d[i]+d[i+1]+d[i+2])>>>0; return s; }; const a=h(), t0=window.opener.projecionista.engine.time; await new Promise(r=>setTimeout(r,600)); return {w:o.width,h:o.height,anda:h()!==a || window.opener.projecionista.engine.time!==t0,sid,adotado:o.id==='adotado'&&o.ownerDocument===document&&o.isConnected}; })()`);   // a saída adota o canvas da tela (adoptNode); conferimos que ele está nesta janela e que muda
+        // o que o projetor mostra de verdade: a captura da janela de saída tem de ter imagem (não pode ser preta)
+        o.moveTop(); await sleep(400);
+        const img = await o.webContents.capturePage(); const bm = img.getBitmap(), sz = img.getSize(); let soma = 0, n = 0;
+        for (let i = 0; i < bm.length; i += 4 * 97) { soma += bm[i] + bm[i + 1] + bm[i + 2]; n += 3; }
+        ov.brilho = n ? Math.round(soma / n) : 0; ov.captura = sz.width + '×' + sz.height;
+        fs.writeFileSync(path.join(dir, 'pc-saida.png'), img.toPNG());
       }
-      ok('janela de saída', r2.saida === 1 && ov && ov.w === r2.tela.w && ov.h === r2.tela.h && ov.anda && ov.sid === String(r2.tela.id), ov ? ov.w + '×' + ov.h + ', tela ' + ov.sid + ', recebendo quadros=' + ov.anda : 'não abriu');
+      ok('janela de saída', r2.saida === 1 && ov && ov.w === r2.tela.w && ov.h === r2.tela.h && ov.anda && ov.adotado && ov.brilho > 8 && ov.sid === String(r2.tela.id), ov ? ov.w + '×' + ov.h + ', tela ' + ov.sid + ', canvas adotado=' + ov.adotado + ', recebendo quadros=' + ov.anda + ', captura ' + ov.captura + ' brilho médio ' + ov.brilho + ', no ar ' + r2.noAr.join('/') : 'não abriu');
       await shot(win, 'pc-grade.png');
     } catch (e) { ok('execução', false, e.message); }
     const f = out.filter(x => !x.pass);

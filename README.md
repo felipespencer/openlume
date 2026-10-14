@@ -17,7 +17,7 @@ npm start
 ## Como usar
 
 - Arraste vídeos ou imagens de uma pasta do Windows para uma casa da grade. O clipe fica guardado.
-- Clique na miniatura: o clipe vai para o ar. Clique no nome: só mostra a prévia.
+- Clique na miniatura ou no nome: o clipe vai para o ar, sempre do começo (clicar de novo recomeça).
 - Clique numa casa vazia: a camada fica preta.
 - Clique em "Coluna N": dispara a coluna inteira; camada sem clipe nela fica preta.
 - Arrastar um clipe para outra casa move; com Ctrl, copia. Botão direito esvazia a casa.
@@ -25,6 +25,79 @@ npm start
 - "Abrir saída" abre uma janela por tela. Com um projetor ligado, a tela "Automático" já abre
   nele em tela cheia. Numa janela comum, F ou duplo clique alterna a tela cheia.
 - Abrir o programa começa sempre do zero.
+
+### Áudio e reação ao som
+
+Cada clipe de vídeo com som passa por fonte → efeitos de áudio → volume → pan → master, e o
+master passa por uma FFT. No painel Composição → Áudio e FFT: fonte (a composição ou o
+microfone/entrada da placa), ganho, queda e os medidores de graves, médios-graves, médios,
+agudos e tudo. Qualquer parâmetro de efeito ou fonte animado com a forma **FFT (som)** segue o
+nível de uma dessas faixas (é o External FFT do Resolume). O laser já tinha o "Ao som".
+
+### Tirar o fundo da webcam
+
+O efeito **Background Removal** (painel Efeitos) tira o fundo e deixa só a pessoa, em webcam ou
+em qualquer clipe, com limiar, suavidade, inverter e encolher. Usa o modelo público
+PP-HumanSeg em ONNX (Apache 2.0, o mesmo que o Resolume traz) rodando no onnxruntime-web por
+WebAssembly, até 15 vezes por segundo, em paralelo ao desenho. Os arquivos ficam em
+`app/vendor/` com as licenças.
+
+### Instalador
+
+`npm run dist` gera em `dist/` o instalador **MSI** e o **zip portátil** (electron-builder, 64 bits),
+os dois com o ffmpeg dentro (`tools/ffmpeg/ffmpeg.exe`, fora do git) para o "Preparar vídeo"
+funcionar sem instalar nada. O instalador NSIS (`.exe`) só sai em máquina sem Smart App Control:
+o electron-builder precisa rodar um executável temporário sem assinatura para montar o
+desinstalador, e o Smart App Control bloqueia. O executável do programa é o do Electron sem
+mexer (`asar: false`, `signAndEditExecutable: false`), por isso roda mesmo com o Smart App
+Control ligado. Quem instala vê o aviso do SmartScreen ("Mais informações → Executar assim mesmo").
+
+### Akai APC40 mkII (ligar o cabo e funcionar)
+
+O programa acha a controladora sozinho (Web MIDI com SysEx), põe ela no modo "Ableton Live"
+e passa a acender os LEDs pelo estado da grade. O mapa é o que o Resolume instala para ela,
+estendido (`app/apc40.js`); Atalhos → MIDI: APC40 mkII… mostra o estado e a lista completa:
+
+- **Pads**: as 4 linhas de baixo são as camadas 1 a 4 (de baixo para cima), 8 colunas; a
+  linha de cima dispara a coluna. Cores: vazia, guardada, no ar, no ar e selecionada (os
+  mesmos números de cor do Resolume); a casa esperando o Beat Snap pisca.
+- **Botões de pista** (a coluna física é a camada de baixo): desligar (B), solo (S), clipe
+  anterior, limpar (X), próximo clipe. **Faders**: opacidade das camadas; o da direita é o
+  master. **Crossfader**: o crossfader. **Knobs da direita**: os 8 primeiros parâmetros do
+  clipe selecionado. **Knobs de pista**: o primeiro parâmetro do primeiro efeito da camada.
+  **Cue Level**: posição do clipe selecionado.
+- **Scene Launch**: seleciona a camada; **Master** seleciona a composição; **Stop All Clips**
+  tira tudo do ar. **◀ ▶**: coluna anterior/próxima (com Shift, janela de 8 colunas);
+  **▲ ▼**: janela de 4 camadas. **Tap Tempo**, **Nudge −/+**, **Metronome** (RESYNC; com Shift,
+  metrônomo), **Play** (toca todos), **Record** (grava), **Device ◀ ▶** (decks).
+- Atalhos → "Usar a APC40" desliga a controladora sem tirar o cabo.
+
+### BPM (como no Resolume)
+
+- **Relógio de BPM** (faixa embaixo da grade): ▶ ‖ ■ do transporte geral, o valor do BPM (clique
+  e digite), − +, nudge ◁| |▷ (segura e o BPM desvia o percentual das Preferências), /2 ×2, TAP
+  (2 cliques no mínimo), RESYNC (este instante vira a batida 1), ‖ pausa o relógio, ♩ metrônomo,
+  quatro luzes de batida (a borda amarela marca cada 4 compassos) e o Beat Snap.
+- **Beat Snap**: o disparo de clipe ou de coluna espera a próxima batida, meia batida, compasso…
+  A casa pisca em amarelo enquanto espera. Vale para a composição (menu Composição → Beat Snap)
+  e por coluna (menu Coluna → Beat Snap).
+- **BPM Sync** no clipe (painel Clipe → Transporte → Sincronia): a faixa entre a entrada e a saída
+  dura N batidas, presa ao relógio; mudar o BPM muda a velocidade e a posição acompanha.
+- **Parâmetros animados na batida**: todo parâmetro de efeito ou de fonte tem um botão ♪. Ligado,
+  o valor anda a cada ciclo de N batidas por uma forma dos presets do Resolume (4 to the Floor,
+  1 to the Floor, On Off, Random, Step 1 2, Step 1 2 3 4, LFO, Saw, Up N Down, Jittery, ADSR,
+  EasyEase), entre um mínimo e um máximo. Tudo vai para o arquivo da composição.
+- **Autopilot em batidas**: duração "Batidas" além de clipe inteiro e tempo fixo.
+
+### Projetores (assistente)
+
+Ao abrir o programa com mais de um monitor (e no menu Saída → Projetores…), um desenho mostra os
+projetores como retângulos: arraste cada um para o lugar dele, ↻ (ou duplo clique) vira em pé ou
+deitado, as bordas encaixam umas nas outras e, onde dois se sobrepõem, a emenda aparece com a
+largura e ganha soft edge sozinha. A composição é o retângulo que envolve todos; cada projetor vira
+uma tela com o seu recorte (girado 90° se o projetor está em pé mas o Windows o vê deitado) e as
+saídas abrem neles. Botões "Lado a lado", "Empilhados" e "Mesma imagem" dão as posições prontas.
+A lista Telas da janela principal tem um menu para trocar o monitor de cada tela na hora.
 
 ### Decks, grupos e crossfader (como no Resolume)
 
@@ -104,7 +177,10 @@ transformação e transição, mudando junto com a saída.
   **reprodutor próprio** (`app/player.js`: mp4box.js lê o MP4, WebCodecs decodifica na placa
   de vídeo, cache de quadros): frente, ré, pulo, velocidade e esfregar viram "qual quadro
   mostrar agora". O som acompanha quando toca para a frente perto de 1x. Precisa do `ffmpeg`
-  no PATH ou em `tools/ffmpeg/ffmpeg.exe`.
+  no PATH ou em `tools/ffmpeg/ffmpeg.exe`. Os quadros são decodificados **pelo processador** por
+  padrão: na placa de vídeo (NVDEC), com três vídeos no ar, abrir as saídas derrubava o processo de
+  GPU do Chromium (RTX 2070 SUPER, driver 32.0.16.1088, 3 de 3 vezes; por software, 0 de 3, a 60 fps).
+  Preferências → "Placa de vídeo" liga a decodificação na placa para quem quiser tentar.
 - **GIF animado** (e WebP/AVIF animados) entram como clipe de vídeo, quadro a quadro pelo
   ImageDecoder: transporte, ré, pulo e velocidade funcionam como num vídeo preparado. GIF
   parado continua imagem.
@@ -117,9 +193,18 @@ transformação e transição, mudando junto com a saída.
     `app://projecionista/media/…` com Range, então a composição salva os clipes por caminho.
   - *Composições*: Nova, Salvar, Salvar como…, lista das salvas (duplo clique abre). O arquivo
     guarda camadas, clipes por caminho, efeitos, autopilot, telas da saída e quadros do laser.
-  - *Efeitos*: 28 efeitos de vídeo com os nomes do Resolume (Blur, Bright.Contrast, Hue Rotate,
-    Kaleidoscope, LoRez, Mirror, Shift RGB, Strobe, Vignette, Wave Warp…); ♥ favoritos; arraste
-    para um clipe, camada ou composição, ou duplo clique para o clipe selecionado.
+  - *Efeitos*: os 90 efeitos de vídeo do Resolume 7.26, com os nomes dele (Add Subtract, Auto
+    Mask, Bendoscope, Bloom, Blow, Blur, ChromaKey, Circles, Cube Tiles, Delay RGB, Dilate,
+    Displace, Dither, Drop Shadow, Fish Eye, Fragment, Freeze, Goo, Grid, Hatched, Heat,
+    Infinite Zoom, Iterate, Keystone, Kuwahara, Levels, Linear/Radial Cloner, Mask, Meta Shape,
+    Particle System, Pixel Blur, Point Grid, PolarKaleido, Polkadot, Radar, Raster, Recolor,
+    Reveal, Ripples, Shaper, Sharpen, Shift Glitch, Slice Transform, Snow, Sparkles, Sphere,
+    Stop Motion, Stripper, Suckr, Terrain, Trails, Triangulate, Tunnel, Twisted, UV Map,
+    Vibrance, VideoWall…) e mais o **Background Removal**. Os que lembram o quadro anterior
+    (Trails, Freeze, Delay RGB, Infinite Zoom, Radar, Stop Motion) têm memória própria no motor.
+    ♥ favoritos; arraste para um clipe, camada ou composição, ou duplo clique para o clipe
+    selecionado. Embaixo, os 6 **efeitos de áudio** (Bitcrusher, Distortion, EQ-3, Flanger,
+    HighPass, LowPass), que vão para o clipe de vídeo.
   - *Fontes*: 13 geradores (Blank, Checkered, Gradient, Lines, Rings, Sine Wave, Spiral, Static,
     Stroboscope, Test Card, Metaballs, Line Scape, Solid Color), Text Block (fontes do Windows)
     e as câmeras ligadas; arraste para uma casa.

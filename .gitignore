@@ -2,3 +2,4 @@ node_modules/
 dist/
 referencia-resolume/*.png
 referencia-resolume/extraido/
+tools/ffmpeg/
