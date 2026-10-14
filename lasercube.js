@@ -7,6 +7,13 @@
 // (u16 little-endian, 0..4095), com cabeçalho [0xa9, 0, nº da mensagem, nº do quadro]; com
 // 0x78 ligado, cada pacote de pontos é respondido com quantas amostras cabem no buffer.
 //
+// Conferido com o REA em laserdocklib.dll do LaserOS 0.18.1 (2026-10-14): o "alive" é 0x27 em
+// broadcast na 45456 e a resposta válida é `27 00`; o pacote de informações (0x77) tem 64 bytes
+// com o byte 2 igual a 0; o LaserOS pergunta 0x77 a cada 250 ms e dá o aparelho como
+// desconectado se passar 4 s sem resposta; comandos críticos vão em duplicata (UDP por Wi-Fi
+// perde pacote); no pacote de pontos o byte 2 é um contador por pacote e o byte 3 muda a cada
+// lote enviado, e o aparelho conta os pacotes que faltam (erros de pacote, flags >> 4).
+//
 // Segurança: a saída começa desligada, é desligada ao desconectar e ao fechar o programa, e se
 // o controle parar de mandar quadros o laser recebe pontos apagados em vez de repetir o último.
 const dgram = require('node:dgram');
@@ -25,6 +32,7 @@ function parseInfo(b, ip) {
     ip, fw: fwMajor + '.' + fwMinor,
     outputOn: !!(flags & 1), interlock: !!(flags & (novo ? 2 : 8)), tempWarn: !!(flags & (novo ? 4 : 16)), overTemp: !!(flags & (novo ? 8 : 32)),
     rate: b.readUInt32LE(10), maxRate: b.readUInt32LE(14), bufFree: b.readUInt16LE(19), bufSize: b.readUInt16LE(21),
+    packetErrors: novo ? flags >> 4 : 0, connType: b[25] + 1, model: b[37], ipDevice: [...b.subarray(32, 36)].join('.'),
     battery: b[23], temp: b.readInt8(24), serial: [...b.subarray(26, 32)].map(x => x.toString(16).padStart(2, '0')).join(''), name: name || 'LaserCube',
   };
 }
@@ -37,7 +45,7 @@ class LaserCube extends EventEmitter {
     this.frame = null;          // Uint16Array x,y,r,g,b por ponto (0..4095), repetido em laço
     this.frameAt = 0; this.pos = 0; this.msg = 0; this.frameNo = 0;
     this.bufFree = 0; this.bufSize = 0; this.lastReply = 0;
-    this.timer = null; this.poll = null;
+    this.timer = null; this.poll = null; this.lastInfoAt = 0; this.batch = 0;
   }
 
   // ---------- descoberta ----------
@@ -70,8 +78,8 @@ class LaserCube extends EventEmitter {
     this.cmd.on('message', (b) => this.onCmd(b)); this.data.on('message', (b) => this.onReply(b));
     this.cmd.on('error', (e) => this.emit('error', e.message)); this.data.on('error', (e) => this.emit('error', e.message));
     await new Promise(r => this.cmd.bind(0, r)); await new Promise(r => this.data.bind(0, r));
-    this.send(CMD.OUTPUT, [0]);                 // nunca começa ligado
-    this.send(CMD.CLEAR, [0]);
+    this.send(CMD.OUTPUT, [0], true);           // nunca começa ligado (em duplicata)
+    this.send(CMD.CLEAR, [0], true);
     this.send(CMD.BUFFER_REPLIES, [1]);
     this.send(CMD.INFO);
     const info = await this.waitInfo(1500);
@@ -79,7 +87,12 @@ class LaserCube extends EventEmitter {
     this.setRate(Math.min(this.rate, info.maxRate || this.rate));
     this.bufSize = info.bufSize; this.bufFree = info.bufFree;
     this.timer = setInterval(() => this.pump(), 4);
-    this.poll = setInterval(() => { this.send(CMD.INFO); if (Date.now() - this.lastReply > 300) this.send(CMD.BUFFER_FREE); }, 500);
+    this.lastInfoAt = Date.now();
+    this.poll = setInterval(() => {
+      this.send(CMD.INFO); if (Date.now() - this.lastReply > 300) this.send(CMD.BUFFER_FREE);
+      // como o LaserOS: 4 s sem resposta de informações = o aparelho sumiu (Wi-Fi caiu, desligaram). Para de mandar.
+      if (Date.now() - this.lastInfoAt > 4000) { const ip = this.ip; this.disconnect(); this.emit('error', 'O LaserCube em ' + ip + ' parou de responder: desconectado'); }
+    }, 250);
     this.emit('status', this.status());
     return info;
   }
@@ -91,17 +104,18 @@ class LaserCube extends EventEmitter {
     });
   }
   disconnect() {
-    if (this.cmd) { try { this.send(CMD.OUTPUT, [0]); } catch { } }
+    if (this.cmd) { try { this.send(CMD.OUTPUT, [0], true); } catch { } }
     clearInterval(this.timer); clearInterval(this.poll); this.timer = this.poll = null;
     for (const s of [this.cmd, this.data]) { if (s) { try { s.close(); } catch { } } }
     this.cmd = this.data = null; this.ip = null; this.info = null; this.outputOn = false; this.frame = null;
     this.emit('status', this.status());
   }
-  send(cmd, payload = []) { if (this.cmd && this.ip) this.cmd.send(Buffer.from([cmd, ...payload]), PORT_CMD, this.ip); }
-  setOutput(on) { this.outputOn = !!on; this.send(CMD.OUTPUT, [on ? 1 : 0]); if (!on) this.send(CMD.CLEAR, [0]); this.emit('status', this.status()); }
+  send(cmd, payload = [], twice = false) { if (this.cmd && this.ip) { const b = Buffer.from([cmd, ...payload]); this.cmd.send(b, PORT_CMD, this.ip); if (twice) this.cmd.send(b, PORT_CMD, this.ip); } }
+  setOutput(on) { this.outputOn = !!on; this.send(CMD.OUTPUT, [on ? 1 : 0], !on); if (!on) this.send(CMD.CLEAR, [0], true);   // desligar vai em duplicata
+    this.emit('status', this.status()); }
   setRate(r) { this.rate = Math.max(1000, Math.min(this.info && this.info.maxRate || 60000, r | 0)); const b = Buffer.alloc(4); b.writeUInt32LE(this.rate); this.send(CMD.RATE, [...b]); }
   onCmd(b) {
-    if (b[0] === CMD.INFO) { const i = parseInfo(b, this.ip); if (i) { this.info = i; this.emit('info', i); this.emit('status', this.status()); } }
+    if (b[0] === CMD.INFO) { const i = parseInfo(b, this.ip); if (i) { this.lastInfoAt = Date.now(); this.info = i; this.emit('info', i); this.emit('status', this.status()); } }
     else if (b[0] === CMD.BUFFER_FREE && b.length >= 4) { this.bufFree = b.readUInt16LE(2); this.lastReply = Date.now(); }
   }
   onReply(b) { if (b[0] === CMD.BUFFER_FREE && b.length >= 4) { this.bufFree = b.readUInt16LE(2); this.lastReply = Date.now(); } }
@@ -130,7 +144,7 @@ class LaserCube extends EventEmitter {
     while (budget > 0 && pkts < MAX_PKTS) {
       const cnt = Math.min(MAX_PTS, budget, n - this.pos);
       const b = Buffer.alloc(4 + cnt * 10);
-      b[0] = CMD.DATA; b[1] = 0; b[2] = this.msg; b[3] = this.frameNo;
+      b[0] = CMD.DATA; b[1] = 0; b[2] = this.msg; b[3] = this.batch;
       for (let i = 0; i < cnt; i++) {
         const p = (this.pos + i) * 5, o = 4 + i * 10;
         b.writeUInt16LE(frame[p], o); b.writeUInt16LE(frame[p + 1], o + 2); b.writeUInt16LE(frame[p + 2], o + 4); b.writeUInt16LE(frame[p + 3], o + 6); b.writeUInt16LE(frame[p + 4], o + 8);
@@ -139,6 +153,7 @@ class LaserCube extends EventEmitter {
       this.msg = (this.msg + 1) & 0xff; this.pos += cnt; budget -= cnt; this.bufFree -= cnt; this.tokens -= cnt; pkts++;
       if (this.pos >= n) { this.pos = 0; this.frameNo = (this.frameNo + 1) & 0xff; if (frame !== this.frame) break; }
     }
+    if (pkts) this.batch = (this.batch + 1) & 0xff;   // o byte 3 muda a cada lote, não a cada quadro
   }
 }
 const BLANK = new Uint16Array(Array(20).fill([2048, 2048, 0, 0, 0]).flat());
