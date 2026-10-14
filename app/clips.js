@@ -5,7 +5,8 @@ import { sourceById } from './sources.js';
 
 let seq = 1;
 export const nextId = () => seq++;
-const base = (kind, name) => ({ id: seq++, name, kind, url: '', path: '', w: 0, h: 0, dur: 0, fit: 'contain', speed: 1, thumb: '', el: null, fx: [], transform: IDENT_TR(), rev: 1 });
+// ap: para onde o clipe manda quando acaba — 'layer' segue o autopilot da camada; 'next', 'prev', 'random', 'stop' ou 'cell' (camada l, coluna c)
+const base = (kind, name) => ({ id: seq++, name, kind, url: '', path: '', w: 0, h: 0, dur: 0, fit: 'contain', speed: 1, thumb: '', el: null, fx: [], transform: IDENT_TR(), ap: { mode: 'layer', l: 0, c: 0, dur: 'clip', secs: 5 }, rev: 1 });
 export const mediaUrl = (path) => 'app://projecionista/media/' + btoa(unescape(encodeURIComponent(path))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 export const isVideoName = (n) => /\.(mp4|webm|mov|m4v|mkv|ogv|avi)$/i.test(n);
 export const isImageName = (n) => /\.(png|jpe?g|gif|webp|bmp|avif)$/i.test(n);
@@ -94,6 +95,12 @@ export async function cameraClip(deviceId, label) {
   try { const cv = document.createElement('canvas'); cv.width = 160; cv.height = Math.round(160 * c.h / c.w); cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height); c.thumb = cv.toDataURL('image/jpeg', 0.7); } catch { }
   return c;
 }
+// espelho do laser: o que o LaserCube desenha aparece na projeção, num quadrado do tamanho do palco do laser
+export function laserMirrorClip() {
+  const c = base('lasermirror', 'Laser (espelho)'); c.el = document.createElement('canvas'); c.el.width = c.el.height = 1080; c.w = c.h = 1080; c.fit = 'contain';
+  c.thumb = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 26"><circle cx="17" cy="13" r="9" fill="none" stroke="#6fe6c6" stroke-width="1.5"/><path d="M8 13h18" stroke="#ff4dd2" stroke-width="1.5"/></svg>');
+  return c;
+}
 export function laserClip(frame, thumbSvg) {
   const c = base('laser', frame.name); c.laserId = frame.id; c.thumb = 'data:image/svg+xml;utf8,' + encodeURIComponent(thumbSvg); return c;
 }
@@ -104,6 +111,8 @@ export function cloneClip(c) {
   if (c.kind === 'source') { n.params = { ...c.params }; n.seed = Math.random() * 100; }
   if (c.kind === 'text') { n.text = { ...c.text }; n.el = document.createElement('canvas'); n.el.width = 1920; n.el.height = 1080; renderText(n); }
   if (c.kind === 'camera') { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.srcObject = c.stream; v.play().catch(() => { }); n.el = v; }
+  if (c.kind === 'lasermirror') { n.el = document.createElement('canvas'); n.el.width = n.el.height = 1080; }
+  n.ap = { ...c.ap };
   return n;
 }
 export function stopClip(c) { if (c && c.kind === 'video' && c.el) c.el.pause(); }
@@ -112,7 +121,7 @@ export function releaseClip(c) { if (!c) return; stopClip(c); if (c.kind === 'ca
 // o que vai para o arquivo da composição
 export function serializeClip(c) {
   if (!c) return null;
-  const o = { kind: c.kind, name: c.name, fit: c.fit, speed: c.speed, fx: c.fx, transform: c.transform };
+  const o = { kind: c.kind, name: c.name, fit: c.fit, speed: c.speed, fx: c.fx, transform: c.transform, ap: c.ap };
   if (c.kind === 'video' || c.kind === 'image') { if (!c.path) return { ...o, missing: true }; o.path = c.path; }
   if (c.kind === 'source') { o.source = c.source; o.params = c.params; }
   if (c.kind === 'text') o.text = c.text;
@@ -129,8 +138,9 @@ export async function deserializeClip(o, ctx) {
     else if (o.kind === 'text') { c = textClip(o.text && o.text.content); Object.assign(c.text, o.text || {}); renderText(c); }
     else if (o.kind === 'camera') { c = await cameraClip(o.deviceId, o.name); }
     else if (o.kind === 'laser' && ctx && ctx.laserClip) { c = ctx.laserClip(o.laserId); }
+    else if (o.kind === 'lasermirror') c = laserMirrorClip();
   } catch (e) { if (ctx && ctx.toast) ctx.toast('Não abriu ' + o.name + ': ' + e.message); return null; }
   if (!c) return null;
-  c.name = o.name || c.name; c.fit = o.fit || c.fit; c.speed = o.speed || 1; c.fx = (o.fx || []).map(f => ({ ...f, params: { ...f.params } })); c.transform = Object.assign(IDENT_TR(), o.transform || {});
+  c.name = o.name || c.name; c.fit = o.fit || c.fit; c.speed = o.speed || 1; c.fx = (o.fx || []).map(f => ({ ...f, params: { ...f.params } })); c.transform = Object.assign(IDENT_TR(), o.transform || {}); c.ap = Object.assign({ mode: 'layer', l: 0, c: 0, dur: 'clip', secs: 5 }, o.ap || {});
   return c;
 }

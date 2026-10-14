@@ -23,7 +23,8 @@ export const touch = (f) => { f.rev = (f.rev || 0) + 1; return f; };
 export function describe(f) {
   const partes = [];
   if (f.text.content) partes.push('Texto · ' + ({ h: 'horizontal', v: 'vertical', stack: 'pilha' })[f.text.dir]);
-  if (f.paths.length) partes.push(({ draw: 'Desenho', svg: 'SVG', shape: 'Forma' })[f.kind] + ' · ' + f.paths.length + (f.paths.length === 1 ? ' caminho' : ' caminhos'));
+  if (f.kind === 'contour') partes.push('Contorno da projeção');
+  else if (f.paths.length) partes.push(({ draw: 'Desenho', svg: 'SVG', shape: 'Forma' })[f.kind] + ' · ' + f.paths.length + (f.paths.length === 1 ? ' caminho' : ' caminhos'));
   const fx = [];
   if (f.distort.wave) fx.push('onda'); if (f.distort.spin) fx.push('giro'); if (f.distort.pulse) fx.push('pulso'); if (f.distort.jitter) fx.push('tremor'); if (f.distort.mirror !== 'none') fx.push('espelho');
   fx.push(({ rainbow: 'arco-íris', solid: 'cor fixa', cycle: 'ciclo de cor', two: 'duas cores', strobe: 'estrobo' })[f.color.mode]);
@@ -217,11 +218,74 @@ export function pathsToSvg(paths) {
 
 // ---------- salvar e abrir ----------
 export function serializeLaser(frames, settings, activeId) {
-  return JSON.stringify({ v: 1, settings, active: activeId, frames: frames.map(f => ({ name: f.name, kind: f.kind, text: f.text, paths: f.paths, color: f.color, distort: f.distort, pos: f.pos })) });
+  return JSON.stringify({ v: 1, settings, active: activeId, frames: frames.map(f => ({ name: f.name, kind: f.kind, text: f.text, paths: f.kind === 'contour' ? [] : f.paths, contour: f.contour, color: f.color, distort: f.distort, pos: f.pos })) });
 }
 export function deserializeLaser(json) {
   const d = typeof json === 'string' ? JSON.parse(json) : json;
-  const frames = (d.frames || []).map(s => { const f = mkFrame(s.name || 'Quadro', s.kind || 'draw'); Object.assign(f.text, s.text || {}); f.paths = (s.paths || []).map(p => p.map(q => [+q[0], +q[1]])); Object.assign(f.color, s.color || {}); Object.assign(f.distort, s.distort || {}); Object.assign(f.pos, s.pos || {}); return f; });
+  const frames = (d.frames || []).map(s => { const f = mkFrame(s.name || 'Quadro', s.kind || 'draw'); Object.assign(f.text, s.text || {}); f.paths = (s.paths || []).map(p => p.map(q => [+q[0], +q[1]])); Object.assign(f.color, s.color || {}); Object.assign(f.distort, s.distort || {}); Object.assign(f.pos, s.pos || {}); if (s.contour) f.contour = { ...s.contour }; return f; });
   const settings = Object.assign(LASER_DEFAULTS(), d.settings || {});
   return { frames, settings, active: d.active != null ? frames[d.frames.findIndex((_, i) => i === d.active)] : null };
+}
+
+// ---------- pintura do feixe num canvas 2D (prévia e espelho na projeção) ----------
+export function paintScan(cx, W, H, scan, showPoints, scale = 1) {
+  const k = Math.min(W, H) / 2 * scale, ox = W / 2, oy = H / 2;
+  cx.fillStyle = '#000'; cx.fillRect(0, 0, W, H);
+  if (!scan || !scan.n) return;
+  const X = (i) => ox + scan.xy[i * 2] * k, Y = (i) => oy - scan.xy[i * 2 + 1] * k;
+  cx.lineCap = 'round'; cx.lineJoin = 'round';
+  for (let pass = 0; pass < 2; pass++) {
+    cx.lineWidth = (pass ? 1.6 : 6) * Math.max(1, W / 1000); cx.globalAlpha = pass ? 1 : 0.35;
+    for (let i = 1; i < scan.n; i++) {
+      if (!(scan.lit[i] && scan.lit[i - 1])) continue;
+      cx.strokeStyle = `rgb(${scan.rgb[i * 3] * 255 | 0},${scan.rgb[i * 3 + 1] * 255 | 0},${scan.rgb[i * 3 + 2] * 255 | 0})`;
+      cx.beginPath(); cx.moveTo(X(i - 1), Y(i - 1)); cx.lineTo(X(i), Y(i)); cx.stroke();
+    }
+  }
+  cx.globalAlpha = 1;
+  if (showPoints) {
+    cx.setLineDash([2, 4]); cx.strokeStyle = '#666'; cx.lineWidth = 1; cx.beginPath();
+    for (let i = 1; i < scan.n; i++) { if (scan.lit[i] && scan.lit[i - 1]) continue; cx.moveTo(X(i - 1), Y(i - 1)); cx.lineTo(X(i), Y(i)); }
+    cx.stroke(); cx.setLineDash([]);
+    for (let i = 0; i < scan.n; i++) { cx.fillStyle = scan.lit[i] ? '#fff' : '#555'; cx.fillRect(X(i) - 1, Y(i) - 1, 2, 2); }
+  }
+}
+
+// ---------- contorno da projeção: bordas da imagem viram caminhos do laser ----------
+// Recebe os pixels de uma versão pequena da composição, acha a linha onde o brilho cruza o
+// limiar (marching squares) e emenda os segmentos em caminhos. Coordenadas em -1..1, com a
+// proporção da imagem preservada (a largura ocupa -1..1).
+export function contourPaths(data, w, h, level = 0.4, tol = 0.01) {
+  const lum = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) lum[i] = (data[i * 4] * 0.299 + data[i * 4 + 1] * 0.587 + data[i * 4 + 2] * 0.114) / 255;
+  const segs = [];
+  const at = (x, y) => lum[y * w + x];
+  const lerp = (x0, y0, x1, y1) => { const a = at(x0, y0), b = at(x1, y1); const t = (level - a) / ((b - a) || 1e-9); return [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t]; };
+  for (let y = 0; y < h - 1; y++) for (let x = 0; x < w - 1; x++) {
+    const c = (at(x, y) >= level ? 8 : 0) | (at(x + 1, y) >= level ? 4 : 0) | (at(x + 1, y + 1) >= level ? 2 : 0) | (at(x, y + 1) >= level ? 1 : 0);
+    if (c === 0 || c === 15) continue;
+    const T = () => lerp(x, y, x + 1, y), R = () => lerp(x + 1, y, x + 1, y + 1), B = () => lerp(x, y + 1, x + 1, y + 1), Lf = () => lerp(x, y, x, y + 1);
+    const e = { 1: [Lf, B], 2: [B, R], 3: [Lf, R], 4: [T, R], 5: [Lf, T, B, R], 6: [T, B], 7: [Lf, T], 8: [Lf, T], 9: [T, B], 10: [Lf, B, T, R], 11: [T, R], 12: [Lf, R], 13: [B, R], 14: [Lf, B] }[c];
+    for (let i = 0; i < e.length; i += 2) segs.push([e[i](), e[i + 1]()]);
+  }
+  // emenda: segmentos que compartilham ponta viram um caminho só
+  const key = (p) => Math.round(p[0] * 4) + ',' + Math.round(p[1] * 4);
+  const ends = new Map(); segs.forEach((s, i) => { for (const p of s) { const k = key(p); if (!ends.has(k)) ends.set(k, []); ends.get(k).push(i); } });
+  const used = new Uint8Array(segs.length), paths = [];
+  for (let i = 0; i < segs.length; i++) {
+    if (used[i]) continue; used[i] = 1;
+    let path = [segs[i][0], segs[i][1]];
+    for (let dir = 0; dir < 2; dir++) {
+      for (let guard = 0; guard < 5000; guard++) {
+        const end = path[path.length - 1], cands = (ends.get(key(end)) || []).filter(j => !used[j]);
+        if (!cands.length) break;
+        const j = cands[0]; used[j] = 1; const s = segs[j];
+        path.push(key(s[0]) === key(end) ? s[1] : s[0]);
+      }
+      path.reverse();
+    }
+    if (path.length >= 3) paths.push(path);
+  }
+  const sx = 2 / w, sy = 2 / h * (h / w);   // largura -1..1; altura na proporção
+  return paths.map(p => simplify(p.map(([x, y]) => [x * sx - 1, (h / w) - y * sy]), tol)).filter(p => p.length >= 2);
 }

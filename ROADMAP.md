@@ -26,11 +26,16 @@ de trabalhar.
 **Regra dada em 2026-10-14: "adiciona tudo que tiver no Resolume, depois eu vou tirando o que
 não quero".** Ou seja: na dúvida, o recurso entra; a poda é dele, depois.
 
-**Pedido do mesmo dia: um modo de a projeção interagir com o laser.** Proposta a confirmar:
-(a) *Contorno*: o laser traça as bordas do que está sendo projetado (detecção de bordas na
-composição → linhas → laser); (b) *Espelho*: o desenho do laser aparece também como camada
-na projeção, no mesmo lugar; (c) *Reação*: pulso e cor do laser seguem o som junto com os
-efeitos da projeção.
+**Pedido do mesmo dia: um modo de a projeção interagir com o laser.** Feito em dois sentidos:
+(a) *Contorno*: quadro do laser "Contorno da projeção" traça ao vivo as bordas do que está na
+composição (marching squares numa versão pequena da imagem, limiar e detalhe ajustáveis);
+(b) *Espelho*: fonte "Laser (espelho)" na grade mostra na projeção o que o laser desenha, no
+mesmo lugar (quadrado do palco do laser centrado). (c) *Reação* ao som já existe no laser
+("Ao som"); a parte da projeção vem com a camada de áudio (item 13).
+
+**Autopilot por clipe** (pedido do mesmo dia: "eu tenho que decidir pra onde cada clipe
+envia"): no painel Clipe, destino ao acabar — como a camada, próximo, anterior, ao acaso,
+casa específica (camada + coluna) ou parar; no fim do clipe ou depois de N segundos.
 
 - **Rodapé do Resolume** (2026-10-14): Composição | Camada | Clipe com Autopilot, master,
   velocidade, mistura, transição, Transform e cadeia de efeitos; navegador Arquivos (pastas do

@@ -129,6 +129,7 @@ export class Browser {
     };
     for (const s of [...SOURCES].sort((a, b) => a.name.localeCompare(b.name))) if (this.match(s.name)) mk(s.name, s.desc, { source: s.id });
     if (this.match('Text Block')) mk('Text Block', 'Texto escrito com as fontes do Windows.', { text: true });
+    if (this.match('Laser')) mk('Laser (espelho)', 'O que o LaserCube está desenhando aparece na projeção, no mesmo lugar.', { lasermirror: true });
     list.appendChild(el('div', 'grp', 'DISPOSITIVOS DE CAPTURA'));
     try { if (!this.cameras.length) this.cameras = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput'); } catch { }
     if (!this.cameras.length) list.appendChild(el('div', 'vazio', 'Nenhuma câmera encontrada.'));

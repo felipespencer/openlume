@@ -194,6 +194,19 @@ module.exports = (win, app, laser) => {
         let lz=null;
         if(window.projLaser){ try{ const info=await window.projLaser.connect('127.0.0.1'); Z.setActive(fr); await S(200); const st0=await window.projLaser.status(); await window.projLaser.output(true); await S(700); const st1=await window.projLaser.status(); await window.projLaser.output(false); await S(100); lz={nome:info.name, bateria:info.battery, antes:st0.outputOn, depois:st1.outputOn, bufSize:st1.bufSize}; }catch(e){ lz={erro:e.message}; } }
         R.laserCube=lz;
+        // espelho: a fonte "Laser (espelho)" na grade mostra o círculo que o laser desenha
+        const circ=Z.frames.find(f=>f.name==='Círculo'); circ.distort.pulse=0; Z.setActive(circ);
+        P.state.layers[0].clips[0]=P.C.laserMirrorClip(); P.trigger(0,0); await S(250);
+        const esp=P.probe([[0.5+0.8*0.5*1080/1920,0.5],[0.5,0.5]]);   // na borda do círculo (raio 0,8 do quadrado de 1080) há luz; no centro não
+        R.espelho={borda:esp[0],centro:esp[1]}; P.eject(0); Z.setActive(null);
+        // contorno: com um retângulo vermelho na projeção, o quadro de contorno acha as bordas dele
+        const red=P.putSource(0,3,'solidcolor'); red.params.hue=0; red.transform.scale=0.5; P.trigger(0,3); await S(200);
+        Z.add('contour'); const ctr=Z.frames[Z.frames.length-1]; ctr.contour.level=0.2; Z.setActive(ctr); Z.scanNow(performance.now()/1000+1);
+        R.contorno={caminhos:ctr.paths.length, pontos:ctr.paths.reduce((a,p)=>a+p.length,0)}; Z.setActive(null); Z.frames.pop();
+        // autopilot do clipe: o vermelho manda para a casa (camada 2, coluna 3) depois de 0,3 s; o Test Card de lá para
+        red.ap={mode:'cell',l:1,c:2,dur:'fixed',secs:0.3}; P.putSource(1,2,'testcard'); P.state.layers[1].clips[2].ap={mode:'stop',l:0,c:0,dur:'fixed',secs:0.3};
+        P.eject(0); P.eject(1); P.trigger(0,3); await S(600); const apCell=[P.state.layers[0].on,P.state.layers[1].on]; red.ap.mode='layer'; await S(600); const apStop=P.state.layers[1].on;
+        R.apClip={cell:apCell, stop:apStop}; P.eject(0); P.eject(1); P.state.layers[1].clips[2]=null; P.state.layers[0].clips[0]=null; P.state.layers[0].clips[3]=null; P.render();
         window.__shotEditor=true;
         return R;
       })()`, true);
@@ -258,6 +271,9 @@ module.exports = (win, app, laser) => {
       await win.webContents.executeJavaScript(`window.projecionista.laser.setTab('laser'); true`, true); await sleep(200);
       await shot(win, 'pc-laser-aparelho.png');
       await win.webContents.executeJavaScript(`window.projecionista.laser.hide(); true`, true);
+      ok('laser: espelho na projeção', r.espelho.borda.join() !== '0,0,0' && r.espelho.centro.join() === '0,0,0', 'borda do círculo ' + r.espelho.borda + ', centro ' + r.espelho.centro);
+      ok('laser: contorno da projeção', r.contorno.caminhos >= 1 && r.contorno.pontos >= 4, r.contorno.caminhos + ' caminho(s), ' + r.contorno.pontos + ' pontos em volta do retângulo');
+      ok('autopilot do clipe', r.apClip.cell.join() === '3,2' && r.apClip.stop === -1, 'casa específica disparou a camada 2 coluna 3; "parar" tirou do ar');
       ok('editor', r.editor.aberto && r.editor.linhas === 3 && r.editor.slices === 2 && r.editor.grupos >= 8 && r.editorOut.slices === 2 && r.editorOut.ancoras === 8,   // malha 3×1 = 4×2 âncoras
         r.editor.linhas + ' linhas na árvore, ' + r.editor.slices + ' slices na Entrada, ' + r.editorOut.slices + ' na Saída, ' + r.editorOut.ancoras + ' âncoras, ' + r.editor.grupos + ' linhas de propriedades');
       ok('desfazer e refazer', r.desfazer.depoisApagar === 1 && r.desfazer.depoisDesfazer === 2 && r.desfazer.refazer === 1, 'apagar → 1 item, desfazer → 2, refazer → 1');

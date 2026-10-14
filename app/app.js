@@ -17,6 +17,7 @@ import { Recorder } from './record.js';
 import { mkFx } from './effects.js';
 import { AUTOPILOT, serializeComposition, deserializeComposition } from './composition.js';
 import { initSplitters } from './splitters.js';
+import { paintScan } from './laser-model.js';
 
 const COLS = 8, COMP_W = 1920, COMP_H = 1080;
 const $ = (id) => document.getElementById(id);
@@ -63,6 +64,7 @@ function dropInto(li, col, d, files, ctrl) {
   if (d.path) return putPath(li, col, d.path, d.name);
   if (d.source) return putSource(li, col, d.source);
   if (d.text) return putText(li, col, 'TEXTO');
+  if (d.lasermirror) return putClip(li, col, C.laserMirrorClip());
   if (d.camera) return putCamera(li, col, d.camera);
   if (d.laser) return putLaserClip(li, col, d.laser);
   if (d.effect) { const c = state.layers[li].clips[col]; if (c) { c.fx.push(mkFx(d.effect)); render(); } return; }
@@ -142,12 +144,17 @@ function selectedClip() { const c = selectedCell(); return c ? c.clip : null; }
 function tickAutopilot(now) {
   let anyOn = false, allEnded = true;
   for (let li = 0; li < state.layers.length; li++) {
-    const L = state.layers[li], ap = L.autopilot; if (L.on < 0) continue; anyOn = true;
+    const L = state.layers[li]; if (L.on < 0) continue; anyOn = true;
     const clip = L.clips[L.on]; if (!clip) continue;
+    // o clipe pode ter o seu próprio destino; senão vale o autopilot da camada
+    const cap = clip.ap && clip.ap.mode !== 'layer' ? clip.ap : null;
+    const ap = cap ? { dir: cap.mode, dur: cap.dur, secs: cap.secs, loop: true } : L.autopilot;
     const dur = ap.dur === 'fixed' ? ap.secs : (clip.kind === 'video' && clip.dur ? clip.dur / (clip.speed * state.speed) : ap.secs);
     const elapsed = now - (clip.startedAt || now);
     if (elapsed < dur) { allEnded = false; continue; }
     if (ap.dir === 'off') { if (clip.kind === 'video') allEnded = allEnded && clip.el.ended; continue; }
+    if (ap.dir === 'stop') { eject(li); continue; }
+    if (ap.dir === 'cell') { const tl = Math.min(cap.l, state.layers.length - 1); if (state.layers[tl].clips[cap.c]) { if (tl !== li) clip.startedAt = now; trigger(tl, cap.c); } else clip.startedAt = now; continue; }
     const idx = L.clips.map((c, i) => c ? i : -1).filter(i => i >= 0);
     if (idx.length < 2) { clip.startedAt = now; continue; }
     let next = -1;
@@ -326,7 +333,7 @@ $('btnAO').onclick = () => ao.show();
 
 const laser = new LaserModule({
   onChange: () => { renderScreens(); },
-  toast, laser: window.projLaser || null,
+  toast, laser: window.projLaser || null, compCanvas: monCanvas,
   dragStart: (f) => { drag = { laser: f }; }, dragEnd: () => { drag = null; },
 });
 if (window.projLaser) window.projLaser.onError((m) => toast('Laser: ' + m));
@@ -381,6 +388,8 @@ const browser = new Browser({
 (function loop() {
   const now = performance.now() / 1000;
   for (const L of state.layers) if (L.prev && now - L.prev.t0 >= L.prev.dur) { C.stopClip(L.prev.clip); L.prev = null; }
+  // espelho do laser: o desenho do LaserCube vai para a projeção
+  { const s = selectedCell(); for (const L of state.layers) { const c = L.on >= 0 ? L.clips[L.on] : null; for (const m of [c, s && s.clip]) if (m && m.kind === 'lasermirror' && m.paintedAt !== now) { m.paintedAt = now; paintScan(m.el.getContext('2d'), 1080, 1080, laser.scanNow(now), false); m.rev++; } } }
   engine.render(state.layers, engine.neededLayers(state.screens), now);
   engine.blit(monCtx);
   const pc = selectedCell();

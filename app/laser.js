@@ -2,6 +2,7 @@
 // cima; quadros à esquerda com a caixa de ajuda; palco quadrado no meio com as ferramentas de
 // desenho e a zona segura; propriedades à direita (texto, cor, distorção, posição, laser).
 import * as L from './laser-model.js';
+import { paintScan, contourPaths } from './laser-model.js';
 import { FONT_NAMES } from './hershey.js';
 import { el, fmtN, ICON, propsKit } from './panel.js';
 
@@ -40,7 +41,7 @@ export class LaserModule {
         <div id="lzLeft">
           <div class="tb"><button type="button" id="lzAdd" class="ib" data-help="Adicionar quadro|Texto, desenho à mão, SVG ou uma forma pronta.">${ICON.plus}${ICON.caret}</button>
             <div id="lzAddMenu" class="menu" hidden>
-              <button type="button" data-add="text">Texto</button><button type="button" data-add="draw">Desenho à mão</button><button type="button" data-add="svg">Importar SVG…</button>
+              <button type="button" data-add="text">Texto</button><button type="button" data-add="draw">Desenho à mão</button><button type="button" data-add="svg">Importar SVG…</button><button type="button" data-add="contour">Contorno da projeção</button>
               <div class="mrow"><span>Forma</span><i data-add="circle" title="Círculo">${ICON.circle}</i><i data-add="square" title="Quadrado">${ICON.rect}</i><i data-add="triangle" title="Triângulo">${ICON.tri}</i><i data-add="star" title="Estrela">★</i><i data-add="wave" title="Onda">∿</i><i data-add="heart" title="Coração">${ICON.heart}</i><i data-add="line" title="Linha">${ICON.line}</i></div>
             </div>
             <span class="sp"></span>${ib('lzDup', 'copy', 'Duplicar|Faz uma cópia do quadro selecionado.')}${ib('lzDel', 'x', 'Apagar|Apaga o quadro selecionado.')}</div>
@@ -143,6 +144,7 @@ export class LaserModule {
     if (kind === 'text') f = L.mkFrame('Texto ' + (this.frames.length + 1), 'text');
     else if (kind === 'draw') { f = L.mkFrame('Desenho ' + (this.frames.length + 1), 'draw'); this.setTool('pencil'); }
     else if (kind === 'svg') { $('lzFile').value = ''; $('lzFile').click(); this.hist.pop(); return; }
+    else if (kind === 'contour') { f = L.mkFrame('Contorno da projeção', 'contour'); f.contour = { level: 0.4, detail: 1 }; f.color.mode = 'solid'; f.color.c1 = '#ffffff'; }
     else { f = L.mkFrame(({ circle: 'Círculo', square: 'Quadrado', triangle: 'Triângulo', star: 'Estrela', wave: 'Onda', heart: 'Coração', line: 'Linha' })[kind] || 'Forma', 'shape'); f.paths = L.shapePaths(kind); }
     this.frames.push(f); this.sel = f; this.c.onChange(); this.refresh();
   }
@@ -239,8 +241,24 @@ export class LaserModule {
     if (this.poly) S('polyline', { points: this.poly.map(p => this.toS(p).join(',')).join(' '), class: 'drawing' });
     if (this.drag && this.drag.preview) S('polyline', { points: this.drag.preview.map(p => this.toS(p).join(',')).join(' '), class: 'drawing' });
   }
+  // contorno: as bordas da composição viram os caminhos do quadro, a cada quadro
+  updateContour(f) {
+    const src = this.c.compCanvas; if (!f || f.kind !== 'contour' || !src || !src.width) return;
+    const det = (f.contour && f.contour.detail) || 1, w = Math.round(96 * det), h = Math.round(w * src.height / src.width);
+    if (!this.ctrCv) { this.ctrCv = document.createElement('canvas'); this.ctrCx = this.ctrCv.getContext('2d', { willReadFrequently: true }); }
+    if (this.ctrCv.width !== w || this.ctrCv.height !== h) { this.ctrCv.width = w; this.ctrCv.height = h; }
+    this.ctrCx.drawImage(src, 0, 0, w, h);
+    f.paths = contourPaths(this.ctrCx.getImageData(0, 0, w, h).data, w, h, (f.contour && f.contour.level) || 0.4, 0.012);
+  }
+  // os pontos do quadro ativo agora (para o laser e para o espelho na projeção), um cálculo por tique
+  scanNow(now) {
+    if (this.scanAt === now) return this.scanCache;
+    this.updateContour(this.active);
+    this.scanAt = now; this.scanCache = L.renderPoints(this.active, this.settings, now, this.audio); return this.scanCache;
+  }
   // a imagem do laser: linhas acesas com brilho, caminhos apagados tracejados quando "pontos" está ligado
-  paint(scan) {
+  paint(scan) { paintScan(this.cx, this.cv.width, this.cv.height, scan, this.settings.showPoints); }
+  paintOld(scan) {
     const cx = this.cx, W = this.cv.width, k = W / 2; cx.fillStyle = '#000'; cx.fillRect(0, 0, W, W);
     if (!scan || !scan.n) return;
     cx.lineCap = 'round'; cx.lineJoin = 'round';
@@ -266,11 +284,11 @@ export class LaserModule {
     const tick = () => {
       const now = performance.now() / 1000;
       if (this.c.laser && this.status.connected && this.status.outputOn) {
-        const scan = L.renderPoints(this.active, this.settings, now, this.audio);
+        const scan = this.scanNow(now);
         this.c.laser.frame(L.toU16(scan, this.settings));
         if (this.open && this.tab === 'live') { this.lastScan = scan; this.paint(scan); }
-      } else if (this.open && this.tab === 'live') { this.lastScan = L.renderPoints(this.active, this.settings, now, this.audio); this.paint(this.lastScan); }
-      if (this.open && this.tab === 'frames') { this.lastScan = L.renderPoints(this.sel, this.settings, now, this.audio); this.paint(this.lastScan); }
+      } else if (this.open && this.tab === 'live') { this.lastScan = this.scanNow(now); this.paint(this.lastScan); }
+      if (this.open && this.tab === 'frames') { if (this.sel !== this.active) this.updateContour(this.sel); this.lastScan = this.sel === this.active ? this.scanNow(now) : L.renderPoints(this.sel, this.settings, now, this.audio); this.paint(this.lastScan); }
       if (this.open && this.tab === 'laser') this.paint(null);
       if (this.open && (now * 2 | 0) !== this.lastFoot) { this.lastFoot = now * 2 | 0; this.renderFoot(); }
       setTimeout(tick, 1000 / this.settings.fps);
@@ -336,6 +354,12 @@ export class LaserModule {
     $('lzPropT').textContent = f ? f.name : (this.tab === 'live' ? 'Nada no laser' : 'Nenhum quadro');
     if (!f) return;
     const T = f.text, C = f.color, D = f.distort, Po = f.pos, tc = () => L.touch(f);
+    if (f.kind === 'contour') {
+      const ct = f.contour || (f.contour = { level: 0.4, detail: 1 });
+      P.appendChild(this.phead('Contorno da projeção', 'Contorno|O laser traça, ao vivo, as bordas do que está na composição.'));
+      P.appendChild(this.pnum('Limiar', 'Limiar|Brilho a partir do qual a imagem conta como "aceso". Baixo pega mais bordas.', Math.round(ct.level * 100), { min: 5, max: 95, step: 1, unit: ' %', bar: true, reset: 40 }, v => { ct.level = v / 100; }));
+      P.appendChild(this.pnum('Detalhe', 'Detalhe|Resolução da análise. Mais detalhe = mais pontos, mais lento.', ct.detail, { min: 0.5, max: 3, step: 0.25, dec: 2, bar: true, reset: 1 }, v => { ct.detail = v; }));
+    }
     P.appendChild(this.phead('Texto', 'Texto|Escrito com fonte de traço único, feita para laser. Linhas separadas com Enter não: use a direção Pilha.'));
     P.appendChild(this.ptext('Conteúdo', 'Conteúdo|O texto. Vazio = sem texto neste quadro.', T.content, v => { T.content = v; tc(); }));
     P.appendChild(this.pselect('Fonte', 'Fonte|Três fontes Hershey, de traço único.', Object.entries(FONT_NAMES), T.font, v => { T.font = v; tc(); }));

@@ -39,7 +39,11 @@ transformação e transição, mudando junto com a saída.
   tempo fixo, loop), master, velocidade, opacidade, mistura, transição entre clipes da camada,
   Transform (posição, escala, giro) e a cadeia de efeitos.
 - **Clipe** (meio): nome, transporte e velocidade (vídeo), parâmetros da fonte gerada ou do
-  texto, ajuste, Transform e a cadeia de efeitos do clipe.
+  texto, **Autopilot do clipe** (para onde manda ao acabar: como a camada, próximo, anterior,
+  ao acaso, casa específica ou parar), ajuste, Transform e a cadeia de efeitos do clipe.
+- **Laser e projeção juntos**: a fonte "Laser (espelho)" (aba Fontes) mostra na projeção o que
+  o LaserCube desenha; o quadro "Contorno da projeção" (menu + do Laser) faz o laser traçar as
+  bordas do que está sendo projetado.
 - **Arquivos · Composições · Efeitos · Fontes · Gravar** (direita), com a caixa de ajuda:
   - *Arquivos* navega as pastas do computador (Vídeos, Imagens, discos, favoritas ♥); arraste um
     arquivo para a casa, duplo clique mostra na prévia. Os arquivos são servidos por

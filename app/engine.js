@@ -175,7 +175,7 @@ export class Engine {
     const el = clip.el; if (!el) return e.t;
     if (clip.kind === 'video' || clip.kind === 'camera') {
       if (el.readyState >= 2) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
-    } else if (clip.kind === 'text') {
+    } else if (clip.kind === 'text' || clip.kind === 'lasermirror') {
       if (e.rev !== clip.rev) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el); e.rev = clip.rev; }
     } else if (!e.done && el.complete && el.naturalWidth) {
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
