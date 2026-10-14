@@ -207,13 +207,13 @@ module.exports = (win, app, laser) => {
         cropFx.params.l = 1; const trailsDepois = P.probe(mid)[0]; L[0].fx = []; P.eject(0);
         R.fxAll = { ...fxAll, trails: [trailsAntes, trailsDepois], total: P.EFFECTS.length };
         // APC40 mkII (sem a controladora: as mensagens entram pela função que recebe o MIDI): pad da camada 2 coluna 2, linha de cima dispara a coluna, fader e master
-        const A = P.apc, ap = {}; P.putSource(1,1,'testcard'); A.handle([0x90, 9, 127]); ap.pad = [L[1].on, L[0].on];
-        A.handle([0x90, 32 + 3, 127]); ap.coluna = L.map(x => x.on);
-        A.handle([0xB0, 7, 64]); ap.fader = L[2].opacity; A.handle([0xB0, 14, 127]); ap.master = P.state.master;
-        A.handle([0x90 + 1, 48, 127]); ap.bypass = L[1].bypass; A.handle([0x90 + 1, 48, 127]);
+        const A = P.apc, ap = {}, LB = (k) => L[L.length - 1 - k]; const iB1 = L.length - 2; P.putSource(iB1,1,'testcard'); A.handle([0x90, 9, 127]); ap.pad = [LB(1).on, L[0].on];
+        A.handle([0x90, 98, 127]); A.handle([0x90, 3, 127]); A.handle([0x90, 98, 0]); ap.coluna = L.map(x => x.on);   // Shift + pad dispara a coluna
+        A.handle([0xB0, 7, 64]); ap.fader = LB(0).opacity; A.handle([0xB0, 14, 127]); ap.master = P.state.master;
+        A.handle([0x90 + 1, 48, 127]); ap.bypass = LB(1).bypass; A.handle([0x90 + 1, 48, 127]);
         A.handle([0x90, 9, 127]); const leds = A.leds(); const led = (s, n) => (leds.find(x => x[0] === s && x[1] === n) || [])[2];
         ap.leds = [led(0x90, 9), led(0x90, 8), led(0x90, 35), led(0x91, 52)];
-        A.handle([0x90 + 1, 52, 127]); ap.limpar = L[1].on; L[2].opacity = 1; P.state.master = 1; P.engine.master = 1; P.eject(0); P.eject(1); P.eject(2); P.state.layers[1].clips[1] = null;
+        A.handle([0x90 + 1, 52, 127]); ap.limpar = LB(1).on; LB(0).opacity = 1; P.state.master = 1; P.engine.master = 1; L.forEach((x, i) => P.eject(i)); LB(1).clips[1] = null;
         R.apc = ap;
         // BPM: a batida anda no tempo certo; TAP a 150; animação de parâmetro na batida; Beat Snap segura o disparo até a batida
         const B = P.bpm; B.bpm = 120; const b0 = B.beat; await S(500); const bAnda = B.beat - b0;
@@ -351,11 +351,11 @@ module.exports = (win, app, laser) => {
       ok('rodapé seleciona e dispara do começo', r.rodape.on && r.rodape.sel.l === 0 && r.rodape.sel.c === 1 && r.rodape.prev && /64×48/.test(r.rodape.nome), 'prévia: ' + r.rodape.nome);
       ok('casa vazia deixa a camada preta', r.vaziaPreta.on === -1 && r.vaziaPreta.pausado && nz(r.vaziaPreta.px[0]) && nz(r.vaziaPreta.px[1]) && r.vaziaPreta.px[0].join() !== r.aMaisB[0].join(),
         'camada do meio fora do ar e vídeo pausado; a de baixo continua');
-      ok('coluna', r.coluna.on.join() === '1,-1,-1' && r.coluna.px[0][0] > 200 && r.coluna.px[0][1] < 40 && r.coluna.px[1].join() === '0,0,0',
+      ok('coluna', r.coluna.on.join() === '1,-1,-1,-1,-1' && r.coluna.px[0][0] > 200 && r.coluna.px[0][1] < 40 && r.coluna.px[1].join() === '0,0,0',
         'no ar por camada: ' + r.coluna.on + '; centro ' + r.coluna.px[0] + ' (imagem vermelha), lateral ' + r.coluna.px[1] + ' (preto)');
       ok('mover clipe no ar', r.mover.on === 3 && r.mover.tem3 && !r.mover.tem1, 'continua no ar na casa nova');
       ok('opacidade', r.meia[0] > 100 && r.meia[0] < 150, 'vermelho a 50% = ' + r.meia[0]);
-      ok('grade', r.dom.casas === 24 && r.dom.noAr === 1, r.dom.casas + ' casas, ' + r.dom.noAr + ' no ar');
+      ok('grade', r.dom.casas === 40 && r.dom.noAr === 1, r.dom.casas + ' casas, ' + r.dom.noAr + ' no ar');
 
       const T = r.telaPadrao;
       ok('tela padrão mostra a composição', T.telas === 1 && T.itens === 1 && T.modo === 'corners' && T.px[0][0] > 200 && T.px[1].join() === '0,0,0', T.nome + ': centro ' + T.px[0] + ', faixa preta ' + T.px[1]);
@@ -406,15 +406,15 @@ module.exports = (win, app, laser) => {
       ok('os 90 efeitos do Resolume', Fx.total >= 88 && Fx.n === Fx.total && Fx.erros.length === 0 && Fx.trails[0][0] > 200 && Fx.trails[1][0] > 100,
         Fx.n + ' de ' + Fx.total + ' efeitos desenharam' + (Fx.erros.length ? '; erros: ' + Fx.erros.join(' | ') : '') + '; Trails: com o clipe ' + Fx.trails[0] + ', clipe apagado ' + Fx.trails[1]);
       const Ap = r.apc;
-      ok('APC40 mkII', Ap.pad.join() === '1,-1' && Ap.coluna.join() === '3,-1,-1' && Math.abs(Ap.fader - 64 / 127) < 0.01 && Ap.master === 1 && Ap.bypass === true && Ap.leds[0] === 53 && Ap.leds[1] === 33 && Ap.leds[2] === 33 && Ap.leds[3] === 127 && Ap.limpar === -1,
-        'pad 9 → camada 2 coluna 2 ' + Ap.pad.join('/') + '; pad 35 → coluna 4 ' + Ap.coluna.join('/') + '; fader ' + Ap.fader.toFixed(2) + ', master ' + Ap.master + ', bypass ' + Ap.bypass + '; LEDs ' + Ap.leds.join('/') + '; limpar → ' + Ap.limpar);
+      ok('APC40 mkII', Ap.pad.join() === '1,-1' && Ap.coluna.join() === '3,-1,-1,-1,-1' && Math.abs(Ap.fader - 64 / 127) < 0.01 && Ap.master === 1 && Ap.bypass === true && Ap.leds[0] === 53 && Ap.leds[1] === 1 && Ap.leds[2] === 52 && Ap.leds[3] === 127 && Ap.limpar === -1,
+        'pad 9 → camada 2 coluna 2 ' + Ap.pad.join('/') + '; Shift + pad → coluna 4 ' + Ap.coluna.join('/') + '; fader ' + Ap.fader.toFixed(2) + ', master ' + Ap.master + ', bypass ' + Ap.bypass + '; LEDs ' + Ap.leds.join('/') + '; limpar → ' + Ap.limpar);
       const Bp = r.bpm;
       ok('BPM: relógio, TAP, animação, Beat Snap e BPM Sync', Math.abs(Bp.anda - 1) < 0.3 && Math.abs(Bp.tap - 150) < 2 && Bp.an[0] === 1 && Bp.an[1] === -1 && Bp.snapAntes.join() === '-1,1' && Bp.snapDepois.join() === '3,0' && Math.abs(Bp.syncRate[0] - 1) < 0.15 && Math.abs(Bp.syncRate[1] - 2) < 0.3 && Bp.syncPos >= 0 && Bp.syncPos <= 1.15 && Bp.barra >= 12,
         'em 0,5 s andou ' + Bp.anda.toFixed(2) + ' batida a 120; TAP deu ' + Bp.tap + '; On Off a 1 batida: ' + Bp.an.join(' / ') + '; Beat Snap 2: antes ' + Bp.snapAntes.join('/') + ', depois ' + Bp.snapDepois.join('/') + '; BPM Sync: velocidade ' + Bp.syncRate.map(x => x.toFixed(2)).join(' → ') + ', posição ' + Bp.syncPos.toFixed(2) + ' s; barra com ' + Bp.barra + ' botões');
       ok('modos de mistura da camada', Tm.mult[0] < 30 && Tm.mult[1] < 30 && Tm.add[0] > 200 && Tm.add[1] > 200 && Tm.alpha[1] > 200 && Tm.alpha[0] < 40 && Tm.add50[0] > 200 && Tm.add50[1] > 200,
         'verde sobre vermelho: 50 Multiply ' + Tm.mult + ', 50 Add ' + Tm.add + ', Alpha ' + Tm.alpha + ', Add a 50 % ' + Tm.add50);
       const Cp = r.comp;
-      ok('salvar e abrir a composição', Cp.nome === 'teste' && Cp.camadas === 3 && Cp.primeira === 'Topo' && Cp.clipes.join() === Cp.antes.join() && Cp.fx === 1 && Cp.blur === 0.5 && Cp.kinds.includes('source') && Cp.kinds.includes('text'),
+      ok('salvar e abrir a composição', Cp.nome === 'teste' && Cp.camadas === 5 && Cp.primeira === 'Topo' && Cp.clipes.join() === Cp.antes.join() && Cp.fx === 1 && Cp.blur === 0.5 && Cp.kinds.includes('source') && Cp.kinds.includes('text'),
         Cp.camadas + ' camadas, clipes ' + Cp.clipes.join('/') + ' (antes ' + Cp.antes.join('/') + '), tipos ' + [...new Set(Cp.kinds)].join(', ') + ', efeito da camada 2 preservado');
       ok('gravar', r.rec.estado === 'idle' && r.rec.arquivos >= 1 && r.rec.tamanho > 10000, r.rec.arquivos + ' arquivo(s), último com ' + (r.rec.tamanho / 1e3).toFixed(0) + ' kB');
       ok('navegador', r.nav.abas === 5 && r.nav.itens >= 2 && r.nav.efeitos >= 20 && r.nav.fontes >= 12 && r.nav.rec === 1, r.nav.abas + ' abas; ' + r.nav.itens + ' arquivos na pasta; ' + r.nav.efeitos + ' efeitos; ' + r.nav.fontes + ' fontes; ' + r.nav.comps + ' composições salvas');

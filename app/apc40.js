@@ -1,7 +1,7 @@
 // Akai APC40 mkII com compatibilidade nativa: ligar o cabo e funcionar, sem amarrar nada.
 // O mapa segue o que o Resolume instala para ela (default/Shortcuts/MIDI/APC 40 MK II.xml):
-//   - pads (notas 0–39, canal 1): linhas de baixo para cima = camadas 1, 2, 3, 4 (de baixo);
-//     a linha de cima dispara as colunas 1–8; cor do pad pelo estado da casa (vazia, guardada,
+//   - pads (notas 0–39, canal 1): 5 linhas × 8 colunas, de baixo para cima = camadas 1 a 5 (a grade do programa é igual
+//     à da controladora); Shift + pad dispara a coluna inteira; cor do pad pelo estado da casa (vazia, guardada,
 //     no ar, no ar e selecionada), com os mesmos números de cor do Resolume;
 //   - botões de pista (mesma nota nos canais 1–8 = camada 1–8 de baixo): 48 desligar (B),
 //     49 solo (S), 50 clipe anterior, 66 próximo clipe, 52 limpar (X);
@@ -9,14 +9,14 @@
 //     knobs da direita CC 16–23 = os 8 primeiros parâmetros do clipe selecionado; knobs de
 //     pista CC 48–55 = o primeiro parâmetro do primeiro efeito da camada; cue level CC 47 =
 //     posição do clipe selecionado; CC 13 = BPM;
-//   - scene launch 82–86 selecionam as camadas 5…1; 80 seleciona a composição; 81 para tudo;
+//   - scene launch 82–86 selecionam as camadas 5…1 (a nona coluna da grade); 80 seleciona a composição; 81 para tudo;
 //     96/97 próxima/anterior coluna; 60/61 deck anterior/próximo; 90 RESYNC (com Shift:
 //     metrônomo); 99 TAP; 100/101 nudge; 91 Play; 93 Record; 98 Shift;
-//   - setas ▲▼ (94/95) mudam a janela de camadas de 4 em 4; Shift + ◀▶ muda a janela de colunas.
+//   - setas ▲▼ (94/95) mudam a janela de camadas de 5 em 5; Shift + ◀▶ muda a janela de colunas.
 // Ao ligar, o programa põe a controladora no modo "Ableton Live" por SysEx, em que os LEDs
 // dos botões são do programa. Web MIDI (Chromium) com SysEx; a permissão é dada em main.js.
 const PAD = { empty: 1, stored: 33, on: 52, onSel: 53 };   // cores do Resolume (velocity)
-const ROWS = 4, COLS = 8;
+const ROWS = 5, COLS = 8;
 
 export class APC40 {
   constructor(ctx) {
@@ -59,7 +59,7 @@ export class APC40 {
     if (n < 40) {                                     // pads
       if (!on) return;
       const row = n >> 3, col = (n & 7) + this.colBase;
-      if (row === ROWS) { if (col < C.cols()) C.triggerColumn(col); return; }
+      if (this.shift) { if (col < C.cols()) C.triggerColumn(col); return; }   // Shift + pad: a coluna inteira
       const li = this.layerAt(row); if (li < 0 || col >= C.cols()) return;
       const L = S.layers[li], clip = L.clips[col];
       if (clip && clip.trig === 'toggle' && L.on === col) C.eject(li); else C.trigger(li, col);
@@ -116,10 +116,6 @@ export class APC40 {
         if (clip && C.waiting(li, col)) { status = 0x9D; color = PAD.on; }   // esperando o Beat Snap: pisca
         out.push([status, row * 8 + c, color]);
       }
-    }
-    for (let c = 0; c < COLS; c++) {   // linha de cima: colunas
-      const col = c + this.colBase, tem = S.layers.filter(L => L.clips[col]);
-      out.push([0x90, 32 + c, col < cols ? (tem.length && tem.every(L => L.on === col) ? PAD.stored : PAD.empty) : 0]);
     }
     for (let ch = 0; ch < 8; ch++) {   // botões de pista
       const li = this.layerAt(ch), L = li >= 0 ? S.layers[li] : null;

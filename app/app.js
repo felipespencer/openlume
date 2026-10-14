@@ -45,7 +45,7 @@ const mkLayer = (n) => ({ id: seq++, name: typeof n === 'string' ? n : 'Camada '
 let dseq = 1, gseq = 1;
 const mkDeck = (name) => ({ id: dseq++, name: name || 'Deck ' + dseq, color: '', closed: false, cells: {}, sel: null, selLayer: null });
 const mkGroup = (name) => Object.assign(GROUP(name || 'Grupo ' + gseq), { id: gseq++ });
-const state = { name: '', layers: [mkLayer(3), mkLayer(2), mkLayer(1)], selLayer: 0, sel: null, master: 1, opacity: 1, speed: 1, compAutopilot: AUTOPILOT(), settings: SETTINGS(), colNames: {}, groups: [], decks: [mkDeck('Deck 1')], deck: 0, xfade: XFADE(), selGroup: null, bpm: BPM(), colSnap: {} };   // layers[0] = a de cima
+const state = { name: '', layers: [mkLayer(5), mkLayer(4), mkLayer(3), mkLayer(2), mkLayer(1)], selLayer: 0, sel: null, master: 1, opacity: 1, speed: 1, compAutopilot: AUTOPILOT(), settings: SETTINGS(), colNames: {}, groups: [], decks: [mkDeck('Deck 1')], deck: 0, xfade: XFADE(), selGroup: null, bpm: BPM(), colSnap: {} };   // layers[0] = a de cima
 let drag = null;
 // o clipe no ar da camada: o da casa ligada ou, depois de trocar de deck, o que continua tocando (ghost)
 const liveClip = (L) => L.on >= 0 ? L.clips[L.on] : (L.ghost || null);
@@ -439,6 +439,7 @@ function renderGroupRow(grid, g, first) {
     b.onclick = () => triggerColumn(c, g.id);
     grid.appendChild(b);
   }
+  grid.appendChild(el('div', 'sceneBtn gap'));   // preenche a nona coluna (cena)
 }
 const COLORS = [['', 'Nenhuma'], ['#ff3b30', 'Vermelho'], ['#ff9500', 'Laranja'], ['#ffd60a', 'Amarelo'], ['#39ff14', 'Verde'], ['#6ec1ff', 'Azul'], ['#bf5af2', 'Roxo'], ['#ff2d90', 'Rosa']];
 
@@ -543,6 +544,7 @@ function render() {
     b.onclick = () => triggerColumn(c);
     g.appendChild(b);
   }
+  { const sc = el('div', 'gh sceneH', 'Cena'); sc.title = 'Nona coluna, como na APC40: o botão de cada linha (Scene Launch) seleciona a camada'; g.appendChild(sc); }
   let lastG = null;
   state.layers.forEach((L, li) => {
     const grp = groupOf(L);
@@ -591,6 +593,10 @@ function render() {
       if (clip && clip.trig === 'piano') { cell.onpointerdown = (e) => { if (e.button === 0 && !e.target.classList.contains('nm')) { trigger(li, c); const up = () => { eject(li); removeEventListener('pointerup', up); }; addEventListener('pointerup', up); } }; }
       g.appendChild(cell);
     }
+    // nona coluna da APC40 (Scene Launch): um botão por linha, seleciona a camada; acende quando ela está selecionada e mostra se tem clipe no ar
+    const scb = el('button', 'sceneBtn' + (li === state.selLayer ? ' sel' : '') + (L.on >= 0 ? ' on' : ''), String(state.layers.length - li)); scb.type = 'button'; scb.title = 'Selecionar a camada ' + (state.layers.length - li) + ' (botão de cena da APC40)';
+    scb.onclick = () => { state.selLayer = li; state.selGroup = L.group; panels.tab = 'layer'; render(); };
+    g.appendChild(scb);
   });
   wrap.scrollTop = st; wrap.scrollLeft = sl;
   renderDecks(); renderPreview(); panels.render(); apc.refresh();
@@ -844,7 +850,7 @@ function resetComposition() {
   dropAll();
   state.groups.length = 0; state.decks = [mkDeck('Deck 1')]; state.deck = 0; state.xfade = XFADE(); engine.xfade = state.xfade; state.selGroup = null; if (panels.tab === 'group') panels.tab = 'comp';
   Object.assign(state.bpm, BPM(), { taps: [], audio: audio.levels }); state.colSnap = {}; pending.length = 0; syncBpm(); Object.assign(audio.settings, { source: 'comp', gain: 1, fallback: 4 });
-  state.layers = [mkLayer(3), mkLayer(2), mkLayer(1)]; state.name = ''; state.sel = null; state.selLayer = 0; state.master = state.opacity = state.speed = 1; engine.master = 1;
+  state.layers = [mkLayer(5), mkLayer(4), mkLayer(3), mkLayer(2), mkLayer(1)]; state.name = ''; state.sel = null; state.selLayer = 0; state.master = state.opacity = state.speed = 1; engine.master = 1;
   engine.compFx = []; engine.compTransform = IDENT_TR(); state.compAutopilot = AUTOPILOT(); state.colNames = {}; setCols(8); applySettings(SETTINGS()); render(); renderScreens();
 }
 async function loadComposition(json, name) {
