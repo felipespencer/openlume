@@ -7,11 +7,37 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { BrowserWindow } = require('electron');
 
-module.exports = (win, app) => {
+// LaserCube falso em 127.0.0.1: responde o pacote de informação, as perguntas de buffer e
+// conta os pacotes de pontos que chegam, para o teste conferir o protocolo sem aparelho.
+function fakeLaserCube() {
+  const dgram = require('node:dgram');
+  const F = { cmds: [], packets: 0, points: 0, lit: 0, maxPts: 0, bad: 0, rate: 0, out: null, free: 4000 };
+  const info = () => { const b = Buffer.alloc(64); b[0] = 0x77; b[3] = 1; b[4] = 20; b[5] = F.out ? 1 : 0; b.writeUInt32LE(F.rate || 30000, 10); b.writeUInt32LE(45000, 14); b.writeUInt16LE(F.free, 19); b.writeUInt16LE(6000, 21); b[23] = 82; b.writeInt8(41, 24); b.write('LaserCube falso', 38); return b; };
+  const cmd = dgram.createSocket('udp4'), data = dgram.createSocket('udp4');
+  cmd.on('message', (m, r) => {
+    F.cmds.push(m[0]);
+    if (m[0] === 0x77) cmd.send(info(), r.port, r.address);
+    else if (m[0] === 0x8a) { const b = Buffer.from([0x8a, 0, 0, 0]); b.writeUInt16LE(F.free, 2); cmd.send(b, r.port, r.address); }
+    else if (m[0] === 0x80) F.out = m[1] === 1;
+    else if (m[0] === 0x82) F.rate = m.readUInt32LE(1);
+  });
+  data.on('message', (m, r) => {
+    if (m[0] !== 0xa9 || (m.length - 4) % 10) { F.bad++; return; }
+    const n = (m.length - 4) / 10; F.packets++; F.points += n; F.maxPts = Math.max(F.maxPts, n);
+    for (let i = 0; i < n; i++) { const o = 4 + i * 10; if (m.readUInt16LE(o) > 4095 || m.readUInt16LE(o + 2) > 4095) F.bad++; if (m.readUInt16LE(o + 4) + m.readUInt16LE(o + 6) + m.readUInt16LE(o + 8) > 0) F.lit++; }
+    const b = Buffer.from([0x8a, 0, 0, 0]); b.writeUInt16LE(F.free, 2); data.send(b, r.port, r.address);
+  });
+  cmd.bind(45457, '127.0.0.1'); data.bind(45458, '127.0.0.1');
+  F.close = () => { cmd.close(); data.close(); };
+  return F;
+}
+
+module.exports = (win, app, laser) => {
   const dir = process.env.PROJ_TEST;
   const b64 = (f) => fs.readFileSync(path.join(dir, f)).toString('base64');
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   const shot = async (w, name) => fs.writeFileSync(path.join(dir, name), (await w.webContents.capturePage()).toPNG());
+  const fake = fakeLaserCube();
   win.webContents.on('console-message', (_e, level, msg) => { if (level >= 2) console.log('CONSOLE ' + msg); });
   win.webContents.once('did-finish-load', async () => {
     const out = [];
@@ -113,6 +139,24 @@ module.exports = (win, app) => {
         P.ao.select(sc,s1); P.ao.setMode('pts'); await S(50); R.editorOut.ancoras=document.querySelectorAll('#aoSvg .hd.anc').length;
         // desfazer: apaga o slice 2 e volta
         P.ao.removeItem(s2); const n1=sc.items.length; P.ao.undo(); await S(100); R.desfazer={depoisApagar:n1, depoisDesfazer:P.screens()[0].items.length, refazer:(P.ao.redo(), P.screens()[0].items.length)}; P.ao.undo();
+        // ---------- laser ----------
+        const Z=P.laser, LM=await import('./laser-model.js');
+        R.laserTexto={a:LM.textPaths({content:'A',font:'simplex',dir:'h',size:0.2,spacing:1,scroll:'none'}).length, vertical:LM.textPaths({content:'AB',font:'simplex',dir:'v',size:0.2,spacing:1,scroll:'none'}).length, pilha:LM.textPaths({content:'AB',font:'gothic',dir:'stack',size:0.2,spacing:1,scroll:'none'}).length};
+        const fr=LM.mkFrame('Teste','text'); fr.text.content='LASER'; fr.color.mode='solid'; fr.color.c1='#ffffff';
+        const zs1=LM.renderPoints(fr,Z.settings,0); const lit1=zs1.lit.reduce((a,b)=>a+b,0);
+        // zona segura: um quadro grande demais é cortado — nenhum ponto aceso fora do retângulo
+        const big=LM.mkFrame('Grande','shape'); big.paths=LM.shapePaths('circle'); big.pos.scale=1.0; big.color.mode='solid'; big.color.c1='#ffffff';
+        const zs2=LM.renderPoints(big,Z.settings,0); let fora=0, acesos=0; for(let i=0;i<zs2.n;i++){ if(zs2.lit[i]){ acesos++; if(Math.abs(zs2.xy[i*2])>Z.settings.safe.w+1e-6||Math.abs(zs2.xy[i*2+1])>Z.settings.safe.h+1e-6) fora++; } }
+        const u16=LM.toU16(zs1,Z.settings); let max=0; for(const v of u16) max=Math.max(max,v);
+        const svgPaths=LM.svgToPaths('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="10" y="10" width="80" height="30"/><circle cx="50" cy="70" r="20"/><path d="M10 90 L90 90 M10 95 L90 95"/></svg>');
+        R.laserPontos={n:zs1.n, lit:lit1, orcamento:Math.round(Z.settings.pps/Z.settings.fps), fora, acesos, u16len:u16.length, max, svg:svgPaths.length};
+        // clipe de laser na grade: disparar manda o quadro para o laser, tirar do ar tira
+        Z.frames.push(fr); P.putLaserClip(0,6,fr); P.trigger(0,6); await S(100); const ativo1=Z.active===fr; P.eject(0); await S(100); const ativo2=Z.active;
+        R.laserGrade={casa:document.querySelector('.cell[data-layer="0"][data-col="6"]').classList.contains('laser'), ativo1, ativo2:ativo2===null};
+        // LaserCube falso: conecta, liga a saída, confere os pacotes
+        let lz=null;
+        if(window.projLaser){ try{ const info=await window.projLaser.connect('127.0.0.1'); Z.setActive(fr); await S(200); const st0=await window.projLaser.status(); await window.projLaser.output(true); await S(700); const st1=await window.projLaser.status(); await window.projLaser.output(false); await S(100); lz={nome:info.name, bateria:info.battery, antes:st0.outputOn, depois:st1.outputOn, bufSize:st1.bufSize}; }catch(e){ lz={erro:e.message}; } }
+        R.laserCube=lz;
         window.__shotEditor=true;
         return R;
       })()`, true);
@@ -153,6 +197,17 @@ module.exports = (win, app) => {
         'slice ficou ' + r.redimensiona.out.join('×') + '; centro ' + r.redimensiona.px[0] + ', borda direita ' + r.redimensiona.px[1] + ' (faixa preta da imagem), embaixo ' + r.redimensiona.px[2]);
       ok('salvar e abrir', r.serial.telas === 1 && r.serial.itens === 2 && r.serial.in && r.serial.pts, 'preset volta com os mesmos retângulos e pontos');
       ok('preset em disco', r.preset && r.preset.na && r.preset.igual && !r.preset.depois, r.preset ? 'gravado, lido igual e apagado' : 'sem ponte com o processo principal');
+      ok('laser: texto de traço único', r.laserTexto.a === 3 && r.laserTexto.vertical > 3 && r.laserTexto.pilha > 3, 'A = ' + r.laserTexto.a + ' traços; vertical ' + r.laserTexto.vertical + ', pilha ' + r.laserTexto.pilha);
+      ok('laser: varredura e zona segura', r.laserPontos.n > 300 && r.laserPontos.n <= r.laserPontos.orcamento * 1.3 && r.laserPontos.lit > 100 && r.laserPontos.fora === 0 && r.laserPontos.acesos > 50 && r.laserPontos.u16len === r.laserPontos.n * 5 && r.laserPontos.max <= 4095 && r.laserPontos.svg === 4,
+        r.laserPontos.n + ' pontos (' + r.laserPontos.lit + ' acesos) para ' + r.laserPontos.orcamento + ' de orçamento; quadrado grande: ' + r.laserPontos.acesos + ' acesos, ' + r.laserPontos.fora + ' fora da zona; SVG → ' + r.laserPontos.svg + ' caminhos');
+      ok('laser: clipe na grade', r.laserGrade.casa && r.laserGrade.ativo1 && r.laserGrade.ativo2, 'disparar manda o quadro, tirar do ar tira');
+      ok('laser: LaserCube falso', r.laserCube && !r.laserCube.erro && r.laserCube.nome === 'LaserCube falso' && r.laserCube.bateria === 82 && !r.laserCube.antes && r.laserCube.depois && r.laserCube.bufSize === 6000 && fake.packets > 5 && fake.maxPts <= 140 && fake.bad === 0 && fake.lit > 100 && fake.rate === 30000 && fake.out === false,
+        r.laserCube && r.laserCube.erro ? r.laserCube.erro : (r.laserCube ? r.laserCube.nome + ' ' + r.laserCube.bateria + '%; ' : 'sem ponte; ') + fake.packets + ' pacotes, ' + fake.points + ' pontos (' + fake.lit + ' acesos), máx ' + fake.maxPts + '/pacote, ' + fake.bad + ' inválidos, taxa ' + fake.rate + ', saída no fim ' + fake.out);
+      await win.webContents.executeJavaScript(`window.projecionista.laser.show(); window.projecionista.laser.sel = window.projecionista.laser.frames[0]; window.projecionista.laser.refresh(); true`, true); await sleep(400);
+      await shot(win, 'pc-laser.png');
+      await win.webContents.executeJavaScript(`window.projecionista.laser.setTab('laser'); true`, true); await sleep(200);
+      await shot(win, 'pc-laser-aparelho.png');
+      await win.webContents.executeJavaScript(`window.projecionista.laser.hide(); true`, true);
       ok('editor', r.editor.aberto && r.editor.linhas === 3 && r.editor.slices === 2 && r.editor.grupos >= 8 && r.editorOut.slices === 2 && r.editorOut.ancoras === 8,   // malha 3×1 = 4×2 âncoras
         r.editor.linhas + ' linhas na árvore, ' + r.editor.slices + ' slices na Entrada, ' + r.editorOut.slices + ' na Saída, ' + r.editorOut.ancoras + ' âncoras, ' + r.editor.grupos + ' linhas de propriedades');
       ok('desfazer e refazer', r.desfazer.depoisApagar === 1 && r.desfazer.depoisDesfazer === 2 && r.desfazer.refazer === 1, 'apagar → 1 item, desfazer → 2, refazer → 1');
@@ -184,6 +239,7 @@ module.exports = (win, app) => {
     } catch (e) { ok('execução', false, e.message); }
     const f = out.filter(x => !x.pass);
     console.log(f.length ? 'REPROVADO: ' + f.map(x => x.name).join(', ') : 'APROVADO: ' + out.length + ' verificações');
+    fake.close(); laser && laser.disconnect();
     app.exit(f.length ? 1 : 0);
   });
 };

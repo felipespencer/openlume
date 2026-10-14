@@ -49,6 +49,26 @@ fechar embaixo). Ctrl+Z desfaz, Ctrl+Y refaz; a barra de espaço arrasta a vista
 - **Presets** ficam gravados em disco: escolha um na lista, ou dê um nome e Salvar.
 - "Salvar e fechar" aplica; "Cancelar" (ou Esc) devolve tudo como estava.
 
+### Laser (LaserCube por Wi-Fi)
+
+O botão "Laser", na barra de cima, abre o módulo do laser (maquete: `laser-mockup.html`):
+
+- **Quadros** à esquerda: texto, desenho à mão, SVG importado ou forma pronta. Cada quadro
+  tem cor (arco-íris, fixa, ciclo, duas cores, estrobo), distorção (onda, giro, pulso, tremor,
+  espelho, reação ao microfone) e posição. A bolinha verde (ou a barra de espaço) manda o quadro
+  para o laser. Arraste um quadro para uma casa da grade: disparar a casa manda o quadro.
+- **Palco** no meio, com as ferramentas: selecionar/mover, lápis, linha, retângulo, círculo,
+  polígono por cliques, texto, borracha. A zona segura (retângulo vermelho) corta o feixe fora
+  dela. Importar/Exportar SVG, Salvar/Abrir os quadros em JSON.
+- **Texto** com fontes Hershey de traço único (Simples, Script, Gótica), horizontal, vertical ou
+  em pilha, com rolagem.
+- **Aba Laser**: procurar o LaserCube na rede (ou digitar o IP), conectar, pontos por segundo,
+  brilho, pontos de canto, zona segura e espelho da saída. A saída começa sempre desligada e
+  desliga ao desconectar e ao fechar o programa.
+
+O protocolo (UDP, portas 45456–45458) está descrito em `lasercube.js`; veio da biblioteca
+aberta da Wicked Lasers (libLaserdockCore) e do LaserCubeSharp, sem copiar código.
+
 ## Como é feito
 
 - `main.js`: processo principal do Electron. Serve `app/` por `app://projecionista/`, lista
@@ -59,6 +79,9 @@ fechar embaixo). Ctrl+Z desfaz, Ctrl+Y refaz; a barra de espaço arrasta a vista
 - `app/screens.js`: o modelo de telas, slices e máscaras; `app/warp.js`: a geometria dos
   quatro cantos e da malha bezier.
 - `app/ao.js`: o editor da Saída avançada (maquete: `advanced-output-mockup.html`).
+- `app/laser.js`, `app/laser-model.js`, `app/hershey.js`: o módulo do laser (interface, modelo e
+  gerador de pontos, fontes de traço único); `lasercube.js`: a conversa UDP com o LaserCube, no
+  processo principal. `app/panel.js`: peças de interface no formato do Resolume, compartilhadas.
 - `app/app.js`: grade, painéis, janelas de saída e regras de uso.
 - `app/output.html`: a saída. Não mistura nada: mostra a imagem que o controle já desenhou
   para aquela tela.

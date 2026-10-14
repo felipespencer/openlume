@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projecionista — maquete do Laser</title>
+<style>
+  :root{ --rb:#1b1b1b; --rp:#2b2b2b; --rh:#3a3a3a; --rl:#1f1f1f; --rt:#d4d4d4; --rd:#8a8a8a; --teal:#6fe6c6; --red:#ff4d4d; --green:#39FF14; }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; margin:0; }
+  body{ background:var(--rb); color:var(--rt); font:12px/1.3 "Segoe UI",system-ui,sans-serif; display:grid; grid-template-rows:38px minmax(0,1fr); overflow:hidden; user-select:none; }
+  button,select,input[type=text]{ font:inherit; color:var(--rt); background:var(--rh); border:0; border-radius:2px; height:24px; padding:0 10px; cursor:pointer; }
+  button.on{ background:var(--teal); color:#111; }
+  button.ib{ width:30px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
+  svg.i{ width:16px; height:16px; }
+
+  #top{ display:grid; grid-template-columns:260px minmax(0,1fr) auto; align-items:center; gap:8px; padding:7px 6px 0; }
+  #top .dev{ display:flex; align-items:center; gap:6px; white-space:nowrap; overflow:hidden; font-size:11px; background:var(--rp); height:24px; padding:0 8px; color:var(--rd); }
+  #top .dev b{ color:var(--rt); font-weight:600; } #top .dev i{ font-style:normal; color:var(--teal); }
+  #top .tabs{ display:flex; } #top .tabs button{ width:150px; background:#272727; color:var(--rd); border-radius:0; } #top .tabs button.on{ background:var(--rh); color:var(--rt); }
+  #top .out{ display:flex; align-items:center; gap:10px; padding-right:8px; }
+  #top .out .pps{ color:var(--rd); } #top .out .pps b{ color:var(--rt); font-weight:600; }
+  #top .out .big{ height:26px; min-width:150px; font-weight:700; letter-spacing:.04em; background:#3a1c1c; color:var(--red); border:1px solid var(--red); }
+  #top .out .big.on{ background:var(--green); color:#111; border-color:var(--green); }
+
+  #main{ display:grid; grid-template-columns:260px minmax(0,1fr) 230px; gap:6px; padding:6px; min-height:0; }
+  .tb{ height:36px; display:flex; align-items:center; gap:2px; padding:0 6px; background:var(--rh); }
+  .tb .sp{ flex:1; } .tb button{ height:30px; background:#3a3a3a; } .tb button.on{ background:var(--teal); color:#111; }
+  .tb select{ height:30px; background:#2e2e2e; }
+  #left{ display:grid; grid-template-rows:auto minmax(0,1fr) auto; gap:2px; min-height:0; }
+  #list{ background:var(--rp); overflow:auto; }
+  .row{ display:flex; align-items:center; gap:8px; height:44px; padding:0 8px; cursor:pointer; border-bottom:1px solid #1b1b1b; }
+  .row:hover{ background:#333; } .row.sel{ background:var(--teal); color:#111; }
+  .row .th{ width:40px; height:30px; background:#000; border:1px solid #444; display:flex; align-items:center; justify-content:center; flex:none; }
+  .row .th svg{ width:34px; height:26px; }
+  .row .nm{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .row .nm small{ display:block; color:inherit; opacity:.6; font-size:10px; }
+  .row .live{ width:8px; height:8px; border-radius:50%; background:#333; } .row .live.on{ background:var(--green); box-shadow:0 0 6px var(--green); }
+  #help{ background:var(--rp); min-height:120px; } #help .hh{ background:var(--rh); padding:4px 7px; font-weight:600; } #help .hb{ padding:8px 7px; color:#bdbdbd; line-height:1.45; font-size:11px; }
+
+  #center{ display:grid; grid-template-rows:auto minmax(0,1fr) auto; gap:2px; min-height:0; min-width:0; }
+  #stage{ position:relative; background:#333; display:grid; place-items:center; overflow:hidden; }
+  #tools{ position:absolute; left:10px; top:10px; display:flex; flex-direction:column; gap:3px; }
+  #tools button{ width:36px; height:34px; background:#2b2b2b; } #tools button.on{ background:var(--teal); color:#111; }
+  #laser{ width:min(100%, calc(100vh - 220px)); aspect-ratio:1; background:#000; outline:1px solid #555; position:relative; }
+  #laser svg{ position:absolute; inset:0; width:100%; height:100%; }
+  #laser .safe{ fill:none; stroke:#ff4d4d; stroke-opacity:.5; stroke-dasharray:6 5; }
+  #laser .grid{ stroke:#fff; stroke-opacity:.06; }
+  #laser .beam{ fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; filter:url(#glow); }
+  #laser .blank{ fill:none; stroke:#555; stroke-opacity:.5; stroke-dasharray:2 4; stroke-width:1; }
+  #laser .pt{ fill:#fff; }
+  #laser .sel{ fill:none; stroke:var(--teal); stroke-dasharray:4 3; }
+  #laser .hd{ fill:#1b1b1b; stroke:var(--teal); stroke-width:1.5; }
+  #foot{ display:flex; align-items:center; gap:10px; padding:4px 0 0; color:var(--rd); }
+  #foot .sp{ flex:1; } #foot b{ color:var(--rt); font-weight:600; }
+  #foot .bar{ width:160px; height:8px; background:#1b1b1b; border:1px solid #444; } #foot .bar i{ display:block; height:100%; width:62%; background:var(--teal); }
+
+  #right{ display:grid; min-width:0; overflow:hidden; grid-template-rows:auto minmax(0,1fr); min-height:0; }
+  .ptitle{ height:36px; display:flex; align-items:center; padding:0 7px; background:var(--rh); font-weight:600; }
+  #props{ background:var(--rp); overflow:auto; padding-bottom:10px; }
+  .phead{ display:flex; align-items:center; gap:8px; height:24px; padding:0 7px; background:var(--rh); margin-top:2px; } .phead span{ flex:1; }
+  .prow{ display:grid; grid-template-columns:86px minmax(0,1fr); height:24px; border-bottom:1px solid #1b1b1b; }
+  .pl{ background:var(--rl); display:flex; align-items:center; padding:0 5px; white-space:nowrap; overflow:hidden; }
+  .pv{ display:flex; align-items:center; padding-left:5px; min-width:0; }
+  .pv .val{ flex:1; font-variant-numeric:tabular-nums; } .pv .pm{ width:20px; text-align:center; font-weight:700; }
+  .pv .bar{ width:30px; height:24px; background:#1b1b1b; position:relative; border-left:1px solid #111; } .pv .bar i{ position:absolute; left:0; top:0; bottom:0; background:#4a4a4a; }
+  .pv select, .pv input[type=text]{ height:22px; width:100%; background:transparent; padding:0 2px; }
+  .pv .seg{ display:flex; width:100%; } .pv .seg button{ flex:1; height:22px; border-radius:0; padding:0 4px; font-size:11px; }
+  .pv .sw{ width:16px; height:16px; border-radius:2px; border:1px solid #666; margin-right:4px; }
+  .pv .ck{ width:14px; height:14px; border:1.5px solid var(--rd); border-radius:2px; } .pv .ck.on{ border-color:var(--teal); background:var(--teal); }
+  .wide{ display:block; width:calc(100% - 14px); margin:8px 7px 0; height:24px; }
+  .warn{ margin:8px 7px 0; padding:6px 8px; background:#3a1c1c; color:#ffb0b0; border-left:3px solid var(--red); line-height:1.4; font-size:11px; }
+</style>
+</head>
+<body>
+
+<div id="top">
+  <div class="dev"><span>●</span><b>LaserCube 7,5 W</b><span>192.168.4.1</span><span><i>82%</i></span><span>41°</span></div>
+  <div class="tabs"><button class="on">Quadros</button><button>Ao vivo</button><button>Laser</button></div>
+  <div class="out"><span class="pps">Pontos/s <b>30 000</b></span><span class="pps">Brilho <b>60%</b></span><button class="big">■ SAÍDA DESLIGADA</button></div>
+</div>
+
+<div id="main">
+  <div id="left">
+    <div class="tb"><button>＋ ▾</button><span class="sp"></span><button class="ib" title="Duplicar">⧉</button><button class="ib" title="Apagar">✕</button></div>
+    <div id="list">
+      <div class="row sel"><div class="th"><svg viewBox="0 0 34 26"><text x="17" y="17" fill="#111" font-size="9" text-anchor="middle" font-family="monospace">FRONTEIRA</text></svg></div><div class="nm">FRONTEIRA LIVRE<small>Texto · horizontal · arco-íris</small></div><i class="live on"></i></div>
+      <div class="row"><div class="th"><svg viewBox="0 0 34 26"><text x="17" y="22" fill="#6fe6c6" font-size="7" text-anchor="middle" transform="rotate(-90 17 13)">VERTICAL</text></svg></div><div class="nm">VERTICAL<small>Texto · vertical · ciclo de cor</small></div><i class="live"></i></div>
+      <div class="row"><div class="th"><svg viewBox="0 0 34 26"><path d="M4 20 C 10 2, 18 24, 30 6" fill="none" stroke="#ff4dd2" stroke-width="1.5"/></svg></div><div class="nm">Rabisco 1<small>Desenho à mão · onda</small></div><i class="live"></i></div>
+      <div class="row"><div class="th"><svg viewBox="0 0 34 26"><path d="M17 3 L30 23 H4 Z" fill="none" stroke="#ffe14d" stroke-width="1.5"/><circle cx="17" cy="15" r="5" fill="none" stroke="#4dd2ff" stroke-width="1.5"/></svg></div><div class="nm">logo-festa.svg<small>SVG · 2 caminhos · giro</small></div><i class="live"></i></div>
+      <div class="row"><div class="th"><svg viewBox="0 0 34 26"><circle cx="17" cy="13" r="10" fill="none" stroke="#4dff88" stroke-width="1.5"/></svg></div><div class="nm">Círculo<small>Forma · pulso</small></div><i class="live"></i></div>
+      <div class="row"><div class="th"><svg viewBox="0 0 34 26"><path d="M2 13 Q 9 2 17 13 T 32 13" fill="none" stroke="#fff" stroke-width="1.5"/></svg></div><div class="nm">Onda<small>Forma · espelho</small></div><i class="live"></i></div>
+    </div>
+    <div id="help"><div class="hh">Ajuda</div><div class="hb">Clique num quadro para editar; a bolinha verde mostra qual está indo para o laser. Arraste um quadro para uma casa da grade para dispará-lo junto com um clipe.</div></div>
+  </div>
+
+  <div id="center">
+    <div class="tb">
+      <select><option>Ajustar</option><option>100%</option></select>
+      <button class="ib" title="Desfazer">↶</button><button class="ib" title="Refazer">↷</button>
+      <button class="ib on" title="Grade">▦</button><button class="ib on" title="Zona segura">⛶</button><button class="ib" title="Mostrar os pontos que o laser recebe">∴</button>
+      <span class="sp"></span>
+      <button>Importar SVG…</button><button>Exportar SVG</button>
+    </div>
+    <div id="stage">
+      <div id="tools">
+        <button class="on" title="Selecionar e mover">↖</button><button title="Lápis: desenhar à mão">✎</button><button title="Linha">╱</button><button title="Retângulo">▭</button><button title="Círculo">○</button><button title="Polígono por cliques">⬠</button><button title="Texto">T</button><button title="Borracha">⌫</button>
+      </div>
+      <div id="laser">
+        <svg viewBox="0 0 1000 1000">
+          <defs>
+            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <linearGradient id="rb" x1="0" x2="1"><stop offset="0" stop-color="#ff3b3b"/><stop offset=".25" stop-color="#ffe14d"/><stop offset=".5" stop-color="#4dff88"/><stop offset=".75" stop-color="#4dd2ff"/><stop offset="1" stop-color="#ff4dd2"/></linearGradient>
+          </defs>
+          <g class="grid"><path d="M500 0V1000M0 500H1000"/><path d="M250 0V1000M750 0V1000M0 250H1000M0 750H1000"/></g>
+          <rect class="safe" x="80" y="120" width="840" height="760"/>
+          <!-- texto com fonte de traço único, cor arco-íris, leve onda -->
+          <g class="beam" stroke="url(#rb)" transform="translate(0 -40)">
+            <path d="M130 560 V420 H210 M130 490 H200"/>
+            <path d="M240 560 V420 H310 Q340 420 340 455 Q340 490 310 490 H240 M300 490 L340 560"/>
+            <path d="M370 560 V420 M370 420 Q450 420 450 490 Q450 560 370 560 Z" transform="translate(0 0)"/>
+            <path d="M480 560 V420 M480 420 H560 M480 490 H540"/>
+            <path d="M590 420 V560 M590 420 L650 560 M650 420 V560" transform="translate(20 0)"/>
+            <path d="M720 420 H800 M760 420 V560"/>
+            <path d="M830 560 V420 H910 M830 490 H900 M830 560 H910"/>
+          </g>
+          <g class="beam" stroke="url(#rb)" transform="translate(0 150)">
+            <path d="M330 560 V420 H330 M330 560 H400"/>
+            <path d="M430 560 V420"/>
+            <path d="M460 420 L500 560 L540 420"/>
+            <path d="M570 560 V420 M570 420 Q650 420 650 490 Q650 560 570 560 Z" transform="translate(0 0)" opacity="0"/>
+            <path d="M570 560 V420 H650 M570 490 H640 M570 560 H650"/>
+          </g>
+          <!-- caminho apagado entre as letras: o laser viaja sem luz -->
+          <path class="blank" d="M910 520 L330 710"/>
+          <!-- seleção do quadro -->
+          <rect class="sel" x="120" y="370" width="800" height="360"/>
+          <rect class="hd" x="114" y="364" width="12" height="12"/><rect class="hd" x="914" y="364" width="12" height="12"/><rect class="hd" x="114" y="724" width="12" height="12"/><rect class="hd" x="914" y="724" width="12" height="12"/>
+        </svg>
+      </div>
+    </div>
+    <div id="foot"><span>Pontos no quadro <b>1 240</b></span><span>Taxa <b>24 fps</b></span><span>Buffer do laser</span><span class="bar"><i></i></span><span class="sp"></span><span>−1…1 · zona segura 84% × 76%</span></div>
+  </div>
+
+  <div id="right">
+    <div class="ptitle">FRONTEIRA LIVRE</div>
+    <div id="props">
+      <div class="phead"><span>Texto</span></div>
+      <div class="prow"><span class="pl">Conteúdo</span><div class="pv"><input type="text" value="FRONTEIRA LIVRE"></div></div>
+      <div class="prow"><span class="pl">Fonte</span><div class="pv"><select><option>Simples (traço único)</option><option>Script</option><option>Gótica</option></select></div></div>
+      <div class="prow"><span class="pl">Direção</span><div class="pv"><div class="seg"><button class="on">Horizontal</button><button>Vertical</button><button>Pilha</button></div></div></div>
+      <div class="prow"><span class="pl">Tamanho</span><div class="pv"><span class="val">22 %</span><span class="pm">−</span><span class="pm">+</span><span class="bar"><i style="width:22%"></i></span></div></div>
+      <div class="prow"><span class="pl">Espaçamento</span><div class="pv"><span class="val">100 %</span><span class="pm">−</span><span class="pm">+</span><span class="bar"><i style="width:50%"></i></span></div></div>
+      <div class="prow"><span class="pl">Rolagem</span><div class="pv"><div class="seg"><button class="on">Parado</button><button>← </button><button>→</button><button>↑</button></div></div></div>
+
+      <div class="phead"><span>Cor</span></div>
+      <div class="prow"><span class="pl">Modo</span><div class="pv"><select><option>Arco-íris ao longo do traço</option><option>Cor fixa</option><option>Ciclo de matiz</option><option>Duas cores</option><option>Estrobo</option></select></div></div>
+      <div class="prow"><span class="pl">Cor</span><div class="pv"><span class="sw" style="background:#ff3b3b"></span><span class="sw" style="background:#4dd2ff"></span><span class="val">&nbsp;</span></div></div>
+      <div class="prow"><span class="pl">Velocidade</span><div class="pv"><span class="val">1,0</span><span class="pm">−</span><span class="pm">+</span><span class="bar"><i style="width:30%"></i></span></div></div>
+
+      <div class="phead"><span>Distorção</span></div>
+      <div class="prow"><span class="pl">Onda</span><div class="pv"><span class="val">15 %</span><span class="pm">−</span><span class="pm">+</span><span class="bar"><i style="width:15%"></i></span></div></div>
+      <div class="prow"><span class="pl">Giro</span><div class="pv"><span class="val">0 °/s</span><span class="pm">−</span><span class="pm">+</span><span class="bar"><i style="width:50%"></i></span></div></div>
+      <div class="prow"><span class="pl">Pulso</span><div class="pv"><span class="val">0 %</span><span class="pm">−</span><span class="pm">+</span><span class="bar"><i style="width:0%"></i></span></div></div>
+      <div class="prow"><span class="pl">Tremor</span><div class="pv"><span class="val">0 %</span><span class="pm">−</span><span class="pm">+</span><span class="bar"><i style="width:0%"></i></span></div></div>
+      <div class="prow"><span class="pl">Espelho</span><div class="pv"><div class="seg"><button class="on">Não</button><button>↔</button><button>↕</button><button>4×</button></div></div></div>
+      <div class="prow"><span class="pl">Ao som</span><div class="pv"><span class="ck"></span>&nbsp;reage ao microfone</div></div>
+
+      <div class="phead"><span>Posição</span></div>
+      <div class="prow"><span class="pl">X / Y</span><div class="pv"><span class="val">0 · 0</span><span class="pm">−</span><span class="pm">+</span></div></div>
+      <div class="prow"><span class="pl">Escala</span><div class="pv"><span class="val">80 %</span><span class="pm">−</span><span class="pm">+</span><span class="bar"><i style="width:80%"></i></span></div></div>
+      <div class="prow"><span class="pl">Giro</span><div class="pv"><span class="val">0 °</span><span class="pm">−</span><span class="pm">+</span><span class="bar"><i style="width:50%"></i></span></div></div>
+
+      <div class="phead"><span>Laser</span><small style="color:#8a8a8a">vale para todos os quadros</small></div>
+      <div class="prow"><span class="pl">Pontos/s</span><div class="pv"><span class="val">30 000</span><span class="pm">−</span><span class="pm">+</span><span class="bar"><i style="width:60%"></i></span></div></div>
+      <div class="prow"><span class="pl">Brilho</span><div class="pv"><span class="val">60 %</span><span class="pm">−</span><span class="pm">+</span><span class="bar"><i style="width:60%"></i></span></div></div>
+      <div class="prow"><span class="pl">Cantos</span><div class="pv"><span class="val">3 pontos</span><span class="pm">−</span><span class="pm">+</span></div></div>
+      <div class="prow"><span class="pl">Zona segura</span><div class="pv"><span class="val">84 × 76 %</span><span class="pm">−</span><span class="pm">+</span></div></div>
+      <div class="prow"><span class="pl">Espelhar saída</span><div class="pv"><div class="seg"><button class="on">Não</button><button>↔</button><button>↕</button></div></div></div>
+      <div class="warn">Laser de 7,5 W: nunca aponte para pessoas. A zona segura corta o feixe fora do retângulo vermelho; a saída começa sempre desligada.</div>
+      <button class="wide">Procurar LaserCube na rede</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

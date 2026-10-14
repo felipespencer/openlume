@@ -5,36 +5,12 @@
 // linhas "rótulo | valor − + barra"; Cancelar e Salvar e fechar embaixo à direita.
 import * as M from './screens.js';
 import { outlinePath, meshLinesPath, bbox } from './warp.js';
+import { el, fmtN, ICON, propsKit } from './panel.js';
 
 const $ = (id) => document.getElementById(id);
-const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 const NS = 'http://www.w3.org/2000/svg';
 const svgEl = (tag, attrs = {}) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
 const TEAL = '#6fe6c6', MASKC = '#f5d742';
-const fmtN = (x, d = 0) => (Math.round(x * 10 ** d) / 10 ** d).toFixed(d).replace('.', ',');
-const ICON = {
-  undo: '<svg viewBox="0 0 16 16"><path d="M6 4 2 8l4 4M2 8h7a4 4 0 0 1 0 8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
-  redo: '<svg viewBox="0 0 16 16"><path d="m10 4 4 4-4 4M14 8H7a4 4 0 0 0 0 8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
-  hand: '<svg viewBox="0 0 16 16"><path d="M5 9V3.5a1 1 0 0 1 2 0V8m0-5.5a1 1 0 0 1 2 0V8m0-4a1 1 0 0 1 2 0v4m0-2a1 1 0 0 1 2 0v4c0 3-2 5-5 5s-4-1-5-3L2 9.5a1 1 0 0 1 1.5-1L5 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
-  snap: '<svg viewBox="0 0 16 16"><path d="M4 2v6a4 4 0 0 0 8 0V2M4 2h3v6a1 1 0 0 0 2 0V2h3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 2h3M9 2h3" stroke="currentColor" stroke-width="3"/></svg>',
-  grid: '<svg viewBox="0 0 16 16"><path d="M2 2h12v12H2zM2 6h12M2 10h12M6 2v12M10 2v12" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
-  plus: '<svg viewBox="0 0 16 16"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2"/></svg>',
-  pts: '<svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6"/></svg>',
-  move: '<svg viewBox="0 0 16 16"><path d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="6" y="6" width="4" height="4" fill="currentColor"/></svg>',
-  caret: '<svg viewBox="0 0 8 8"><path d="M1 2.5h6L4 6z" fill="currentColor"/></svg>',
-  flipN: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="currentColor"/></svg>',
-  flipX: '<svg viewBox="0 0 16 16"><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/><path d="M8 2a6 6 0 0 0 0 12" fill="none" stroke="currentColor"/></svg>',
-  flipY: '<svg viewBox="0 0 16 16"><path d="M2 8a6 6 0 0 1 12 0z" fill="currentColor"/><path d="M2 8a6 6 0 0 0 12 0" fill="none" stroke="currentColor"/></svg>',
-  flipXY: '<svg viewBox="0 0 16 16"><path d="M8 8V2a6 6 0 0 1 6 6zM8 8H2a6 6 0 0 0 6 6z" fill="currentColor"/><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor"/></svg>',
-  heart: '<svg viewBox="0 0 16 16"><path d="M8 14 2.5 8.5a3 3 0 0 1 4.3-4.3L8 5.4l1.2-1.2a3 3 0 0 1 4.3 4.3z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
-  rect: '<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
-  circle: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
-  tri: '<svg viewBox="0 0 16 16"><path d="M8 2.5 14 13.5H2z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
-  hex: '<svg viewBox="0 0 16 16"><path d="M8 2 13.2 5v6L8 14 2.8 11V5z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
-  pen: '<svg viewBox="0 0 16 16"><path d="m3 13 1-4 7-7 3 3-7 7zM10 3l3 3" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
-  item: '<svg viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="4" y="4" width="4" height="4" fill="currentColor"/></svg>',
-  itemOff: '<svg viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
-};
 const ibtn = (id, icon, help, txt) => `<button type="button" id="${id}" class="ib${txt ? ' txt' : ''}" data-help="${help}">${ICON[icon]}${txt ? '<span>' + txt + '</span>' : ''}</button>`;
 
 export class AdvancedOutput {
@@ -44,6 +20,7 @@ export class AdvancedOutput {
     this.open = false; this.tab = 'in'; this.mode = 'move'; this.snap = false; this.grid = true; this.led = false; this.pan = false; this.zoom = 'fit';
     this.sel = null; this.selPt = -1; this.drawing = null; this.cursor = null; this.drag = null; this.scale = 1;
     this.snapshot = ''; this.presetName = ''; this.hist = []; this.redoHist = []; this.space = false;
+    Object.assign(this, propsKit(this));
     this.build();
   }
 
@@ -448,47 +425,7 @@ export class AdvancedOutput {
     span.replaceWith(i); i.focus(); i.select();
   }
 
-  // ---------- propriedades (linhas no formato do Resolume) ----------
-  prow(label, help, ...kids) { const r = el('div', 'prow'); if (help) r.dataset.help = help; r.append(el('span', 'pl', label), ...kids); return r; }
-  phead(text, help, extra) { const h = el('div', 'phead'); if (help) h.dataset.help = help; h.append(el('span', '', text)); if (extra) h.appendChild(extra); return h; }
-  // valor editável + − + barra. opts: {min,max,step,dec,unit,bar}
-  pnum(label, help, v, o, set) {
-    const box = el('div', 'pv');
-    const val = el('span', 'val', fmtN(v, o.dec || 0) + (o.unit || ''));
-    const commit = (n) => { if (isNaN(n)) return; n = Math.min(o.max, Math.max(o.min, n)); this.pushUndo(); set(n); this.c.onChange(); this.draw(); this.renderProps(); };
-    val.onclick = () => {
-      const i = el('input'); i.type = 'text'; i.value = fmtN(v, o.dec || 0); i.className = 'edit';
-      i.onblur = () => commit(parseFloat(i.value.replace(',', '.'))); i.onkeydown = (e) => { if (e.key === 'Enter') i.blur(); if (e.key === 'Escape') { i.onblur = null; this.renderProps(); } e.stopPropagation(); };
-      val.replaceWith(i); i.focus(); i.select();
-    };
-    const minus = el('button', 'pm', '−'); minus.type = 'button'; minus.onclick = () => commit(v - (o.step || 1));
-    const plus = el('button', 'pm', '+'); plus.type = 'button'; plus.onclick = () => commit(v + (o.step || 1));
-    box.append(val, minus, plus);
-    if (o.bar) {
-      const bar = el('div', 'bar'), fill = el('div', 'fill'); fill.style.width = ((v - o.min) / (o.max - o.min) * 100) + '%'; bar.appendChild(fill);
-      bar.onpointerdown = (e) => {
-        this.pushUndo(); bar.setPointerCapture(e.pointerId);
-        const at = (ev) => { const r = bar.getBoundingClientRect(); let f = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)); let n = o.min + f * (o.max - o.min); n = Math.round(n / (o.step || 1)) * (o.step || 1); set(n); fill.style.width = f * 100 + '%'; val.textContent = fmtN(n, o.dec || 0) + (o.unit || ''); this.c.onChange(); };
-        at(e); bar.onpointermove = (ev) => { if (bar.hasPointerCapture(ev.pointerId)) at(ev); }; bar.onpointerup = () => { bar.onpointermove = null; this.draw(); this.renderProps(); };
-      };
-      bar.oncontextmenu = (e) => { e.preventDefault(); commit(o.reset ?? o.min); };
-      box.appendChild(bar);
-    }
-    return this.prow(label, help, box);
-  }
-  pcheck(label, help, v, set) {
-    const box = el('div', 'pv'); const c = el('label', 'ck' + (v ? ' on' : '')); c.innerHTML = v ? ICON.item : ICON.itemOff;
-    c.onclick = () => { this.pushUndo(); set(!v); this.c.onChange(); this.refresh(); }; box.appendChild(c); return this.prow(label, help, box);
-  }
-  pselect(label, help, opts, cur, set) {
-    const box = el('div', 'pv'); const s = el('select'); for (const [v, t] of opts) { const o = el('option', '', t); o.value = v; s.appendChild(o); } s.value = cur;
-    s.onchange = () => { this.pushUndo(); set(s.value); this.c.onChange(); this.refresh(); }; box.appendChild(s); return this.prow(label, help, box);
-  }
-  picons(label, help, items, cur, set) {
-    const box = el('div', 'pv icons');
-    for (const [v, icon, tip] of items) { const b = el('button', 'ib' + (v === cur ? ' on' : '')); b.type = 'button'; b.innerHTML = ICON[icon]; b.title = tip || ''; b.onclick = () => { this.pushUndo(); set(v); this.c.onChange(); this.refresh(); }; box.appendChild(b); }
-    return this.prow(label, help, box);
-  }
+  // ---------- propriedades (linhas no formato do Resolume, kit em panel.js) ----------
   colorRows(P, c) {
     P.appendChild(this.pnum('Brilho', 'Brilho|Compensa projetores diferentes entre si.', Math.round((c.bright - 1) * 100), { min: -100, max: 100, step: 1, bar: true, reset: 0 }, v => { c.bright = 1 + v / 100; }));
     P.appendChild(this.pnum('Contraste', 'Contraste|Compensa projetores diferentes entre si.', Math.round((c.contrast - 1) * 100), { min: -100, max: 100, step: 1, bar: true, reset: 0 }, v => { c.contrast = 1 + v / 100; }));

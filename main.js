@@ -5,6 +5,7 @@ const { app, BrowserWindow, Menu, protocol, net, session, screen, ipcMain } = re
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
+const { LaserCube } = require('./lasercube.js');
 
 const APP_DIR = path.join(__dirname, 'app');
 const ORIGIN = 'app://projecionista';
@@ -106,8 +107,21 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('presets:remove', (_e, name) => { try { fs.unlinkSync(presetFile(name)); } catch {} return true; });
 
+  // laser: um LaserCube por vez, controlado pela janela principal
+  const laser = new LaserCube();
+  ipcMain.handle('laser:discover', () => laser.discover());
+  ipcMain.handle('laser:connect', (_e, ip) => laser.connect(String(ip)));
+  ipcMain.handle('laser:disconnect', () => { laser.disconnect(); return true; });
+  ipcMain.handle('laser:output', (_e, on) => { laser.setOutput(!!on); return true; });
+  ipcMain.handle('laser:rate', (_e, r) => { laser.setRate(r | 0); return true; });
+  ipcMain.handle('laser:status', () => laser.status());
+  ipcMain.on('laser:frame', (_e, buf) => { laser.setFrame(new Uint16Array(buf.buffer, buf.byteOffset, buf.byteLength / 2)); });
+  app.on('before-quit', () => laser.disconnect());
+
   const win = createMain();
-  if (process.env.PROJ_TEST) require('./tools/selftest-main.js')(win, app);
+  laser.on('status', (s) => { if (!win.isDestroyed()) win.webContents.send('laser:status', s); });
+  laser.on('error', (m) => { if (!win.isDestroyed()) win.webContents.send('laser:error', m); });
+  if (process.env.PROJ_TEST) require('./tools/selftest-main.js')(win, app, laser);
 });
 
 app.on('window-all-closed', () => app.quit());

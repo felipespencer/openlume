@@ -17,6 +17,12 @@ de trabalhar.
   imagem, exportar SVG, atraso por tela, "fundo preto" e "key" (não mudam nada numa
   composição opaca)
 
+- **Laser** (2026-10-14): módulo do LaserCube por Wi-Fi, igual à maquete `laser-mockup.html`:
+  quadros de texto (fontes Hershey, horizontal/vertical/pilha, rolagem), desenho à mão, SVG e
+  formas; cor, distorção e posição; zona segura; clipe de laser na grade; aba do aparelho com
+  busca na rede. Protocolo testado contra um LaserCube falso no teste automático; **falta a
+  prova com o aparelho de verdade** (direção dos eixos, brilho, taxa de pontos)
+
 ## Ordem de trabalho
 
 1. **Advanced Output**, como no Resolume — feito, menos slices em polígono
@@ -35,9 +41,19 @@ de trabalhar.
 6. **Fontes além de arquivo**: texto, câmera, cor sólida, shader gerador
    - **LaserCube** (pedido em 2026-10-14: "ligar meu lasercube como fonte assim como a câmera").
      O LaserCube é um projetor a laser da Wicked Lasers (USB ou Wi-Fi) que recebe trajetórias
-     de pontos, não pixels. A confirmar com o Felipe o que ele quer: (a) o laser como **tela**
-     da Saída avançada, desenhando os contornos da composição ou formas vetoriais, ou (b) uma
-     fonte que mostra na composição o que o laser está desenhando
+     de pontos, não pixels. **Esclarecido em 2026-10-14**: ele quer um módulo de laser
+     completo — desenhar, escrever texto na horizontal e na vertical, efeitos de cor e de
+     distorção, mandar SVG — "baseie-se no LaserOS mas tente fazer melhor, porque aquele app é
+     horrível". O aparelho é o **LaserCube 7,5 W da linha antiga, por Wi-Fi**. Protocolo (da
+     libLaserdockCore, GPL, base do LaserOS; e do LaserCubeSharp): UDP, portas 45456 (alive),
+     45457 (comandos) e 45458 (pontos). Descoberta: `0x27` em broadcast; `0x77` devolve 64
+     bytes (firmware, flags de saída/interlock/temperatura, taxa e taxa máxima de pontos,
+     buffer livre e total, bateria, temperatura, serial, IP, nome). Comandos: `0x80 0/1` liga a
+     saída, `0x82 u32` taxa de pontos, `0x78 1` pede resposta de buffer a cada pacote de dados,
+     `0x8a` buffer livre, `0x8d` limpa o buffer. Dados: `[0xa9, 0, nº da mensagem, nº do quadro]`
+     + até 140 pontos de `x y r g b` em u16 little-endian, 0..4095, no máximo 20 pacotes por
+     rajada; o laser responde `[0x8a, 0, livre u16]`. Maquete `laser-mockup.html` feita em
+     2026-10-14, aguardando o olhar do Felipe. Fonte de traço único (Hershey) para o texto
 7. **Decks**
 8. **Grupos de camadas**, solo, máscara de camada, crossfader A/B
 9. **MIDI**: clicar no controle e mexer na controladora para amarrar; teclado também

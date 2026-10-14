@@ -9,6 +9,7 @@
 import { Engine, BLENDS, FITS } from './engine.js';
 import * as M from './screens.js';
 import { AdvancedOutput } from './ao.js';
+import { LaserModule } from './laser.js';
 
 const COLS = 8, COMP_W = 1920, COMP_H = 1080;
 const $ = (id) => document.getElementById(id);
@@ -72,6 +73,23 @@ function cloneClip(c) {
   const n = { ...c, id: seq++ };
   if (c.kind === 'video') { const v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto'; v.src = c.url; v.playbackRate = c.speed; n.el = v; }
   return n;
+}
+// clipe de laser: casa da grade que, disparada, manda um quadro do laser para o LaserCube
+function laserClip(frame) {
+  const svg = laser.thumbSvg(frame);
+  return { id: seq++, name: frame.name, kind: 'laser', laserId: frame.id, url: '', file: null, w: 0, h: 0, dur: 0, fit: 'contain', speed: 1, thumb: 'data:image/svg+xml;utf8,' + encodeURIComponent(svg), el: null };
+}
+function putLaserClip(li, col, frame) {
+  const L = state.layers[li], old = L.clips[col];
+  if (old) { if (L.on === col) { stopClip(old); L.on = -1; } engine.drop(old.id); }
+  L.clips[col] = laserClip(frame); state.sel = { l: li, c: col }; render();
+}
+// o quadro do laser segue a grade: o clipe de laser no ar (o mais de cima) é o que vai para o LaserCube
+function syncLaser() {
+  const on = state.layers.find(L => L.on >= 0 && L.clips[L.on] && L.clips[L.on].kind === 'laser' && !L.bypass);
+  const frame = on ? laser.byId(on.clips[on.on].laserId) : null;
+  if (frame) { if (laser.active !== frame) laser.setActive(frame); laser.activeFromGrid = true; }
+  else if (laser.activeFromGrid) { laser.activeFromGrid = false; laser.setActive(null); }
 }
 function stopClip(c) { if (c && c.kind === 'video' && c.el) c.el.pause(); }
 function startClip(c) { if (c && c.kind === 'video' && c.el) { try { c.el.currentTime = 0; } catch { } c.el.playbackRate = c.speed; c.el.play().catch(() => { }); } }
@@ -169,13 +187,13 @@ function render() {
     g.appendChild(lh);
     for (let c = 0; c < COLS; c++) {
       const clip = L.clips[c], sel = state.sel && state.sel.l === li && state.sel.c === c;
-      const cell = el('div', 'cell ' + (clip ? 'full' : 'empty') + (clip && L.on === c ? ' on' : '') + (sel ? ' sel' : ''));
+      const cell = el('div', 'cell ' + (clip ? 'full' : 'empty') + (clip && L.on === c ? ' on' : '') + (sel ? ' sel' : '') + (clip && clip.kind === 'laser' ? ' laser' : ''));
       cell.dataset.layer = li; cell.dataset.col = c;
       if (clip) {
         const th = el('div', 'th'); if (clip.thumb) th.style.backgroundImage = 'url("' + clip.thumb + '")';
         const nm = el('div', 'nm', clip.name);
         cell.append(th, nm);
-        cell.title = clip.name + ' · ' + clip.w + '×' + clip.h;
+        cell.title = clip.kind === 'laser' ? clip.name + ' · laser' : clip.name + ' · ' + clip.w + '×' + clip.h;
         cell.draggable = true;
         cell.ondragstart = (e) => { drag = { l: li, c }; e.dataTransfer.effectAllowed = 'copyMove'; e.dataTransfer.setData('text/plain', 'clip'); };
         cell.ondragend = () => { drag = null; };
@@ -190,6 +208,7 @@ function render() {
   });
   wrap.scrollTop = st; wrap.scrollLeft = sl;
   renderPanels();
+  syncLaser();
 }
 
 // soltar na grade: arquivos do Windows, item do painel Arquivos ou clipe de outra casa
@@ -207,6 +226,7 @@ function render() {
     const files = [...(e.dataTransfer.files || [])];
     if (files.length) putFiles(li, col, files);
     else if (d && d.file) putFiles(li, col, [d.file]);
+    else if (d && d.laser) putLaserClip(li, col, d.laser);
     else if (d && d.l != null) moveClip(d.l, d.c, li, col, e.ctrlKey);
   });
   // soltar fora da grade não pode fazer a janela navegar para o arquivo
@@ -226,15 +246,21 @@ function renderPanels() {
   if (key !== prevKey) {
     prevKey = key;
     const p = $('prevScr'); p.textContent = '';
-    if (clip && clip.kind === 'video') { const v = el('video'); v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true; v.src = clip.url; p.appendChild(v); }
+    if (clip && clip.kind === 'laser') { const im = el('img'); im.draggable = false; im.src = clip.thumb; im.className = 'laserThumb'; p.appendChild(im); }
+    else if (clip && clip.kind === 'video') { const v = el('video'); v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true; v.src = clip.url; p.appendChild(v); }
     else if (clip) { const im = el('img'); im.draggable = false; im.src = clip.url; p.appendChild(im); }
   }
-  $('prevName').textContent = clip ? clip.w + '×' + clip.h + ' · ' + clip.name : '—';
+  $('prevName').textContent = clip ? (clip.kind === 'laser' ? 'laser · ' : clip.w + '×' + clip.h + ' · ') + clip.name : '—';
 
   const cp = $('clipPan'); cp.textContent = '';
   if (!clip) cp.appendChild(el('div', 'vazio', 'Nenhum clipe selecionado. Clique no nome de um clipe para ver a prévia, ou na miniatura para pôr no ar.'));
   else {
     cp.appendChild(el('div', 'tit', clip.name));
+    if (clip.kind === 'laser') {
+      cp.appendChild(row('Tipo', el('span', 'info', 'Quadro do laser')));
+      const b = el('button', 'wide', 'Abrir no Laser'); b.type = 'button'; b.onclick = () => { const f = laser.byId(clip.laserId); if (f) { laser.sel = f; laser.show(); } }; cp.appendChild(b);
+      lpStart(); return;
+    }
     if (clip.kind === 'video') {
       const tr = el('div', 'tr');
       const b0 = el('button', '', '|◀'); b0.title = 'Voltar ao começo'; b0.onclick = () => { try { clip.el.currentTime = 0; } catch { } };
@@ -252,7 +278,9 @@ function renderPanels() {
     cp.appendChild(row('Ajuste na tela', fit));
     cp.appendChild(row('Tamanho', el('span', 'info', clip.w + ' × ' + clip.h + (clip.kind === 'video' && clip.dur ? '   ·   ' + fmtT(clip.dur) : ''))));
   }
-
+  lpStart();
+}
+function lpStart() {
   const lp = $('layerPan'); lp.textContent = '';
   const S = state.layers[state.selLayer];
   if (!S) return;
@@ -354,6 +382,14 @@ const ao = new AdvancedOutput({
 });
 $('btnAO').onclick = () => ao.show();
 
+const laser = new LaserModule({
+  onChange: () => { renderScreens(); },
+  toast, laser: window.projLaser || null,
+  dragStart: (f) => { drag = { laser: f }; }, dragEnd: () => { drag = null; },
+});
+if (window.projLaser) window.projLaser.onError((m) => toast('Laser: ' + m));
+$('btnLaser').onclick = () => laser.show();
+
 // ---------- laço de desenho ----------
 (function loop() {
   engine.render(state.layers, engine.neededLayers(state.screens));
@@ -372,7 +408,7 @@ $('btnAO').onclick = () => ao.show();
 render();
 
 // usado pelo teste automático (tools/selftest-main.js); não é interface de usuário
-window.projecionista = { state, engine, putFiles, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M,
+window.projecionista = { state, engine, putFiles, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, laser, putLaserClip,
   probe: (pts) => engine.probe(state.layers, pts),
   probeScreen: (sc, pts) => engine.probeScreen(sc, state.layers, state.screens, pts),
   screens: () => state.screens, setScreens, openOutputs, outWins: () => state.screens.map(sc => sc.win).filter(w => w && !w.closed) };
