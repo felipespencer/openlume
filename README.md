@@ -22,19 +22,44 @@ npm start
 - Clique em "Coluna N": dispara a coluna inteira; camada sem clipe nela fica preta.
 - Arrastar um clipe para outra casa move; com Ctrl, copia. Botão direito esvazia a casa.
 - X tira a camada do ar. B desliga e liga a camada sem perder o clipe.
-- "Abrir saída" abre a janela do projetor. Com um segundo monitor ligado, ela já abre nele em
-  tela cheia. Numa janela comum, F ou duplo clique alterna a tela cheia.
-- "Mapear", no monitor de saída, amplia a imagem e mostra os quatro cantos: puxe cada um até
-  encaixar na superfície. Duplo clique num canto devolve só aquele; "Zerar" devolve todos.
+- "Abrir saída" abre uma janela por tela. Com um projetor ligado, a tela "Automático" já abre
+  nele em tela cheia. Numa janela comum, F ou duplo clique alterna a tela cheia.
 - Abrir o programa começa sempre do zero.
+
+### Saída avançada
+
+O botão "Saída avançada", no monitor da composição, abre o editor de telas, no formato do
+Advanced Output do Resolume:
+
+- **Tela** é um projetor (ou uma janela). Cada tela tem destino, tamanho, opacidade e cor.
+- **Slice** recorta um pedaço da composição (aba Entrada: posição, tamanho, giro, fonte) e o
+  encaixa na superfície (aba Saída: posição, tamanho, giro, espelhar).
+- **Deformação**: quatro cantos (perspectiva) ou malha de curvas. Na malha, "Pontos" deixa
+  arrastar cada âncora; com "Curva" aparecem as alças da âncora escolhida. Duplo clique numa
+  âncora zera a malha. T alterna Transformar e Pontos.
+- **Soft edge**: liga a emenda entre dois projetores. A largura vem da sobreposição dos
+  recortes na composição; potência, luminância, gama (geral e por cor) e nível de preto
+  ajustam a rampa.
+- **Máscaras**: de saída (retângulo, círculo ou desenhada clicando na tela; invertida preserva
+  só o que está dentro) e de entrada, por slice.
+- **Ímã** gruda nas bordas dos outros slices; **Grade** mostra a borda do slice e o cursor no
+  projetor; **Identificar** escreve o nome de cada tela e slice nos projetores.
+- **Presets** ficam gravados em disco: escolha um na lista, ou dê um nome e Salvar.
+- "Salvar e fechar" aplica; "Cancelar" (ou Esc) devolve tudo como estava.
 
 ## Como é feito
 
-- `main.js`: processo principal do Electron. Serve `app/` por `app://projecionista/`.
-- `app/engine.js`: motor de mistura em WebGL2. Desenha as camadas de baixo para cima numa
-  imagem de 1920×1080.
-- `app/app.js`: grade, painéis e regras de uso.
-- `app/output.html`: a saída. Não mistura nada: mostra a imagem que o controle já misturou.
+- `main.js`: processo principal do Electron. Serve `app/` por `app://projecionista/`, lista
+  os monitores e guarda os presets de saída (`app/preload.js` é a ponte).
+- `app/engine.js`: motor em WebGL2. Desenha as camadas de baixo para cima numa imagem de
+  1920×1080 (a composição) e, para cada tela, recorta e deforma os slices com soft edge e
+  máscaras.
+- `app/screens.js`: o modelo de telas, slices e máscaras; `app/warp.js`: a geometria dos
+  quatro cantos e da malha bezier.
+- `app/ao.js`: o editor da Saída avançada (maquete: `advanced-output-mockup.html`).
+- `app/app.js`: grade, painéis, janelas de saída e regras de uso.
+- `app/output.html`: a saída. Não mistura nada: mostra a imagem que o controle já desenhou
+  para aquela tela.
 
 ## Testar
 
@@ -49,8 +74,8 @@ O teste roda dentro do próprio programa, lê pixels da composição e confere a
 
 ## Ainda não tem
 
-Efeitos, mapeamento por malha e por camada, vários projetores com recorte, transição entre clipes,
-decks, MIDI, texto e câmera como clipe, salvar e abrir composição.
+Efeitos, transição entre clipes, decks, MIDI, texto e câmera como clipe, salvar e abrir
+composição, slices em polígono.
 
 ## Origem das ideias
 

@@ -5,35 +5,52 @@
 <title>Projecionista — saída</title>
 <style>
   html,body{ margin:0; height:100%; background:#000; overflow:hidden; cursor:none; }
-  video{ position:absolute; left:0; top:0; width:100%; height:100%; object-fit:contain; display:block; background:#000; transform-origin:0 0; }
-  video.mapped{ object-fit:fill; background:none; }
+  video{ position:absolute; left:0; top:0; width:100%; height:100%; object-fit:fill; display:block; background:#000; }
+  canvas{ position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; }
 </style>
 </head>
 <body>
 <video id="v" autoplay muted playsinline></video>
-<script src="map.js"></script>
+<canvas id="ov"></canvas>
 <script>
-  // A saída não mistura nada: mostra a imagem que a janela de controle já misturou, e aplica
-  // o mapeamento de quatro cantos que o controle definiu.
-  var v = document.getElementById('v'), ultimo = '';
+  // A saída não mistura nada: mostra a imagem que a janela de controle já desenhou para
+  // esta tela. Por cima, só os ajudantes do editor (grade do slice, cursor, identificação).
+  var sid = new URLSearchParams(location.search).get('screen') || '';
+  var v = document.getElementById('v'), ov = document.getElementById('ov'), ctx = ov.getContext('2d');
   function liga(){
     try{
-      var s = window.opener && window.opener.__projStream;
+      var s = window.opener && window.opener.__projStreams && window.opener.__projStreams[sid];
       if(s && v.srcObject !== s){ v.srcObject = s; v.play().catch(function(){}); }
     }catch(e){}
   }
+  // avisa o tamanho ao controle só quando ocupa um monitor inteiro: aí o monitor manda no tamanho da tela
+  function avisaTamanho(){ try{ var cheia = innerWidth === screen.width && innerHeight === screen.height; window.opener && window.opener.__projOutSize && window.opener.__projOutSize(sid, innerWidth, innerHeight, cheia); }catch(e){} }
   liga(); setInterval(liga, 1000);
+  avisaTamanho(); addEventListener('resize', avisaTamanho);
   (function quadro(){
     try{
-      var m = window.opener && window.opener.__projMap;
-      var chave = m ? JSON.stringify(m) + innerWidth + 'x' + innerHeight : '';
-      if(chave !== ultimo){
-        ultimo = chave;
-        if(!m || projMapIsIdentity(m)){ v.classList.remove('mapped'); v.style.transform = ''; }
-        else {
-          var W = innerWidth, H = innerHeight;
-          v.classList.add('mapped');
-          v.style.transform = projHomography(W, H, m.map(function(p){ return [p[0] * W, p[1] * H]; }));
+      var h = window.opener && window.opener.__projHelpers && window.opener.__projHelpers[sid];
+      if(ov.width !== innerWidth || ov.height !== innerHeight){ ov.width = innerWidth; ov.height = innerHeight; }
+      ctx.clearRect(0, 0, ov.width, ov.height);
+      if(h){
+        var kx = innerWidth / h.w, ky = innerHeight / h.h;
+        if(h.grid){
+          ctx.strokeStyle = '#39FF14'; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
+          ctx.beginPath(); h.grid.outline.forEach(function(p, i){ i ? ctx.lineTo(p[0] * kx, p[1] * ky) : ctx.moveTo(p[0] * kx, p[1] * ky); }); ctx.closePath(); ctx.stroke();
+          ctx.setLineDash([]); ctx.fillStyle = '#39FF14'; ctx.font = 'bold 28px Segoe UI, sans-serif';
+          ctx.fillText(h.grid.name, h.grid.outline[0][0] * kx + 10, h.grid.outline[0][1] * ky + 34);
+        }
+        if(h.cursor){
+          ctx.strokeStyle = '#ff3b3b'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(0, h.cursor[1] * ky); ctx.lineTo(ov.width, h.cursor[1] * ky); ctx.moveTo(h.cursor[0] * kx, 0); ctx.lineTo(h.cursor[0] * kx, ov.height); ctx.stroke();
+        }
+        if(h.identify){
+          ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, ov.width, ov.height);
+          ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = 'bold 96px Segoe UI, sans-serif';
+          ctx.fillText(h.identify.name, ov.width / 2, ov.height / 2);
+          ctx.font = 'bold 36px Segoe UI, sans-serif'; ctx.fillStyle = '#39FF14';
+          h.identify.slices.forEach(function(s){ ctx.fillText(s.name, s.x * kx, s.y * ky); });
+          ctx.textAlign = 'start';
         }
       }
     }catch(e){}

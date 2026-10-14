@@ -75,24 +75,83 @@ button.gh:hover{ color:var(--txt); background:var(--bg3); }
   opacity:0; pointer-events:none; transition:opacity .15s; }
 #toast.show{ opacity:1; }
 
-/* ---------- mapeamento da saída (quatro cantos) ---------- */
-.mon .cap i{ font-style:normal; color:var(--ghost); letter-spacing:0; margin-left:6px; }
+/* ---------- lista de telas no monitor ---------- */
+.saidas{ color:var(--dim); font-size:11px; }
+.saidas .s{ display:flex; justify-content:space-between; gap:6px; padding:4px 6px; border:1px solid var(--line); border-radius:3px; margin-top:4px; background:var(--bg); }
+.saidas .s b{ color:var(--txt); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.saidas .s i{ font-style:normal; color:var(--ghost); white-space:nowrap; } .saidas .s i.on{ color:var(--accent); }
 .mon .cap .acts{ display:flex; gap:4px; text-transform:none; letter-spacing:0; }
 .mon .cap .acts button{ height:18px; padding:0 8px; font-size:11px; }
-#btnMapReset{ display:none; }
-#outScr{ position:relative; }
-#mapOv{ display:none; position:absolute; inset:0; z-index:3; }
-#mapOv .hd{ position:absolute; width:22px; height:22px; margin:-11px 0 0 -11px; border-radius:50%; border:2px solid var(--accent); background:rgba(11,11,13,.55);
-  cursor:grab; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:var(--accent); touch-action:none; }
-#mapOv .hd:active{ cursor:grabbing; background:var(--accent); color:#0b0b0d; }
-#mapOv svg{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
-#mapOv svg polygon{ fill:none; stroke:var(--accent); stroke-width:1; stroke-dasharray:5 4; vector-effect:non-scaling-stroke; }
-body.mapping #gridWrap{ display:none; }
-body.mapping #mid{ grid-template-columns:minmax(0,1fr); }
-body.mapping #mons{ grid-template-rows:minmax(0,1fr); padding:8px 60px 30px; }
-body.mapping #mons .mon{ display:none; }
-body.mapping #mons .mon.out{ display:flex; flex-direction:column; min-height:0; }
-body.mapping #outScr{ flex:1; min-height:0; aspect-ratio:auto; overflow:visible; display:block; background:repeating-linear-gradient(45deg,#161616,#161616 12px,#1d1d1d 12px,#1d1d1d 24px); }
-body.mapping #outScr canvas{ position:absolute; left:0; top:0; width:100%; height:100%; object-fit:fill; transform-origin:0 0; }
-body.mapping #mapOv, body.mapping #btnMapReset{ display:block; }
-body.mapping #btnMap{ background:var(--accent); border-color:var(--accent); color:#0b0b0d; }
+.mon .cap i{ font-style:normal; color:var(--ghost); letter-spacing:0; margin-left:6px; }
+
+/* ---------- Saída avançada (segue advanced-output-mockup.html) ---------- */
+#ao{ position:fixed; inset:0; z-index:20; background:var(--bg); display:grid; grid-template-rows:30px 34px minmax(0,1fr); user-select:none; }
+#ao[hidden]{ display:none; }
+#ao button.on{ background:var(--accent); border-color:var(--accent); color:#0b0b0d; font-weight:700; }
+#ao input[type=checkbox]{ accent-color:var(--accent); margin:0; }
+#aoTop{ display:flex; align-items:center; gap:14px; padding:0 10px; background:#141518; border-bottom:1px solid var(--line); }
+#aoTop .logo{ font-weight:800; letter-spacing:.06em; } #aoTop .logo b{ color:var(--accent); }
+#aoTop .tit{ color:var(--dim); } #aoTop .sp{ flex:1; }
+#aoTop .preset{ display:flex; gap:6px; align-items:center; color:var(--dim); }
+#aoTop .preset input{ width:140px; height:22px; background:var(--bg); border:1px solid var(--line); border-radius:3px; color:var(--txt); padding:0 6px; font:inherit; }
+#aoTools{ display:flex; align-items:center; gap:6px; padding:0 10px; background:var(--bg2); border-bottom:1px solid var(--line); }
+#aoTools .sep{ width:1px; height:20px; background:var(--line); margin:0 4px; }
+#aoTools .tabs{ display:flex; } #aoTools .tabs button{ border-radius:0; } #aoTools .tabs button:first-child{ border-radius:3px 0 0 3px; } #aoTools .tabs button:last-child{ border-radius:0 3px 3px 0; }
+#aoTools .info{ color:var(--dim); margin-left:auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#aoMain{ display:grid; grid-template-columns:230px minmax(0,1fr) 300px; min-height:0; }
+#aoTree{ background:var(--bg2); border-right:1px solid var(--line); overflow:auto; display:flex; flex-direction:column; }
+#aoTree .hd{ display:flex; justify-content:space-between; align-items:center; padding:8px 10px 6px; color:var(--dim); font-size:10px; letter-spacing:.08em; text-transform:uppercase; position:relative; }
+#aoTree .hd button{ height:18px; padding:0 7px; font-size:11px; }
+#aoAddMenu{ position:absolute; right:8px; top:28px; z-index:5; background:var(--bg3); border:1px solid var(--line); border-radius:3px; display:flex; flex-direction:column; min-width:170px; text-transform:none; letter-spacing:0; font-size:12px; }
+#aoAddMenu[hidden]{ display:none; }
+#aoAddMenu button{ border:0; border-radius:0; text-align:left; height:26px; padding:0 10px; background:none; } #aoAddMenu button:hover{ background:var(--bg2); }
+#aoTree .scr{ border-top:1px solid var(--line); }
+#aoTree .row{ display:flex; align-items:center; gap:6px; padding:6px 8px; cursor:pointer; }
+#aoTree .row:hover{ background:var(--bg3); }
+#aoTree .row.sel{ background:#26282e; box-shadow:inset 3px 0 0 var(--sel); }
+#aoTree .row .nm{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#aoTree .row .dev{ color:var(--ghost); font-size:10px; }
+#aoTree .row.screen .nm{ font-weight:700; }
+#aoTree .row.item{ padding-left:22px; }
+#aoTree .row .dot{ width:8px; height:8px; border-radius:2px; flex:none; }
+#aoTree .row .x{ color:var(--ghost); font-size:11px; } #aoTree .row:hover .x{ color:var(--txt); }
+#aoTree .dica{ margin-top:auto; padding:10px; color:var(--ghost); line-height:1.5; border-top:1px solid var(--line); }
+#aoStage{ position:relative; overflow:auto; background:#121316; display:grid; place-items:center;
+  background-image:linear-gradient(#1a1b1f 1px,transparent 1px),linear-gradient(90deg,#1a1b1f 1px,transparent 1px); background-size:40px 40px; }
+#aoView{ position:relative; margin:40px; flex:none; }
+#aoView canvas{ position:absolute; left:0; top:0; display:block; background:#000; border:1px solid var(--line); }
+#aoView svg{ position:absolute; left:0; top:0; overflow:visible; cursor:crosshair; }
+#aoView svg .slice{ fill-opacity:.10; stroke-width:1.5; vector-effect:non-scaling-stroke; cursor:move; } #aoView svg .slice.sel{ stroke-width:2.5; }
+#aoView svg text{ font-family:"Segoe UI",system-ui,sans-serif; }
+#aoView svg .sname{ font-weight:700; pointer-events:none; }
+#aoView svg .blend{ fill:#fff; fill-opacity:.18; pointer-events:none; } #aoView svg .blendTxt{ fill:#fff; fill-opacity:.7; pointer-events:none; }
+#aoView svg .mesh{ fill:none; stroke:var(--accent); stroke-width:1; opacity:.55; vector-effect:non-scaling-stroke; pointer-events:none; }
+#aoView svg .hd{ fill:#0b0b0d; stroke:var(--accent); stroke-width:2; vector-effect:non-scaling-stroke; cursor:grab; }
+#aoView svg .hd.anc{ fill:var(--accent); } #aoView svg .hd.anc.cur{ stroke:#fff; }
+#aoView svg .handle{ stroke:var(--accent); stroke-width:1; stroke-dasharray:3 3; opacity:.7; vector-effect:non-scaling-stroke; pointer-events:none; }
+#aoView svg .mask, #aoView svg .inmask{ fill-opacity:.15; stroke-width:1.5; stroke-dasharray:5 4; vector-effect:non-scaling-stroke; cursor:move; }
+#aoView svg .mname{ font-weight:700; fill:#F5D742; pointer-events:none; }
+#aoView svg .drawing{ fill:none; stroke:#F5D742; stroke-width:1.5; stroke-dasharray:5 4; vector-effect:non-scaling-stroke; pointer-events:none; }
+#aoView svg .cursor{ stroke:#ff3b3b; stroke-width:1; opacity:.8; vector-effect:non-scaling-stroke; pointer-events:none; }
+#aoStage .legend{ position:absolute; left:10px; bottom:8px; color:var(--ghost); font-size:11px; display:flex; gap:14px; pointer-events:none; }
+#aoStage .legend i{ display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:-1px; margin-right:4px; }
+#aoProps{ background:var(--bg2); border-left:1px solid var(--line); overflow:auto; display:flex; flex-direction:column; }
+#aoProps .tit{ padding:8px 10px; font-weight:700; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:8px; }
+#aoProps .tit span{ color:var(--sel); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } #aoProps .tit small{ color:var(--ghost); white-space:nowrap; }
+#aoProps .grp{ border-bottom:1px solid var(--line); }
+#aoProps .gh{ display:flex; justify-content:space-between; align-items:center; padding:7px 10px; color:var(--dim); font-size:10px; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; }
+#aoProps .gh:hover{ color:var(--txt); } #aoProps .gh b{ color:var(--ghost); font-weight:400; }
+#aoProps .gb{ padding:2px 10px 8px; }
+#aoProps .grp.off .gb{ display:none; }
+#aoProps .row{ grid-template-columns:86px minmax(0,1fr) 44px; margin:5px 0; }
+#aoProps .row .num{ display:flex; gap:4px; grid-column:2 / -1; }
+#aoProps .row .num label{ flex:1; display:flex; align-items:center; background:var(--bg); border:1px solid var(--line); border-radius:3px; padding:0 4px 0 6px; min-width:0; }
+#aoProps .row .num label i{ font-style:normal; color:var(--ghost); font-size:10px; }
+#aoProps .row .num input{ width:100%; min-width:0; background:none; border:0; color:var(--txt); text-align:right; font:inherit; font-variant-numeric:tabular-nums; padding:3px 0; -moz-appearance:textfield; }
+#aoProps .row .num input::-webkit-outer-spin-button, #aoProps .row .num input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+#aoProps .row input.name{ grid-column:2 / -1; background:var(--bg); border:1px solid var(--line); border-radius:3px; color:var(--txt); padding:3px 6px; font:inherit; min-width:0; }
+#aoProps .row .seg{ display:flex; grid-column:2 / -1; } #aoProps .row .seg button{ flex:1; border-radius:0; height:22px; padding:0 4px; } #aoProps .row .seg button:first-child{ border-radius:3px 0 0 3px; } #aoProps .row .seg button:last-child{ border-radius:0 3px 3px 0; }
+#aoProps .row .chk{ grid-column:2 / -1; display:flex; align-items:center; gap:6px; color:var(--txt); cursor:pointer; }
+#aoProps .foot{ padding:10px; display:flex; gap:6px; margin-top:auto; }
+#aoProps .foot button{ flex:1; height:26px; }
+#aoProps .foot button.ok{ background:var(--accent); border-color:var(--accent); color:#0b0b0d; font-weight:700; }

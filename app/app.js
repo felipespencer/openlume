@@ -7,6 +7,8 @@
 //   - arquivo solto numa casa vira clipe guardado, sem ir para o ar;
 //   - abrir o programa começa sempre do zero.
 import { Engine, BLENDS, FITS } from './engine.js';
+import * as M from './screens.js';
+import { AdvancedOutput } from './ao.js';
 
 const COLS = 8, COMP_W = 1920, COMP_H = 1080;
 const $ = (id) => document.getElementById(id);
@@ -17,12 +19,12 @@ const mkLayer = (n) => ({ id: seq++, name: 'Camada ' + n, opacity: 1, blend: 'no
 const state = { layers: [mkLayer(3), mkLayer(2), mkLayer(1)], selLayer: 0, sel: null, files: [] };   // layers[0] = a de cima
 let drag = null;
 
-const canvas = document.createElement('canvas');
-$('outScr').appendChild(canvas);
-const engine = new Engine(canvas, COMP_W, COMP_H);
+// o motor desenha num canvas escondido; o monitor da composição é um canvas 2D que recebe a cópia
+const engine = new Engine(COMP_W, COMP_H);
+const monCanvas = document.createElement('canvas'); monCanvas.width = COMP_W; monCanvas.height = COMP_H;
+$('outScr').appendChild(monCanvas);
+const monCtx = monCanvas.getContext('2d');
 $('compInfo').textContent = COMP_W + '×' + COMP_H;
-window.__projStream = canvas.captureStream(60);      // a janela de saída mostra exatamente isto
-(function loop() { engine.render(state.layers); requestAnimationFrame(loop); })();
 
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2200); }
 
@@ -286,65 +288,91 @@ $('pickFile').onchange = () => {
   }
 };
 
-// ---------- mapeamento da saída ----------
-// Quatro cantos (cima-esquerda, cima-direita, baixo-direita, baixo-esquerda), em fração da tela
-// do projetor. A janela de saída lê window.__projMap e deforma a imagem; aqui o monitor
-// ampliado mostra a mesma deformação e deixa puxar os cantos.
-const IDENT = [[0, 0], [1, 0], [1, 1], [0, 1]];
-state.map = IDENT.map(p => p.slice());
-window.__projMap = state.map;
-function layoutMap() {
-  const scr = $('outScr'), ov = $('mapOv');
-  const on = document.body.classList.contains('mapping');
-  if (!on) { canvas.style.transform = ''; return; }
-  const W = scr.clientWidth, H = scr.clientHeight;
-  const px = state.map.map(p => [p[0] * W, p[1] * H]);
-  canvas.style.transform = window.projMapIsIdentity(state.map) ? '' : window.projHomography(W, H, px);
-  if (ov.children.length !== 5) {
-    ov.textContent = '';
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'polygon'));
-    ov.appendChild(svg);
-    state.map.forEach((_, i) => {
-      const h = el('div', 'hd', String(i + 1)); h.dataset.i = i;
-      h.onpointerdown = (e) => { h.setPointerCapture(e.pointerId); e.preventDefault(); };
-      h.onpointermove = (e) => {
-        if (!h.hasPointerCapture(e.pointerId)) return;
-        const r = scr.getBoundingClientRect();
-        // o canto pode sair um pouco da tela: às vezes a superfície é maior que a área útil
-        state.map[i][0] = Math.min(1.25, Math.max(-0.25, (e.clientX - r.left) / r.width));
-        state.map[i][1] = Math.min(1.25, Math.max(-0.25, (e.clientY - r.top) / r.height));
-        layoutMap();
-      };
-      h.ondblclick = () => { state.map[i][0] = IDENT[i][0]; state.map[i][1] = IDENT[i][1]; layoutMap(); };
-      ov.appendChild(h);
-    });
-  }
-  ov.querySelector('polygon').setAttribute('points', px.map(p => p.join(',')).join(' '));
-  ov.querySelectorAll('.hd').forEach((h, i) => { h.style.left = px[i][0] + 'px'; h.style.top = px[i][1] + 'px'; });
-}
-$('btnMap').onclick = () => {
-  const on = document.body.classList.toggle('mapping');
-  $('btnMap').textContent = on ? 'Voltar à grade' : 'Mapear';
-  layoutMap();
-};
-$('btnMapReset').onclick = () => { IDENT.forEach((p, i) => { state.map[i][0] = p[0]; state.map[i][1] = p[1]; }); layoutMap(); };
-addEventListener('resize', layoutMap);
+// ---------- telas e saídas ----------
+// Cada tela (ver screens.js) tem o seu canvas 2D; a janela de saída dela recebe o stream
+// desse canvas. O motor só desenha as telas que estão abertas ou abertas no editor.
+state.screens = M.defaultScreens(COMP_W, COMP_H);
+let displays = [];
+if (window.projDesktop) window.projDesktop.displays().then(d => { displays = d; renderScreens(); }).catch(() => { });
 
-// ---------- saída ----------
-let outWin = null;
-$('btnOut').onclick = () => {
-  if (outWin && !outWin.closed) { outWin.focus(); return; }
-  outWin = window.open('output.html', 'projecionista_saida', 'width=960,height=540');
+function screenCanvas(sc) {
+  if (!sc) return null;
+  if (!sc.cv) { sc.cv = document.createElement('canvas'); sc.ctx = sc.cv.getContext('2d'); }
+  if (sc.cv.width !== sc.w || sc.cv.height !== sc.h) { sc.cv.width = sc.w; sc.cv.height = sc.h; }
+  return sc.cv;
+}
+window.__projStreams = {};
+window.__projHelpers = {};
+// a janela de saída avisa o tamanho real que ganhou (o monitor manda no tamanho da tela)
+window.__projOutSize = (sid, w, h, cheia) => {
+  const sc = state.screens.find(s => String(s.id) === String(sid));
+  if (sc && cheia && sc.device !== 'window' && w > 0 && h > 0 && (sc.w !== w || sc.h !== h)) { sc.w = w; sc.h = h; renderScreens(); if (ao.open) ao.layout(); }
 };
-setInterval(() => {
-  const on = !!(outWin && !outWin.closed);
-  $('outState').textContent = on ? 'saída no ar' : 'saída fechada'; $('outState').classList.toggle('on', on);
-  $('btnOut').textContent = on ? 'Mostrar saída' : 'Abrir saída';
-}, 700);
+const helpers = {
+  set: (sc, h) => { if (h) window.__projHelpers[sc.id] = { ...h, w: sc.w, h: sc.h }; else delete window.__projHelpers[sc.id]; },
+  clear: () => { window.__projHelpers = {}; },
+};
+function setScreens(list) {
+  for (const sc of state.screens) if (sc.win && !sc.win.closed) sc.win.close();
+  state.screens = list; window.__projStreams = {}; renderScreens();
+}
+function openOutputs() {
+  let n = 0;
+  for (const sc of state.screens) {
+    if (!sc.enabled) continue;
+    if (sc.win && !sc.win.closed) { sc.win.focus(); n++; continue; }
+    const cv = screenCanvas(sc);
+    if (!window.__projStreams[sc.id]) window.__projStreams[sc.id] = cv.captureStream(60);
+    sc.win = window.open('output.html?screen=' + sc.id + '&display=' + encodeURIComponent(sc.device), 'proj_out_' + sc.id, 'width=960,height=540');
+    n++;
+  }
+  if (!n) toast('Nenhuma tela ligada. Abra a Saída avançada para ligar uma.');
+  renderScreens();
+}
+$('btnOut').onclick = openOutputs;
+function renderScreens() {
+  const list = $('scrList'); list.textContent = '';
+  let on = 0;
+  for (const sc of state.screens) {
+    const row = el('div', 's'); const open = !!(sc.win && !sc.win.closed); if (open) on++;
+    const dev = sc.device === 'auto' ? 'automático' : sc.device === 'window' ? 'janela' : ((displays.find(d => d.id === sc.device) || {}).label || 'monitor');
+    const st = el('i', open ? 'on' : '', open ? 'no ar' : sc.enabled ? dev : 'desligada');
+    row.append(el('b', '', sc.name + ' · ' + sc.w + '×' + sc.h), st); list.appendChild(row);
+  }
+  $('scrCount').textContent = state.screens.length + (state.screens.length === 1 ? ' tela' : ' telas');
+  $('outState').textContent = on ? (on === 1 ? 'saída no ar' : on + ' saídas no ar') : 'saída fechada'; $('outState').classList.toggle('on', on > 0);
+  $('btnOut').textContent = on ? 'Mostrar saídas' : 'Abrir saída';
+}
+setInterval(renderScreens, 1000);
+
+const ao = new AdvancedOutput({
+  compW: COMP_W, compH: COMP_H, compCanvas: monCanvas,
+  screens: () => state.screens, setScreens, layers: () => state.layers, screenCanvas,
+  onChange: renderScreens, helpers, toast,
+  displays: () => displays, displayLabel: (id) => (displays.find(d => d.id === id) || {}).label,
+  presets: window.projDesktop ? window.projDesktop.presets : null,
+});
+$('btnAO').onclick = () => ao.show();
+
+// ---------- laço de desenho ----------
+(function loop() {
+  engine.render(state.layers, engine.neededLayers(state.screens));
+  engine.blit(monCtx);
+  for (const sc of state.screens) {
+    const open = sc.win && !sc.win.closed;
+    if (!open && !(ao.open && ao.curScreen() === sc)) continue;
+    screenCanvas(sc);
+    engine.renderScreen(sc, state.layers, state.screens);
+    engine.blit(sc.ctx, sc.w, sc.h);
+  }
+  ao.frame();
+  requestAnimationFrame(loop);
+})();
 
 render();
 
 // usado pelo teste automático (tools/selftest-main.js); não é interface de usuário
-window.projecionista = { state, engine, putFiles, trigger, eject, triggerColumn, moveClip, clearCell, render,
-  probe: (pts) => engine.probe(state.layers, pts), outWin: () => outWin, layoutMap };
+window.projecionista = { state, engine, putFiles, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M,
+  probe: (pts) => engine.probe(state.layers, pts),
+  probeScreen: (sc, pts) => engine.probeScreen(sc, state.layers, state.screens, pts),
+  screens: () => state.screens, setScreens, openOutputs, outWins: () => state.screens.map(sc => sc.win).filter(w => w && !w.closed) };
