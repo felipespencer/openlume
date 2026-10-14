@@ -261,11 +261,13 @@ module.exports = (win, app, laser) => {
         const u16=LM.toU16(zs1,Z.settings); let max=0; for(const v of u16) max=Math.max(max,v);
         const svgPaths=LM.svgToPaths('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="10" y="10" width="80" height="30"/><circle cx="50" cy="70" r="20"/><path d="M10 90 L90 90 M10 95 L90 95"/></svg>');
         // mapeamento: com os 4 cantos na metade direita, todo x sai acima do meio (2048); zerar devolve
+        const flipPadrao=Z.settings.flipX===true && LM.deserializeLaser('{"frames":[],"settings":{}}').settings.flipX===true && LM.deserializeLaser(JSON.stringify({frames:[],settings:{flipX:false,flipCal:1}})).settings.flipX===false;   // padrão espelhado na horizontal (cubo real); arquivo calibrado respeita a escolha
+        Z.settings.flipX=false;   // a geometria do mapa é testada sem o espelho
         const MP=Z.settings.map; MP.mode='corners'; MP.corners=[[0,-1],[1,-1],[1,1],[0,1]]; const um=LM.toU16(zs1,Z.settings); let xmin=4095,xmax=0,foraAceso=0; const lim=Math.round((Z.settings.safe.w+1)/2*4095)+1; for(let i=0;i<zs1.n;i++){ xmin=Math.min(xmin,um[i*5]); xmax=Math.max(xmax,um[i*5]); if(um[i*5]>lim&&(um[i*5+2]+um[i*5+3]+um[i*5+4])>0) foraAceso++; }
         MP.mode='mesh'; LM.setMapDivisions(MP,3,2); const nMesh=MP.mesh.length; MP.mesh.forEach(p=>{ p[0]=p[0]*0.5; p[1]=p[1]*0.5; }); const um2=LM.toU16(zs1,Z.settings); let mmin=4095,mmax=0; for(let i=0;i<zs1.n;i++){ mmin=Math.min(mmin,um2[i*5+1]); mmax=Math.max(mmax,um2[i*5+1]); }
         const lback=LM.deserializeLaser(LM.serializeLaser(Z.frames,Z.settings,null)); const mapaVolta=lback.settings.map.mode==="mesh"&&lback.settings.map.mesh.length===nMesh&&Math.abs(lback.settings.map.mesh[0][0]+0.5)<1e-6;
         LM.resetMap(MP); MP.mode='off'; const um3=LM.toU16(zs1,Z.settings); let zmin=4095; for(let i=0;i<zs1.n;i++) zmin=Math.min(zmin,um3[i*5]);
-        R.laserMapa={xmin,xmax,foraAceso,lim,nMesh,mmin,mmax,mapaVolta,zmin};
+        R.laserMapa={xmin,xmax,foraAceso,lim,nMesh,mmin,mmax,mapaVolta,zmin,flipPadrao};
         R.laserPontos={n:zs1.n, lit:lit1, orcamento:Math.round(Z.settings.pps/Z.settings.fps), fora, acesos, u16len:u16.length, max, svg:svgPaths.length};
         // clipe de laser na grade: disparar manda o quadro para o laser, tirar do ar tira
         Z.frames.push(fr); P.putLaserClip(0,6,fr); P.trigger(0,6); await S(100); const ativo1=Z.active===fr; P.eject(0); await S(100); const ativo2=Z.active;
@@ -421,7 +423,7 @@ module.exports = (win, app, laser) => {
       ok('laser: varredura e zona segura', r.laserPontos.n > 300 && r.laserPontos.n <= r.laserPontos.orcamento * 1.3 && r.laserPontos.lit > 100 && r.laserPontos.fora === 0 && r.laserPontos.acesos > 50 && r.laserPontos.u16len === r.laserPontos.n * 5 && r.laserPontos.max <= 4095 && r.laserPontos.svg === 4,
         r.laserPontos.n + ' pontos (' + r.laserPontos.lit + ' acesos) para ' + r.laserPontos.orcamento + ' de orçamento; quadrado grande: ' + r.laserPontos.acesos + ' acesos, ' + r.laserPontos.fora + ' fora da zona; SVG → ' + r.laserPontos.svg + ' caminhos');
       const Lm = r.laserMapa;
-      ok('laser: mapeamento por âncoras', Lm.xmin >= 2040 && Lm.xmax > 3000 && Lm.xmax <= Lm.lim && Lm.foraAceso === 0 && Lm.nMesh === 70 && Lm.mmin >= 1000 && Lm.mmax <= 3100 && Lm.mapaVolta && Lm.zmin < 1500,
+      ok('laser: mapeamento por âncoras', Lm.xmin >= 2040 && Lm.xmax > 3000 && Lm.xmax <= Lm.lim && Lm.foraAceso === 0 && Lm.nMesh === 70 && Lm.mmin >= 1000 && Lm.mmax <= 3100 && Lm.mapaVolta && Lm.zmin < 1500 && Lm.flipPadrao,
         '4 cantos na metade direita: x de ' + Lm.xmin + ' a ' + Lm.xmax + ' (zona segura até ' + Lm.lim + ', ' + Lm.foraAceso + ' acesos fora); malha 3×2 (' + Lm.nMesh + ' pontos) encolhida: y de ' + Lm.mmin + ' a ' + Lm.mmax + '; salvar/abrir guarda o mapa=' + Lm.mapaVolta + '; zerado volta a ' + Lm.zmin);
       ok('laser: clipe na grade', r.laserGrade.casa && r.laserGrade.ativo1 && r.laserGrade.ativo2, 'disparar manda o quadro, tirar do ar tira');
       ok('laser: LaserCube falso', r.laserCube && !r.laserCube.erro && r.laserCube.nome === 'LaserCube falso' && r.laserCube.bateria === 82 && !r.laserCube.antes && r.laserCube.depois && r.laserCube.bufSize === 6000 && fake.packets > 5 && fake.maxPts <= 140 && fake.bad === 0 && fake.lit > 100 && fake.rate === 30000 && fake.out === false,

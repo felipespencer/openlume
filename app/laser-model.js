@@ -9,7 +9,7 @@ import { FONTS } from './hershey.js';
 import { homography, applyHomography, meshFromRect, meshPoint, resampleMesh, cornersFromRect } from './warp.js';
 
 let seq = 1;
-export const LASER_DEFAULTS = () => ({ pps: 30000, bright: 0.6, corner: 3, safe: { w: 0.84, h: 0.76 }, flipX: false, flipY: false, fps: 30, showPoints: false, map: MAP_DEFAULTS() });
+export const LASER_DEFAULTS = () => ({ pps: 30000, bright: 0.6, corner: 3, safe: { w: 0.84, h: 0.76 }, flipX: true, flipY: false, flipCal: 1, fps: 30, showPoints: false, map: MAP_DEFAULTS() });
 // mapeamento da saída (como os quatro cantos e a malha da Saída avançada): pontos de ancoragem
 // que levam o quadrado do palco (-1..1) para onde o laser deve desenhar na superfície
 export const MAP_DEFAULTS = () => ({ mode: 'off', corners: cornersFromRect(-1, -1, 2, 2), divX: 2, divY: 2, mesh: meshFromRect(-1, -1, 2, 2, 2, 2) });
@@ -249,6 +249,8 @@ export function deserializeLaser(json) {
   const d = typeof json === 'string' ? JSON.parse(json) : json;
   const frames = (d.frames || []).map(s => { const f = mkFrame(s.name || 'Quadro', s.kind || 'draw'); Object.assign(f.text, s.text || {}); f.paths = (s.paths || []).map(p => p.map(q => [+q[0], +q[1]])); Object.assign(f.color, s.color || {}); Object.assign(f.distort, s.distort || {}); Object.assign(f.pos, s.pos || {}); if (s.contour) f.contour = { ...s.contour }; return f; });
   const settings = Object.assign(LASER_DEFAULTS(), d.settings || {});
+  // o LaserCube de teste (Wi-Fi, 2026-10-14) mostra o desenho espelhado na horizontal: arquivos sem a marca de calibração ganham o espelho horizontal
+  if (!(d.settings && d.settings.flipCal)) { settings.flipX = true; settings.flipCal = 1; }
   settings.map = Object.assign(MAP_DEFAULTS(), d.settings && d.settings.map || {}); if (settings.map.mesh.length !== (3 * settings.map.divX + 1) * (3 * settings.map.divY + 1)) settings.map.mesh = meshFromRect(-1, -1, 2, 2, settings.map.divX, settings.map.divY);
   return { frames, settings, active: d.active != null ? frames[d.frames.findIndex((_, i) => i === d.active)] : null };
 }
