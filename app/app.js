@@ -306,7 +306,7 @@ window.__projHelpers = {};
 // a janela de saída avisa o tamanho real que ganhou (o monitor manda no tamanho da tela)
 window.__projOutSize = (sid, w, h, cheia) => {
   const sc = state.screens.find(s => String(s.id) === String(sid));
-  if (sc && cheia && sc.device !== 'window' && w > 0 && h > 0 && (sc.w !== w || sc.h !== h)) { sc.w = w; sc.h = h; renderScreens(); if (ao.open) ao.layout(); }
+  if (sc && cheia && sc.device !== 'window' && w > 0 && h > 0 && (sc.w !== w || sc.h !== h)) { M.resizeScreen(sc, w, h); renderScreens(); if (ao.open) ao.layout(); }
 };
 const helpers = {
   set: (sc, h) => { if (h) window.__projHelpers[sc.id] = { ...h, w: sc.w, h: sc.h }; else delete window.__projHelpers[sc.id]; },

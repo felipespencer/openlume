@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('projDesktop', {
   displays: () => ipcRenderer.invoke('displays'),
+  windows: () => ipcRenderer.invoke('windows'),
   presets: {
     list: () => ipcRenderer.invoke('presets:list'),
     load: (name) => ipcRenderer.invoke('presets:load', name),

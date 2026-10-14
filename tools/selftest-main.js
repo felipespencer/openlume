@@ -12,6 +12,7 @@ module.exports = (win, app) => {
   const b64 = (f) => fs.readFileSync(path.join(dir, f)).toString('base64');
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   const shot = async (w, name) => fs.writeFileSync(path.join(dir, name), (await w.webContents.capturePage()).toPNG());
+  win.webContents.on('console-message', (_e, level, msg) => { if (level >= 2) console.log('CONSOLE ' + msg); });
   win.webContents.once('did-finish-load', async () => {
     const out = [];
     const ok = (name, cond, detail) => { out.push({ name, pass: !!cond }); console.log((cond ? 'PASS' : 'FAIL') + '  ' + name + '  ' + (detail ?? '')); };
@@ -87,6 +88,19 @@ module.exports = (win, app) => {
         R.semMascara=P.probeScreen(sc,[[0.75,0.5]])[0];   // tirar a máscara não pode apagar o slice (realimentação de textura)
         // espelhar: a faixa preta da imagem troca de lado dentro do slice 2
         R.flipAntes=P.probeScreen(sc,[[0.99,0.5]])[0]; s2.flip.x=true; M.touch(s2); R.flipDepois=P.probeScreen(sc,[[0.99,0.5],[0.52,0.5]]); s2.flip.x=false; M.touch(s2);
+        // uma segunda tela em pé (1080×1920) não pode mexer na primeira nem no monitor da composição
+        const pAntes=P.probeScreen(sc,[[0.3,0.5],[0.75,0.5],[0.05,0.5]]);
+        const sc2=M.mkScreen('Tela 2',{w:1080,h:1920}); sc2.items.push(M.mkSlice('S',{x:0,y:0,w:1920,h:1080},{x:0,y:0,w:1080,h:1920})); P.screens().push(sc2);
+        const emPe=P.probeScreen(sc2,[[0.5,0.5],[0.5,0.05]]);
+        const pDepois=P.probeScreen(sc,[[0.3,0.5],[0.75,0.5],[0.05,0.5]]);
+        P.render(); await S(100);
+        const mon=document.querySelector('#outScr canvas').getContext('2d').getImageData(960,540,1,1).data;
+        R.telaEmPe={antes:pAntes.join('|'),depois:pDepois.join('|'),emPe:emPe.map(p=>p.join()).join('|'),mestre:[P.engine.canvas.width,P.engine.canvas.height],monitor:[mon[0],mon[1],mon[2]]};
+        // mudar o tamanho da tela leva o slice junto: a composição continua cabendo inteira
+        const sc3=M.mkScreen('Tela 3',{w:1920,h:1080}); sc3.items.push(M.mkSlice('S',{x:0,y:0,w:1920,h:1080},{x:0,y:0,w:1920,h:1080})); P.screens().push(sc3);
+        M.resizeScreen(sc3,1080,1920); const o3=M.outRect(sc3.items[0]);
+        R.redimensiona={out:[o3.x,o3.y,o3.w,o3.h], px:P.probeScreen(sc3,[[0.5,0.5],[0.95,0.5],[0.5,0.95]])};
+        P.screens().pop(); P.screens().pop();
         // salvar e abrir: o preset volta igual
         const json=M.serialize(P.screens()); const back=M.deserialize(json);
         R.serial={telas:back.length, itens:back[0].items.length, in:JSON.stringify(back[0].items[1].in)===JSON.stringify(s2.in), pts:JSON.stringify(back[0].items[0].warp.pts)===JSON.stringify(s1.warp.pts)};
@@ -133,6 +147,10 @@ module.exports = (win, app) => {
       ok('máscara de entrada', r.inMask[0][0] > 200 && r.inMask[1].join() === '0,0,0', 'centro ' + r.inMask[0] + ', canto ' + r.inMask[1]);
       ok('tirar a máscara devolve o slice', r.semMascara[0] > 200, 'centro do slice 2 ' + r.semMascara);
       ok('espelhar', r.flipAntes[0] < 30 && r.flipDepois[0][0] > 200 && r.flipDepois[1].join() === '0,0,0', 'borda direita: ' + r.flipAntes + ' → ' + r.flipDepois[0] + '; a faixa preta foi para a esquerda ' + r.flipDepois[1]);
+      ok('segunda tela em pé não mexe na primeira', r.telaEmPe.antes === r.telaEmPe.depois && r.telaEmPe.monitor[0] > 200 && r.telaEmPe.monitor[1] < 40,
+        'antes ' + r.telaEmPe.antes + ' / depois ' + r.telaEmPe.depois + '; tela em pé ' + r.telaEmPe.emPe + '; canvas mestre ' + r.telaEmPe.mestre + '; monitor ' + r.telaEmPe.monitor);
+      ok('redimensionar a tela leva o slice junto', r.redimensiona.out.join() === '0,0,1080,1920' && r.redimensiona.px[0][0] > 200 && r.redimensiona.px[1].join() === '0,0,0' && r.redimensiona.px[2][0] > 200,
+        'slice ficou ' + r.redimensiona.out.join('×') + '; centro ' + r.redimensiona.px[0] + ', borda direita ' + r.redimensiona.px[1] + ' (faixa preta da imagem), embaixo ' + r.redimensiona.px[2]);
       ok('salvar e abrir', r.serial.telas === 1 && r.serial.itens === 2 && r.serial.in && r.serial.pts, 'preset volta com os mesmos retângulos e pontos');
       ok('preset em disco', r.preset && r.preset.na && r.preset.igual && !r.preset.depois, r.preset ? 'gravado, lido igual e apagado' : 'sem ponte com o processo principal');
       ok('editor', r.editor.aberto && r.editor.linhas === 3 && r.editor.slices === 2 && r.editor.grupos >= 8 && r.editorOut.slices === 2 && r.editorOut.ancoras === 8,   // malha 3×1 = 4×2 âncoras

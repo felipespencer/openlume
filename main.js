@@ -27,7 +27,7 @@ function displayList() {
   const prim = screen.getPrimaryDisplay();
   return screen.getAllDisplays().map((d, i) => ({
     id: String(d.id), label: d.label || ('Monitor ' + (i + 1)), primary: d.id === prim.id,
-    x: d.bounds.x, y: d.bounds.y, w: d.bounds.width, h: d.bounds.height,
+    x: d.bounds.x, y: d.bounds.y, w: d.bounds.width, h: d.bounds.height, scale: d.scaleFactor,
   }));
 }
 
@@ -46,18 +46,25 @@ function createMain() {
     webPreferences: { ...PREFS, preload: path.join(APP_DIR, 'preload.js') },
   });
   // janela de saída: output.html?screen=ID&display=<id do monitor | window | auto>
+  // "auto" pega o primeiro monitor que não é o do controle e ainda não tem saída aberta
+  const taken = new Map();   // display id → janela de saída que o ocupa
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (!url.startsWith(ORIGIN + '/output.html')) return { action: 'deny' };
     const q = new URL(url).searchParams, want = q.get('display') || 'auto';
     const main = screen.getDisplayMatching(win.getBounds());
     let ext = null;
-    if (want === 'auto') ext = screen.getAllDisplays().find(d => d.id !== main.id) || null;
+    if (want === 'auto') ext = screen.getAllDisplays().find(d => d.id !== main.id && !taken.has(d.id)) || null;
     else if (want !== 'window') ext = screen.getAllDisplays().find(d => String(d.id) === want) || null;
     const base = { backgroundColor: '#000000', title: 'Projecionista — saída', autoHideMenuBar: true, webPreferences: PREFS };
     const opts = ext
       ? { ...base, x: ext.bounds.x, y: ext.bounds.y, width: ext.bounds.width, height: ext.bounds.height, fullscreen: true, frame: false }
       : { ...base, width: 960, height: 540 };
     return { action: 'allow', overrideBrowserWindowOptions: opts };
+  });
+  win.webContents.on('did-create-window', (child, { options }) => {
+    if (!options.fullscreen) return;
+    const d = screen.getDisplayMatching({ x: options.x, y: options.y, width: options.width, height: options.height });
+    taken.set(d.id, child); child.on('closed', () => { if (taken.get(d.id) === child) taken.delete(d.id); });
   });
   win.webContents.on('before-input-event', (ev, input) => {
     if (input.type !== 'keyDown') return;
@@ -87,6 +94,8 @@ app.whenReady().then(async () => {
   try { await session.defaultSession.clearCache(); } catch {}
 
   ipcMain.handle('displays', () => displayList());
+  // diagnóstico: onde cada janela está de verdade (bounds em DIP, tela cheia, monitor que a contém)
+  ipcMain.handle('windows', () => BrowserWindow.getAllWindows().map(w => ({ title: w.getTitle(), bounds: w.getBounds(), content: w.getContentBounds(), full: w.isFullScreen(), display: String(screen.getDisplayMatching(w.getBounds()).id) })));
   ipcMain.handle('presets:list', () => {
     try { return fs.readdirSync(PRESET_DIR()).filter(f => f.endsWith('.json')).map(f => f.slice(0, -5)).sort(); } catch { return []; }
   });

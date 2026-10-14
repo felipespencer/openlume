@@ -26,6 +26,19 @@ export function mkSlice(name, inRect, outRect) {
 export function mkMask(name, pts) { return { id: seq++, type: 'mask', name, enabled: true, invert: false, pts, rev: 1 }; }
 export const touch = (o) => { o.rev = (o.rev || 0) + 1; return o; };
 
+// Muda o tamanho da tela levando junto, na mesma proporção, as formas de saída dos slices e
+// as máscaras: o slice que cobria a tela inteira continua cobrindo a tela inteira.
+export function resizeScreen(sc, w, h) {
+  w = Math.max(16, w | 0); h = Math.max(16, h | 0);
+  if (w === sc.w && h === sc.h) return;
+  const kx = w / sc.w, ky = h / sc.h;
+  for (const it of sc.items) {
+    if (it.type === 'slice') { transformPts(it.warp.pts, (x, y) => [x * kx, y * ky]); touch(it); }
+    else { transformPts(it.pts, (x, y) => [x * kx, y * ky]); touch(it); }
+  }
+  sc.w = w; sc.h = h; touch(sc);
+}
+
 export function defaultScreens(compW, compH) {
   const sc = mkScreen('Projetor', { w: compW, h: compH });
   sc.items.push(mkSlice('Composição inteira', { x: 0, y: 0, w: compW, h: compH }, { x: 0, y: 0, w: compW, h: compH }));

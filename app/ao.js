@@ -384,8 +384,12 @@ export class AdvancedOutput {
     const sc = this.curScreen(), W = this.c.compW, H = this.c.compH;
     this.pushUndo();
     if (kind === 'screen') {
-      const n = M.mkScreen('Tela ' + (this.screens().length + 1), { w: W, h: H });
-      n.items.push(M.mkSlice('Slice', { x: 0, y: 0, w: W, h: H }, { x: 0, y: 0, w: W, h: H }));
+      // a tela nova nasce com um slice que mostra a composição inteira e cobre a tela inteira;
+      // o primeiro monitor livre, se houver, dá o tamanho
+      const ext = this.c.displays().filter(d => !d.primary), used = new Set(this.screens().map(s => s.device === 'auto' && ext[0] ? ext[0].id : s.device));
+      const free = ext.find(d => !used.has(d.id));
+      const n = M.mkScreen('Tela ' + (this.screens().length + 1), { w: free ? free.w : W, h: free ? free.h : H, device: free ? free.id : 'window' });
+      n.items.push(M.mkSlice('Slice', { x: 0, y: 0, w: W, h: H }, { x: 0, y: 0, w: n.w, h: n.h }));
       this.screens().push(n); this.sel = { screen: n, item: n.items[0] };
     } else if (!sc) return;
     else if (kind === 'slice') {
@@ -508,9 +512,9 @@ export class AdvancedOutput {
     $('aoPropT').textContent = it ? it.name : sc.name;
     if (!it) {
       const devs = [['auto', 'Automático (projetor, se houver)'], ['window', 'Janela'], ...this.c.displays().map(d => [d.id, d.label + ' (' + d.w + '×' + d.h + ')' + (d.primary ? ' principal' : '')])];
-      P.appendChild(this.pselect('Dispositivo', 'Dispositivo|Escolha para qual monitor ou janela esta tela vai.', devs, sc.device, v => { sc.device = v; const d = this.c.displays().find(x => x.id === v); if (d) { sc.w = d.w; sc.h = d.h; } this.layout(); }));
-      P.appendChild(this.pnum('Largura', 'Largura da tela|Largura da tela em pixels. Num monitor, é o monitor que manda.', sc.w, { min: 16, max: 16384, step: 1 }, v => { sc.w = v | 0; this.layout(); }));
-      P.appendChild(this.pnum('Altura', 'Altura da tela|Altura da tela em pixels. Num monitor, é o monitor que manda.', sc.h, { min: 16, max: 16384, step: 1 }, v => { sc.h = v | 0; this.layout(); }));
+      P.appendChild(this.pselect('Dispositivo', 'Dispositivo|Escolha para qual monitor ou janela esta tela vai.', devs, sc.device, v => { sc.device = v; const d = this.c.displays().find(x => x.id === v); if (d) M.resizeScreen(sc, d.w, d.h); this.layout(); }));
+      P.appendChild(this.pnum('Largura', 'Largura da tela|Largura da tela em pixels. Num monitor, é o monitor que manda.', sc.w, { min: 16, max: 16384, step: 1 }, v => { M.resizeScreen(sc, v, sc.h); this.layout(); }));
+      P.appendChild(this.pnum('Altura', 'Altura da tela|Altura da tela em pixels. Num monitor, é o monitor que manda.', sc.h, { min: 16, max: 16384, step: 1 }, v => { M.resizeScreen(sc, sc.w, v); this.layout(); }));
       P.appendChild(this.pnum('Opacidade', 'Opacidade|Escurece ou acende a tela inteira.', Math.round(sc.opacity * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v => { sc.opacity = v / 100; }));
       this.colorRows(P, sc.color);
       if (this.screens().length > 1) { const rm = el('button', 'wide', 'Apagar esta tela'); rm.type = 'button'; rm.onclick = () => this.removeScreen(sc); P.appendChild(rm); }
