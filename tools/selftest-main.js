@@ -44,6 +44,7 @@ module.exports = (win, app, laser) => {
     const ok = (name, cond, detail) => { out.push({ name, pass: !!cond }); console.log((cond ? 'PASS' : 'FAIL') + '  ' + name + '  ' + (detail ?? '')); };
     try {
       await sleep(800);
+      await win.webContents.executeJavaScript(`window.__recDir = ${JSON.stringify(dir)}; window.projecionista.recorder.c.dir = window.__recDir; true`, true);
       const r = await win.webContents.executeJavaScript(`(async()=>{
         const P=window.projecionista, S=(ms)=>new Promise(r=>setTimeout(r,ms));
         const file=(b,name,type)=>new File([Uint8Array.from(atob(b),c=>c.charCodeAt(0))],name,{type});
@@ -139,6 +140,42 @@ module.exports = (win, app, laser) => {
         P.ao.select(sc,s1); P.ao.setMode('pts'); await S(50); R.editorOut.ancoras=document.querySelectorAll('#aoSvg .hd.anc').length;
         // desfazer: apaga o slice 2 e volta
         P.ao.removeItem(s2); const n1=sc.items.length; P.ao.undo(); await S(100); R.desfazer={depoisApagar:n1, depoisDesfazer:P.screens()[0].items.length, refazer:(P.ao.redo(), P.screens()[0].items.length)}; P.ao.undo();
+        // ---------- efeitos, fontes, texto, transição, autopilot, composição ----------
+        // efeito na camada: inverter o vermelho dá ciano
+        P.trigger(0,3); await S(200); const semFx=P.probe(mid)[0];
+        L[0].fx.push({id:'invertrgb',params:{r:1,g:1,b:1},bypass:false}); const comFx=P.probe(mid)[0]; L[0].fx=[];
+        // efeito na composição
+        P.engine.compFx.push({id:'threshold',params:{level:0.2},bypass:false}); const compFx=P.probe([[0.5,0.5],[0.05,0.5]]); P.engine.compFx=[];
+        // fonte gerada: Test Card no meio é colorido; Solid Color vermelho
+        P.putSource(1,2,'testcard'); P.trigger(1,2); await S(100); const fonte=P.probe([[0.5,0.5],[0.1,0.5]]);
+        P.putSource(1,4,'solidcolor'); L[1].clips[4].params.hue=0; P.trigger(1,4); await S(100); const solido=P.probe(mid)[0]; P.eject(1);
+        // texto: branco no centro
+        P.eject(0); P.putText(2,5,'MMMMMMM'); P.trigger(2,5); await S(150); const grade9=P.probe([0.3,0.4,0.5,0.6,0.7].flatMap(x=>[0.45,0.5,0.55].map(y=>[x,y]))); const texto=grade9.reduce((a,b)=>b[0]+b[1]+b[2]>a[0]+a[1]+a[2]?b:a,[0,0,0]); P.eject(2);
+        // transição: dispara o vermelho e logo depois o Test Card na mesma camada, com 1 s de transição; no meio há mistura
+        L[0].transition=1; P.putSource(0,2,'solidcolor'); L[0].clips[2].params.hue=0.33; P.trigger(0,3); await S(100); P.trigger(0,2); await S(400); const meio=P.probe(mid)[0]; await S(800); const fim=P.probe(mid)[0]; L[0].transition=0; P.eject(0);
+        // autopilot: tempo fixo de 0,3 s, próximo com loop → troca de casa sozinho
+        L[0].autopilot={dir:'next',dur:'fixed',secs:0.4,loop:true}; P.trigger(0,2); const ap0=L[0].on; await S(600); const ap1=L[0].on; await S(400); const ap2=L[0].on; L[0].autopilot.dir='off'; P.eject(0);
+        R.extras={semFx,comFx,compFx,fonte,solido,texto,meio,fim,ap:[ap0,ap1,ap2]};
+        // composição: salva e abre de volta
+        L[0].name='Topo'; L[1].fx.push({id:'blur',params:{amount:0.5},bypass:false});
+        const cjson=P.serialize(); const antesN=P.state.layers.map(l=>l.clips.filter(c=>c&&(c.path||c.kind!=='video'&&c.kind!=='image')).length);   // arquivo solto sem caminho não vai para o arquivo
+        P.ao.hide(true); await P.load(cjson,'teste'); await S(300); P.ao.show(); P.ao.setTab('out'); P.ao.select(P.screens()[0],P.screens()[0].items[0]); P.ao.setMode('pts');
+        R.comp={nome:P.state.name, camadas:P.state.layers.length, primeira:P.state.layers[0].name, clipes:P.state.layers.map(l=>l.clips.filter(Boolean).length), antes:antesN, fx:P.state.layers[1].fx.length, blur:P.state.layers[1].fx[0]&&P.state.layers[1].fx[0].params.amount, kinds:P.state.layers.flatMap(l=>l.clips.filter(Boolean).map(c=>c.kind))};
+        // gravação: 1,5 s da composição
+        P.trigger(1,2); P.recorder.opts.stop='after'; P.recorder.opts.stopSecs=1.5; P.recorder.start(); await S(3500);
+        R.rec={estado:P.recorder.state, arquivos:P.recorder.files.length, tamanho:P.recorder.files.length?P.recorder.files[P.recorder.files.length-1].size:0, blob:P.recorder.lastBlob?P.recorder.lastBlob.size:0};
+        P.eject(1);
+        // navegador: abas existem e a lista de arquivos da pasta de teste tem os dois vídeos
+        P.browser.setTab('files'); P.browser.go(${JSON.stringify(dir)}); await S(600);
+        R.nav={itens:document.querySelectorAll('#browserPan .item.file').length, abas:document.querySelectorAll('#browserTabs [data-tab]').length};
+        P.browser.setTab('fx'); await S(50); R.nav.efeitos=document.querySelectorAll('#browserPan .item.fx').length;
+        P.browser.setTab('src'); await S(300); R.nav.fontes=document.querySelectorAll('#browserPan .item.src').length;
+        P.browser.setTab('comps'); await S(300); R.nav.comps=document.querySelectorAll('#browserPan .item.comp').length;
+        P.browser.setTab('rec'); await S(50); R.nav.rec=document.querySelectorAll('#browserPan .recbtn').length;
+        // arquivo do disco por caminho (Range) vira clipe
+        R.caminho=await P.putPath(2,7,${JSON.stringify(dir.replace(/\\/g, '/') + '/va.mp4')},'va.mp4'); R.caminhoClip=P.state.layers[2].clips[7]&&[P.state.layers[2].clips[7].w,P.state.layers[2].clips[7].h];
+        // volta a grade ao estado que os testes seguintes esperam
+        P.state.layers[0].name='Camada 3'; P.eject(0); P.eject(1); P.eject(2); P.state.layers[0].clips[2]=null; P.state.layers[1].clips[2]=null; P.state.layers[1].clips[4]=null; P.state.layers[2].clips[5]=null; P.state.layers[2].clips[7]=null; P.state.layers[1].fx=[]; P.render();
         // ---------- laser ----------
         const Z=P.laser, LM=await import('./laser-model.js');
         R.laserTexto={a:LM.textPaths({content:'A',font:'simplex',dir:'h',size:0.2,spacing:1,scroll:'none'}).length, vertical:LM.textPaths({content:'AB',font:'simplex',dir:'v',size:0.2,spacing:1,scroll:'none'}).length, pilha:LM.textPaths({content:'AB',font:'gothic',dir:'stack',size:0.2,spacing:1,scroll:'none'}).length};
@@ -197,6 +234,19 @@ module.exports = (win, app, laser) => {
         'slice ficou ' + r.redimensiona.out.join('×') + '; centro ' + r.redimensiona.px[0] + ', borda direita ' + r.redimensiona.px[1] + ' (faixa preta da imagem), embaixo ' + r.redimensiona.px[2]);
       ok('salvar e abrir', r.serial.telas === 1 && r.serial.itens === 2 && r.serial.in && r.serial.pts, 'preset volta com os mesmos retângulos e pontos');
       ok('preset em disco', r.preset && r.preset.na && r.preset.igual && !r.preset.depois, r.preset ? 'gravado, lido igual e apagado' : 'sem ponte com o processo principal');
+      const X = r.extras;
+      ok('efeitos na camada e na composição', X.semFx[0] > 200 && X.semFx[1] < 40 && X.comFx[0] < 40 && X.comFx[1] > 200 && X.comFx[2] > 200 && X.compFx[0][0] > 200 && X.compFx[0][1] > 200 && X.compFx[1].join() === '0,0,0',
+        'vermelho ' + X.semFx + ' → Invert RGB ' + X.comFx + '; Threshold na composição: centro ' + X.compFx[0] + ', faixa ' + X.compFx[1]);
+      ok('fontes geradas e texto', X.fonte[0].join() !== '0,0,0' && X.solido[0] > 200 && X.solido[1] < 40 && X.texto[0] > 200 && X.texto[1] > 200,
+        'Test Card centro ' + X.fonte[0] + '; Solid Color ' + X.solido + '; texto ' + X.texto);
+      ok('transição entre clipes', X.meio[0] > 40 && X.meio[1] > 40 && X.fim[1] > 200 && X.fim[0] < 40, 'no meio ' + X.meio + ' (vermelho e verde misturados), no fim ' + X.fim);
+      ok('autopilot', X.ap[0] === 2 && X.ap[1] === 3 && X.ap[2] === 2, 'casa ' + X.ap.join(' → '));
+      const Cp = r.comp;
+      ok('salvar e abrir a composição', Cp.nome === 'teste' && Cp.camadas === 3 && Cp.primeira === 'Topo' && Cp.clipes.join() === Cp.antes.join() && Cp.fx === 1 && Cp.blur === 0.5 && Cp.kinds.includes('source') && Cp.kinds.includes('text'),
+        Cp.camadas + ' camadas, clipes ' + Cp.clipes.join('/') + ' (antes ' + Cp.antes.join('/') + '), tipos ' + [...new Set(Cp.kinds)].join(', ') + ', efeito da camada 2 preservado');
+      ok('gravar', r.rec.estado === 'idle' && r.rec.arquivos >= 1 && r.rec.tamanho > 10000, r.rec.arquivos + ' arquivo(s), último com ' + (r.rec.tamanho / 1e3).toFixed(0) + ' kB');
+      ok('navegador', r.nav.abas === 5 && r.nav.itens >= 2 && r.nav.efeitos >= 20 && r.nav.fontes >= 12 && r.nav.rec === 1, r.nav.abas + ' abas; ' + r.nav.itens + ' arquivos na pasta; ' + r.nav.efeitos + ' efeitos; ' + r.nav.fontes + ' fontes; ' + r.nav.comps + ' composições salvas');
+      ok('clipe por caminho do disco', r.caminho && r.caminhoClip && r.caminhoClip[0] === 320, 'va.mp4 aberto por app://…/media/ com ' + (r.caminhoClip || []).join('×'));
       ok('laser: texto de traço único', r.laserTexto.a === 3 && r.laserTexto.vertical > 3 && r.laserTexto.pilha > 3, 'A = ' + r.laserTexto.a + ' traços; vertical ' + r.laserTexto.vertical + ', pilha ' + r.laserTexto.pilha);
       ok('laser: varredura e zona segura', r.laserPontos.n > 300 && r.laserPontos.n <= r.laserPontos.orcamento * 1.3 && r.laserPontos.lit > 100 && r.laserPontos.fora === 0 && r.laserPontos.acesos > 50 && r.laserPontos.u16len === r.laserPontos.n * 5 && r.laserPontos.max <= 4095 && r.laserPontos.svg === 4,
         r.laserPontos.n + ' pontos (' + r.laserPontos.lit + ' acesos) para ' + r.laserPontos.orcamento + ' de orçamento; quadrado grande: ' + r.laserPontos.acesos + ' acesos, ' + r.laserPontos.fora + ' fora da zona; SVG → ' + r.laserPontos.svg + ' caminhos');

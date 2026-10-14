@@ -1,13 +1,55 @@
 // Projecionista — processo principal (Electron).
 // Serve a pasta app/ por um esquema próprio (app://projecionista/), abre a janela de controle
 // e põe cada janela de saída no monitor que a tela pede.
-const { app, BrowserWindow, Menu, protocol, net, session, screen, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, protocol, net, session, screen, ipcMain, shell } = require('electron');
+const { Readable } = require('node:stream');
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const { LaserCube } = require('./lasercube.js');
 
 const APP_DIR = path.join(__dirname, 'app');
+const MIME = { mp4: 'video/mp4', m4v: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', mkv: 'video/x-matroska', ogv: 'video/ogg', avi: 'video/x-msvideo', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', avif: 'image/avif', svg: 'image/svg+xml' };
+const MEDIA_EXT = new Set(Object.keys(MIME));
+// arquivos do disco são servidos em app://projecionista/media/<caminho em base64url>, com Range
+// (o vídeo precisa pular dentro do arquivo)
+function serveMedia(req, enc) {
+  let file; try { file = Buffer.from(enc.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'); } catch { return new Response('caminho inválido', { status: 400 }); }
+  let st; try { st = fs.statSync(file); } catch { return new Response('não encontrado', { status: 404 }); }
+  const ext = path.extname(file).slice(1).toLowerCase();
+  if (!st.isFile() || !MEDIA_EXT.has(ext)) return new Response('não é mídia', { status: 403 });
+  const size = st.size, type = MIME[ext], range = req.headers.get('range');
+  if (range) {
+    const m = /bytes=(\d*)-(\d*)/.exec(range);
+    let start = m && m[1] ? +m[1] : 0, end = m && m[2] ? +m[2] : size - 1; end = Math.min(end, size - 1);
+    if (start > end) return new Response('', { status: 416, headers: { 'Content-Range': 'bytes */' + size } });
+    return new Response(Readable.toWeb(fs.createReadStream(file, { start, end })), { status: 206, headers: { 'Content-Type': type, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': String(end - start + 1), 'Accept-Ranges': 'bytes' } });
+  }
+  return new Response(Readable.toWeb(fs.createReadStream(file)), { headers: { 'Content-Type': type, 'Content-Length': String(size), 'Accept-Ranges': 'bytes' } });
+}
+// pastas de onde a pessoa escolhe arquivos
+function roots() {
+  const out = [];
+  for (const [name, key] of [['Vídeos', 'videos'], ['Imagens', 'pictures'], ['Área de trabalho', 'desktop'], ['Documentos', 'documents'], ['Downloads', 'downloads']]) { try { out.push({ name, path: app.getPath(key) }); } catch { } }
+  for (const l of 'CDEFGHIJKLMNOPQRSTUVWXYZ') { const d = l + ':\\'; try { if (fs.existsSync(d)) out.push({ name: 'Disco ' + l + ':', path: d }); } catch { } }
+  return out;
+}
+function listDir(dir) {
+  const ents = fs.readdirSync(dir, { withFileTypes: true });
+  const dirs = [], files = [];
+  for (const e of ents) {
+    if (e.name.startsWith('.') || e.name.startsWith('$')) continue;
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) dirs.push({ name: e.name, path: full });
+    else if (e.isFile() && MEDIA_EXT.has(path.extname(e.name).slice(1).toLowerCase())) { let size = 0; try { size = fs.statSync(full).size; } catch { } files.push({ name: e.name, path: full, size }); }
+  }
+  const col = (a, b) => a.name.localeCompare(b.name, 'pt-BR', { numeric: true });
+  return { dir, dirs: dirs.sort(col), files: files.sort(col) };
+}
+const PREFS_FILE = () => path.join(app.getPath('userData'), 'prefs.json');
+const COMP_DIR = () => path.join(app.getPath('userData'), 'composicoes');
+const REC_DIR = (dir) => dir || path.join(app.getPath('videos'), 'Projecionista');
+const safeName = (name) => { const s = String(name).replace(/[\\/:*?"<>|]/g, '').trim(); if (!s) throw new Error('nome vazio'); return s; };
 const ORIGIN = 'app://projecionista';
 const ALLOWED = /^\/[\w./-]+\.(html|css|js|png|svg|ico)$/;
 
@@ -82,6 +124,7 @@ app.whenReady().then(async () => {
     const u = new URL(req.url);
     let p = decodeURIComponent(u.pathname);
     if (p === '/') p = '/index.html';
+    if (u.host === 'projecionista' && p.startsWith('/media/')) return serveMedia(req, p.slice(7));
     const file = path.join(APP_DIR, p);
     if (u.host !== 'projecionista' || !ALLOWED.test(p) || !file.startsWith(APP_DIR) || !fs.existsSync(file))
       return new Response('não encontrado', { status: 404 });
@@ -106,6 +149,20 @@ app.whenReady().then(async () => {
     fs.mkdirSync(PRESET_DIR(), { recursive: true }); fs.writeFileSync(presetFile(name), json); return true;
   });
   ipcMain.handle('presets:remove', (_e, name) => { try { fs.unlinkSync(presetFile(name)); } catch {} return true; });
+  // disco: pastas, preferências, composições e gravações
+  ipcMain.handle('fs:roots', () => roots());
+  ipcMain.handle('fs:list', (_e, dir) => listDir(String(dir)));
+  ipcMain.handle('prefs:get', () => { try { return JSON.parse(fs.readFileSync(PREFS_FILE(), 'utf8')); } catch { return {}; } });
+  ipcMain.handle('prefs:set', (_e, p) => { fs.writeFileSync(PREFS_FILE(), JSON.stringify(p || {})); return true; });
+  ipcMain.handle('comps:list', () => {
+    try { return fs.readdirSync(COMP_DIR()).filter(f => f.endsWith('.json')).map(f => { const full = path.join(COMP_DIR(), f); let layers = 0; try { layers = (JSON.parse(fs.readFileSync(full, 'utf8')).layers || []).length; } catch { } return { name: f.slice(0, -5), mtime: fs.statSync(full).mtimeMs, layers }; }).sort((a, b) => b.mtime - a.mtime); } catch { return []; }
+  });
+  ipcMain.handle('comps:load', (_e, name) => fs.readFileSync(path.join(COMP_DIR(), safeName(name) + '.json'), 'utf8'));
+  ipcMain.handle('comps:save', (_e, name, json) => { if (typeof json !== 'string' || json.length > 50e6) throw new Error('composição inválida'); fs.mkdirSync(COMP_DIR(), { recursive: true }); fs.writeFileSync(path.join(COMP_DIR(), safeName(name) + '.json'), json); return true; });
+  ipcMain.handle('comps:remove', (_e, name) => { try { fs.unlinkSync(path.join(COMP_DIR(), safeName(name) + '.json')); } catch { } return true; });
+  ipcMain.handle('rec:save', (_e, name, bytes, dir) => { const d = REC_DIR(dir); fs.mkdirSync(d, { recursive: true }); const full = path.join(d, safeName(name)); fs.writeFileSync(full, Buffer.from(bytes)); return { name: safeName(name), path: full, size: fs.statSync(full).size }; });
+  ipcMain.handle('rec:list', (_e, dir) => { const d = REC_DIR(dir); try { return fs.readdirSync(d).filter(f => f.endsWith('.webm')).map(f => ({ name: f, path: path.join(d, f), size: fs.statSync(path.join(d, f)).size })); } catch { return []; } });
+  ipcMain.handle('rec:show', (_e, p) => { shell.showItemInFolder(String(p)); return true; });
 
   // laser: um LaserCube por vez, controlado pela janela principal
   const laser = new LaserCube();

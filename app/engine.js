@@ -1,6 +1,7 @@
 // Motor de mistura e de saída, em WebGL2, num único canvas mestre escondido.
 //
 // 1. render(): as camadas são desenhadas, de baixo para cima, numa textura (a composição).
+//    Cada camada passa pelos efeitos do clipe e da camada; a composição passa pelos seus.
 //    Uma camada usada como fonte direta de algum slice também ganha uma textura só sua.
 // 2. renderScreen(): para cada tela, os slices recortam a composição (ou a camada) e a
 //    desenham deformados numa textura do tamanho da tela; um passe final aplica cor,
@@ -11,10 +12,13 @@
 // modos de mistura corretos só com blendFunc.
 import { tessellate } from './warp.js';
 import { softWidths, allSlices } from './screens.js';
+import { effectById, EFFECT_HELPERS } from './effects.js';
+import { sourceById } from './sources.js';
 
+// camada/clipe: quad com ajuste, posição, escala e giro
 const VS_LAYER = `#version 300 es
-in vec2 a; uniform vec2 uScale; out vec2 v;
-void main(){ v = a * 0.5 + 0.5; gl_Position = vec4(a * uScale, 0.0, 1.0); }`;
+in vec2 a; uniform vec2 uScale; uniform vec2 uPos; uniform float uRot; uniform float uAspect; out vec2 v;
+void main(){ v = a * 0.5 + 0.5; vec2 p = a * uScale; p.x *= uAspect; float c = cos(uRot), s = sin(uRot); p = vec2(c * p.x - s * p.y, s * p.x + c * p.y); p.x /= uAspect; gl_Position = vec4(p + uPos, 0.0, 1.0); }`;
 const FS_LAYER = `#version 300 es
 precision highp float; in vec2 v; uniform sampler2D uTex; uniform float uOp; out vec4 o;
 void main(){ vec4 c = texture(uTex, v); o = vec4(c.rgb * c.a * uOp, c.a * uOp); }`;
@@ -73,23 +77,27 @@ void main(){
   o = vec4(clamp(c.rgb, 0.0, 1.0) * uOp, 1.0);
 }`;
 const FS_COPY = `#version 300 es
-precision highp float; in vec2 v; out vec4 o; uniform sampler2D uTex;
-void main(){ o = vec4(texture(uTex, v).rgb, 1.0); }`;
+precision highp float; in vec2 v; out vec4 o; uniform sampler2D uTex; uniform int uOpaque;
+void main(){ vec4 c = texture(uTex, v); o = uOpaque != 0 ? vec4(c.rgb, 1.0) : c; }`;
+const FX_HEAD = `#version 300 es
+precision highp float; in vec2 v; out vec4 o; uniform sampler2D uTex; uniform vec2 uRes; uniform float uTime;
+`;
 
-export const BLENDS = { normal: 'Normal', add: 'Somar', screen: 'Tela' };
+export const BLENDS = { normal: 'Normal', add: 'Somar', screen: 'Tela', multiply: 'Multiplicar' };
 export const FITS = { contain: 'Encaixar', cover: 'Preencher', stretch: 'Esticar' };
+export const IDENT_TR = () => ({ x: 0, y: 0, scale: 1, rot: 0 });
 
 export class Engine {
   constructor(width, height) {
-    this.W = width; this.H = height;
+    this.W = width; this.H = height; this.time = 0; this.master = 1;
     const canvas = this.canvas = document.createElement('canvas');
     canvas.width = width; canvas.height = height;
     const gl = this.gl = canvas.getContext('webgl2', { alpha: false, antialias: false, premultipliedAlpha: true, preserveDrawingBuffer: true });
     if (!gl) throw new Error('WebGL2 indisponível');
-    this.progLayer = this.program(VS_LAYER, FS_LAYER, ['uScale', 'uOp']);
+    this.progLayer = this.program(VS_LAYER, FS_LAYER, ['uScale', 'uPos', 'uRot', 'uAspect', 'uOp', 'uTex']);
     this.progSlice = this.program(VS_SLICE, FS_SLICE, ['uScreen', 'uIn', 'uRot', 'uFlip', 'uSrc', 'uTex', 'uBC', 'uRGB', 'uUseSoft', 'uSoft', 'uSoftP', 'uGamma', 'uUseMask', 'uMask']);
     this.progScreen = this.program(VS_QUAD, FS_SCREEN, ['uTex', 'uMask', 'uUseMask', 'uBC', 'uRGB', 'uOp']);
-    this.progCopy = this.program(VS_QUAD, FS_COPY, ['uTex']);
+    this.progCopy = this.program(VS_QUAD, FS_COPY, ['uTex', 'uOpaque']);
     this.quad = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
@@ -99,15 +107,18 @@ export class Engine {
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.enable(gl.BLEND);
     this.tex = new Map();          // clip.id → { t, done }
-    // textura branca de 1 px para a unidade da máscara quando não há máscara: um sampler
-    // apontando para a textura da própria tela faria o WebGL descartar o desenho (realimentação)
     this.white = this.newTex();
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
     this.comp = this.fbo(width, height);
-    this.layerFbo = new Map();     // layer.id → fbo
+    this.layerFbo = new Map();     // layer.id → fbo (fonte direta para slices)
     this.screenFbo = new Map();    // screen.id → fbo
     this.geom = new Map();         // slice.id → { rev, vao, n, ... }
     this.maskTex = new Map();      // 'o'+screen.id / 'i'+slice.id → { t, rev, canvas }
+    this.fxProg = new Map();       // effect id → programa
+    this.srcProg = new Map();      // source id → programa
+    this.srcFbo = new Map();       // clip.id → fbo da fonte gerada
+    this.scratch = [this.fbo(width, height), this.fbo(width, height), this.fbo(width, height)];   // efeitos: entrada e pingue-pongue
+    this.compFx = [];
   }
 
   program(vs, fs, uniforms) {
@@ -152,17 +163,20 @@ export class Engine {
   // ---------- fontes ----------
   texFor(clip) {
     const gl = this.gl;
+    if (clip.kind === 'source') return this.renderSource(clip);
     let e = this.tex.get(clip.id);
     if (!e) {
       const t = this.newTex();
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
-      e = { t, done: false };
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
+      e = { t, done: false, rev: -1 };
       this.tex.set(clip.id, e);
     }
-    gl.bindTexture(gl.TEXTURE_2D, e.t);
-    const el = clip.el;
-    if (clip.kind === 'video') {
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, e.t);
+    const el = clip.el; if (!el) return e.t;
+    if (clip.kind === 'video' || clip.kind === 'camera') {
       if (el.readyState >= 2) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+    } else if (clip.kind === 'text') {
+      if (e.rev !== clip.rev) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el); e.rev = clip.rev; }
     } else if (!e.done && el.complete && el.naturalWidth) {
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
       e.done = true;
@@ -172,56 +186,155 @@ export class Engine {
   drop(clipId) {
     const e = this.tex.get(clipId);
     if (e) { this.gl.deleteTexture(e.t); this.tex.delete(clipId); }
+    const f = this.srcFbo.get(clipId);
+    if (f) { this.gl.deleteFramebuffer(f.fb); this.gl.deleteTexture(f.t); this.srcFbo.delete(clipId); }
+  }
+  // fonte gerada: um shader desenhado numa textura do tamanho da composição
+  renderSource(clip) {
+    const gl = this.gl, def = sourceById(clip.source);
+    if (!def) return this.white;
+    let f = this.srcFbo.get(clip.id);
+    if (!f) { f = this.fbo(this.W, this.H); this.srcFbo.set(clip.id, f); }
+    let pr = this.srcProg.get(def.id);
+    if (!pr) {
+      const fs = FX_HEAD + def.params.map(p => 'uniform float ' + p.key + ';').join('\n') + '\n' + EFFECT_HELPERS + def.glsl + '\nvoid main(){ vec4 c = src(v); o = vec4(c.rgb * c.a, c.a); }';
+      pr = this.program(VS_QUAD, fs, ['uRes', 'uTime', ...def.params.map(p => p.key)]); this.srcProg.set(def.id, pr);
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, f.fb); gl.viewport(0, 0, f.w, f.h); gl.disable(gl.BLEND);
+    gl.useProgram(pr.p); gl.bindVertexArray(this.quadVao);
+    gl.uniform2f(pr.u.uRes, f.w, f.h); gl.uniform1f(pr.u.uTime, this.time + (clip.seed || 0));
+    for (const p of def.params) gl.uniform1f(pr.u[p.key], clip.params[p.key] ?? p.def);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.enable(gl.BLEND); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return f.t;
   }
 
-  drawLayer(L, W, H) {
-    const gl = this.gl;
-    const clip = L.on >= 0 ? L.clips[L.on] : null;
-    if (!clip || L.bypass || L.opacity <= 0 || !clip.w || !clip.h) return;
-    gl.bindTexture(gl.TEXTURE_2D, this.texFor(clip));
+  // ---------- efeitos ----------
+  fxProgram(def) {
+    let pr = this.fxProg.get(def.id);
+    if (!pr) {
+      const fs = FX_HEAD + def.params.map(p => 'uniform float ' + p.key + ';').join('\n') + '\n' + EFFECT_HELPERS + def.glsl + '\nvoid main(){ o = fx(v); }';
+      pr = this.program(VS_QUAD, fs, ['uTex', 'uRes', 'uTime', ...def.params.map(p => p.key)]); this.fxProg.set(def.id, pr);
+    }
+    return pr;
+  }
+  // aplica uma cadeia de efeitos a uma textura w×h; devolve a textura resultante (ou a própria)
+  applyChain(tex, w, h, chain) {
+    const gl = this.gl, live = (chain || []).filter(f => !f.bypass && effectById(f.id));
+    if (!live.length) return tex;
+    gl.disable(gl.BLEND); gl.bindVertexArray(this.quadVao);
+    let src = tex, i = 0;
+    for (const f of live) {
+      const def = effectById(f.id), pr = this.fxProgram(def);
+      let dst = this.scratch[1 + (i & 1)];
+      if (dst.w !== w || dst.h !== h) { gl.deleteFramebuffer(dst.fb); gl.deleteTexture(dst.t); dst = this.scratch[1 + (i & 1)] = this.fbo(w, h); }
+      if (dst.t === src) { dst = this.scratch[1 + ((i + 1) & 1)]; }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fb); gl.viewport(0, 0, w, h);
+      gl.useProgram(pr.p);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src); gl.uniform1i(pr.u.uTex, 0);
+      gl.uniform2f(pr.u.uRes, w, h); gl.uniform1f(pr.u.uTime, this.time);
+      for (const p of def.params) gl.uniform1f(pr.u[p.key], f.params[p.key] ?? p.def);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      src = dst.t; i++;
+    }
+    gl.enable(gl.BLEND); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return src;
+  }
+
+  // ---------- camadas ----------
+  fitScale(clip, W, H) {
     const ar = clip.w / clip.h, car = W / H;
     let sx = 1, sy = 1;
     if (clip.fit === 'contain') { if (ar > car) sy = car / ar; else sx = ar / car; }
     else if (clip.fit === 'cover') { if (ar > car) sx = ar / car; else sy = car / ar; }
-    gl.uniform2f(this.progLayer.u.uScale, sx, sy);
-    gl.uniform1f(this.progLayer.u.uOp, L.opacity);
-    if (L.blend === 'add') gl.blendFunc(gl.ONE, gl.ONE);
-    else if (L.blend === 'screen') gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
+    return [sx, sy];
+  }
+  // desenha um clipe com ajuste e transformação no alvo atual (quad com a textura fornecida)
+  drawClipQuad(tex, clip, tr, opacity, W, H, blend) {
+    const gl = this.gl, P = this.progLayer;
+    gl.useProgram(P.p); gl.bindVertexArray(this.quadVao);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(P.u.uTex, 0);
+    const [sx, sy] = clip ? this.fitScale(clip, W, H) : [1, 1];
+    const t = tr || IDENT_TR();
+    gl.uniform2f(P.u.uScale, sx * t.scale, sy * t.scale);
+    gl.uniform2f(P.u.uPos, t.x, t.y); gl.uniform1f(P.u.uRot, -t.rot * Math.PI / 180); gl.uniform1f(P.u.uAspect, W / H);
+    gl.uniform1f(P.u.uOp, opacity);
+    if (blend === 'add') gl.blendFunc(gl.ONE, gl.ONE);
+    else if (blend === 'screen') gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
+    else if (blend === 'multiply') gl.blendFunc(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA);
     else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  clipReady(clip) { return clip && clip.w > 0 && clip.h > 0 && (clip.kind === 'source' || clip.el); }
+  // uma camada = o clipe no ar (e, na transição, o anterior esmaecendo) com os efeitos do clipe e da camada
+  drawLayer(L, W, H, targetFb) {
+    const gl = this.gl;
+    if (L.bypass || L.opacity <= 0) return;
+    const clip = L.on >= 0 ? L.clips[L.on] : null;
+    const items = [];
+    if (L.prev && L.prev.clip && this.clipReady(L.prev.clip)) {
+      const k = Math.min(1, (this.time - L.prev.t0) / Math.max(0.01, L.prev.dur));
+      if (k < 1) items.push({ clip: L.prev.clip, op: 1 - k }); else L.prev = null;
+    }
+    if (this.clipReady(clip)) items.push({ clip, op: L.prev ? Math.min(1, (this.time - L.prev.t0) / Math.max(0.01, L.prev.dur)) : 1 });
+    for (const it of items) {
+      const c = it.clip, chain = [...(c.fx || []), ...(L.fx || [])];
+      let tex = this.texFor(c), tr = L.transform || IDENT_TR();
+      // a fonte gerada desenha na textura dela e solta o framebuffer: volta ao alvo da camada
+      gl.bindFramebuffer(gl.FRAMEBUFFER, targetFb); gl.viewport(0, 0, W, H);
+      if (chain.length || (c.transform && (c.transform.x || c.transform.y || c.transform.scale !== 1 || c.transform.rot))) {
+        // clipe → textura própria (com o ajuste e a transformação do clipe) → efeitos → camada
+        const s = this.scratch[0];
+        gl.bindFramebuffer(gl.FRAMEBUFFER, s.fb); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+        this.drawClipQuad(tex, c, c.transform, 1, W, H, 'normal');
+        tex = this.applyChain(s.t, W, H, chain);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, targetFb); gl.viewport(0, 0, W, H);
+        this.drawClipQuad(tex, null, tr, L.opacity * it.op, W, H, L.blend);
+      } else {
+        const t2 = { ...tr }; // ajuste do clipe e transformação da camada no mesmo quad
+        this.drawClipQuad(tex, c, t2, L.opacity * it.op, W, H, L.blend);
+      }
+    }
   }
 
   // layers: de cima para baixo (como na grade). Desenha de baixo para cima na composição.
   // layerIds: camadas que algum slice usa como fonte direta; cada uma ganha a sua textura.
-  render(layers, layerIds = new Set()) {
-    const gl = this.gl, W = this.W, H = this.H;
-    gl.useProgram(this.progLayer.p); gl.bindVertexArray(this.quadVao);
-    gl.activeTexture(gl.TEXTURE0);          // as camadas sempre leem a unidade 0
+  render(layers, layerIds = new Set(), time = performance.now() / 1000) {
+    const gl = this.gl, W = this.W, H = this.H; this.time = time;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.comp.fb);
     gl.viewport(0, 0, W, H);
     gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
-    for (let i = layers.length - 1; i >= 0; i--) this.drawLayer(layers[i], W, H);
+    for (let i = layers.length - 1; i >= 0; i--) this.drawLayer(layers[i], W, H, this.comp.fb);
     for (const L of layers) {
       if (!layerIds.has(L.id)) continue;
       let f = this.layerFbo.get(L.id);
       if (!f) { f = this.fbo(W, H); this.layerFbo.set(L.id, f); }
-      gl.bindFramebuffer(gl.FRAMEBUFFER, f.fb);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, f.fb); gl.viewport(0, 0, W, H);
       gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-      this.drawLayer(L, W, H);
+      this.drawLayer(L, W, H, f.fb);
+    }
+    // efeitos da composição e o master
+    const out = this.applyChain(this.comp.t, W, H, this.compFx);
+    if (out !== this.comp.t || this.master < 1) {
+      const s = this.scratch[0];
+      gl.bindFramebuffer(gl.FRAMEBUFFER, s.fb); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+      this.drawClipQuad(out, null, null, this.master, W, H, 'normal');
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.comp.fb);
+      this.copyInto(s.t, W, H, true);
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     // a composição vai para o canvas mestre, para o monitor e para as sondas
     this.copyTo(this.comp.t, W, H);
   }
-  copyTo(tex, w, h) {
+  copyInto(tex, w, h, opaque) {
     const gl = this.gl;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, w, h); gl.disable(gl.BLEND);
     gl.useProgram(this.progCopy.p); gl.bindVertexArray(this.quadVao);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(this.progCopy.u.uTex, 0);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(this.progCopy.u.uTex, 0); gl.uniform1i(this.progCopy.u.uOpaque, opaque ? 1 : 0);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.enable(gl.BLEND);
   }
+  copyTo(tex, w, h) { this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null); this.copyInto(tex, w, h, true); }
   // copia o que está no canvas mestre (canto inferior esquerdo, w×h) para um canvas 2D
   blit(ctx, w = this.W, h = this.H) {
     ctx.drawImage(this.canvas, 0, this.canvas.height - h, w, h, 0, 0, w, h);
@@ -335,7 +448,6 @@ export class Engine {
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
         for (const m of masks) {
           if (m.invert) {
-            // preserva só o que está dentro: pinta de preto tudo fora do polígono
             ctx.save(); Engine.polyPath(ctx, m.pts, 1, 1); ctx.rect(w, 0, -w, h); ctx.fillStyle = '#000'; ctx.fill('evenodd'); ctx.restore();
           } else { Engine.polyPath(ctx, m.pts, 1, 1); ctx.fillStyle = '#000'; ctx.fill(); }
         }
@@ -355,7 +467,6 @@ export class Engine {
   }
 
   // ---------- sondas (testes) ----------
-  // lê pixels do canvas mestre logo depois de desenhar (x, y de 0 a 1, origem em cima à esquerda)
   readPts(pts, w, h) {
     const gl = this.gl, px = new Uint8Array(4);
     return pts.map(([x, y]) => {

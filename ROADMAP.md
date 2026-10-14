@@ -23,6 +23,21 @@ de trabalhar.
   busca na rede. Protocolo testado contra um LaserCube falso no teste automático; **falta a
   prova com o aparelho de verdade** (direção dos eixos, brilho, taxa de pontos)
 
+**Regra dada em 2026-10-14: "adiciona tudo que tiver no Resolume, depois eu vou tirando o que
+não quero".** Ou seja: na dúvida, o recurso entra; a poda é dele, depois.
+
+**Pedido do mesmo dia: um modo de a projeção interagir com o laser.** Proposta a confirmar:
+(a) *Contorno*: o laser traça as bordas do que está sendo projetado (detecção de bordas na
+composição → linhas → laser); (b) *Espelho*: o desenho do laser aparece também como camada
+na projeção, no mesmo lugar; (c) *Reação*: pulso e cor do laser seguem o som junto com os
+efeitos da projeção.
+
+- **Rodapé do Resolume** (2026-10-14): Composição | Camada | Clipe com Autopilot, master,
+  velocidade, mistura, transição, Transform e cadeia de efeitos; navegador Arquivos (pastas do
+  PC, favoritas, prévia), Composições (salvar/abrir, clipes por caminho), Efeitos (28, com
+  favoritos), Fontes (13 geradores, Text Block, câmeras), Gravar (WebM). Itens 2, 3 (parcial),
+  4 (parcial), 5, 6 (parcial) e 11 da ordem abaixo ficaram feitos de uma vez
+
 ## Ordem de trabalho
 
 1. **Advanced Output**, como no Resolume — feito, menos slices em polígono

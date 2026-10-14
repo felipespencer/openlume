@@ -26,6 +26,29 @@ npm start
   nele em tela cheia. Numa janela comum, F ou duplo clique alterna a tela cheia.
 - Abrir o programa começa sempre do zero.
 
+### Rodapé no formato do Resolume
+
+- **Composição | Camada** (esquerda): Autopilot (direção ◀◀ OFF ▶▶ ⤮, duração pelo clipe ou
+  tempo fixo, loop), master, velocidade, opacidade, mistura, transição entre clipes da camada,
+  Transform (posição, escala, giro) e a cadeia de efeitos.
+- **Clipe** (meio): nome, transporte e velocidade (vídeo), parâmetros da fonte gerada ou do
+  texto, ajuste, Transform e a cadeia de efeitos do clipe.
+- **Arquivos · Composições · Efeitos · Fontes · Gravar** (direita), com a caixa de ajuda:
+  - *Arquivos* navega as pastas do computador (Vídeos, Imagens, discos, favoritas ♥); arraste um
+    arquivo para a casa, duplo clique mostra na prévia. Os arquivos são servidos por
+    `app://projecionista/media/…` com Range, então a composição salva os clipes por caminho.
+  - *Composições*: Nova, Salvar, Salvar como…, lista das salvas (duplo clique abre). O arquivo
+    guarda camadas, clipes por caminho, efeitos, autopilot, telas da saída e quadros do laser.
+  - *Efeitos*: 28 efeitos de vídeo com os nomes do Resolume (Blur, Bright.Contrast, Hue Rotate,
+    Kaleidoscope, LoRez, Mirror, Shift RGB, Strobe, Vignette, Wave Warp…); ♥ favoritos; arraste
+    para um clipe, camada ou composição, ou duplo clique para o clipe selecionado.
+  - *Fontes*: 13 geradores (Blank, Checkered, Gradient, Lines, Rings, Sine Wave, Spiral, Static,
+    Stroboscope, Test Card, Metaballs, Line Scape, Solid Color), Text Block (fontes do Windows)
+    e as câmeras ligadas; arraste para uma casa.
+  - *Gravar*: grava a composição ou uma tela em WebM (fonte, microfone, preset, início
+    imediato/no disparo/depois de N s, parada manual/N s/fim dos clipes); os arquivos ficam em
+    Vídeos/Projecionista.
+
 ### Saída avançada
 
 O botão "Saída avançada", no monitor da composição, abre o editor de telas, copiado do

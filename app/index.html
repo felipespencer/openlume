@@ -2,13 +2,14 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob: data:; media-src 'self' blob: mediastream:; style-src 'self' 'unsafe-inline'">
 <title>Projecionista</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="top">
     <span class="logo">PROJECIO<b>NISTA</b></span>
+    <span id="compName" class="st"></span>
     <span class="sp"></span>
     <button id="btnLaser" type="button" title="LaserCube: desenhar, escrever e mandar SVG para o laser">Laser</button>
     <span id="outState" class="st">saída fechada</span>
@@ -25,16 +26,9 @@
   </div>
 
   <div id="bot">
-    <div class="pan"><div class="ptabs"><span>Clipe</span></div><div class="pbody" id="clipPan"></div></div>
-    <div class="pan"><div class="ptabs"><span>Camada</span></div><div class="pbody" id="layerPan"></div></div>
-    <div class="pan"><div class="ptabs"><span>Arquivos</span></div>
-      <div class="pbody" id="filesPan">
-        <button type="button" class="wide" id="pick">Escolher vídeos e imagens…</button>
-        <input type="file" id="pickFile" accept="image/*,video/*" multiple hidden>
-        <div id="fileList"></div>
-        <div class="dica">Arraste daqui para uma casa da grade, ou arraste direto de uma pasta do Windows. Dentro da grade, arrastar move o clipe; com Ctrl, copia.</div>
-      </div>
-    </div>
+    <div class="pan rpan"><div class="ptabs" id="leftTabs"><span data-tab="comp" class="on">Composição</span><span data-tab="layer">Camada</span></div><div class="ptitle" id="leftTitle"></div><div class="pbody rprops" id="leftPan"></div></div>
+    <div class="pan rpan"><div class="ptabs"><span class="on">Clipe</span></div><div class="ptitle" id="clipTitle"></div><div class="pbody rprops" id="clipPan"></div></div>
+    <div class="pan rpan"><div class="ptabs" id="browserTabs"><span data-tab="files" class="on">Arquivos</span><span data-tab="comps">Composições</span><span data-tab="fx">Efeitos</span><span data-tab="src">Fontes</span><span data-tab="rec">Gravar</span></div><div class="pbody browser" id="browserPan"></div><div class="help" id="browserHelp"><div class="hh">Ajuda</div><div class="hb">Passe o mouse sobre um item para saber o que ele faz.</div></div></div>
   </div>
   <div id="toast"></div>
   <div id="ao" hidden></div>
