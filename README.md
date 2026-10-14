@@ -45,6 +45,17 @@ transformação e transição, mudando junto com a saída.
   **Disparo** (normal, piano, alternar; ignorar disparo de coluna); parâmetros da fonte gerada
   ou do texto; **Autopilot do clipe** (para onde manda ao acabar: como a camada, próximo, anterior,
   ao acaso, casa específica ou parar), ajuste, Transform e a cadeia de efeitos do clipe.
+- **Preparar vídeo** (o DXV do Projecionista): um vídeo comum só anda bem para a frente; ré,
+  pulo e esfregar travam porque cada quadro depende dos anteriores. O botão "Preparar" (no
+  painel Clipe ou ao lado do arquivo em *Arquivos*) chama o ffmpeg e grava `nome.proj.mp4` ao
+  lado do original — H.264 com todos os quadros chave, som em AAC. Esse arquivo toca no
+  **reprodutor próprio** (`app/player.js`: mp4box.js lê o MP4, WebCodecs decodifica na placa
+  de vídeo, cache de quadros): frente, ré, pulo, velocidade e esfregar viram "qual quadro
+  mostrar agora". O som acompanha quando toca para a frente perto de 1x. Precisa do `ffmpeg`
+  no PATH ou em `tools/ffmpeg/ffmpeg.exe`.
+- **GIF animado** (e WebP/AVIF animados) entram como clipe de vídeo, quadro a quadro pelo
+  ImageDecoder: transporte, ré, pulo e velocidade funcionam como num vídeo preparado. GIF
+  parado continua imagem.
 - **Laser e projeção juntos**: a fonte "Laser (espelho)" (aba Fontes) mostra na projeção o que
   o LaserCube desenha; o quadro "Contorno da projeção" (menu + do Laser) faz o laser traçar as
   bordas do que está sendo projetado.
@@ -120,6 +131,9 @@ aberta da Wicked Lasers (libLaserdockCore) e do LaserCubeSharp, sem copiar códi
 - `app/laser.js`, `app/laser-model.js`, `app/hershey.js`: o módulo do laser (interface, modelo e
   gerador de pontos, fontes de traço único); `lasercube.js`: a conversa UDP com o LaserCube, no
   processo principal. `app/panel.js`: peças de interface no formato do Resolume, compartilhadas.
+- `app/player.js`: reprodutor próprio (FramePlayer para MP4 preparado, GifPlayer para
+  animações), com `app/vendor/mp4box.all.mjs` (mp4box.js 2.4, BSD-3). `main.js` chama o
+  ffmpeg para preparar (`media:prepare`) e entrega o arquivo inteiro (`media:read`).
 - `app/app.js`: grade, painéis, janelas de saída e regras de uso.
 - `app/output.html`: a saída. Não mistura nada: mostra a imagem que o controle já desenhou
   para aquela tela.

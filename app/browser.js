@@ -4,6 +4,7 @@ import { el, ICON } from './panel.js';
 import { EFFECTS } from './effects.js';
 import { SOURCES } from './sources.js';
 import { isVideoName, isImageName, mediaUrl } from './clips.js';
+import { isPrepared } from './player.js';
 
 const $ = (id) => document.getElementById(id);
 const fmtDate = (ms) => { const d = new Date(ms); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); };
@@ -62,6 +63,11 @@ export class Browser {
       const r = el('div', 'item file'); r.draggable = true; r.dataset.help = f.name + '|Arraste para uma casa da grade. Duplo clique mostra na prévia.';
       const ic = el('i', 'th'); if (isImageName(f.name)) ic.style.backgroundImage = 'url("' + mediaUrl(f.path) + '")'; else if (isVideoName(f.name)) ic.textContent = '▶'; else ic.textContent = '✎';
       r.append(ic, el('span', '', f.name), el('small', '', f.size > 1e6 ? (f.size / 1e6).toFixed(1) + ' MB' : Math.round(f.size / 1e3) + ' kB'));
+      if (isVideoName(f.name) && !isPrepared(f.name) && this.c.prepareFile) {   // H.264 todo intra ao lado do original
+        const prog = this.c.preparingFile(f.path);
+        const b = el('button', 'ib prep', prog != null ? Math.round(prog * 100) + ' %' : '⚙'); b.title = 'Preparar'; b.dataset.help = 'Preparar|Converte para H.264 com todos os quadros chave (como o DXV do Resolume): ré, pulo e esfregar lisos. Cria ' + f.name.replace(/\.[^.]+$/, '') + '.proj.mp4 nesta pasta.';
+        b.onclick = (e) => { e.stopPropagation(); if (prog == null) this.c.prepareFile(f.path); }; b.draggable = false; r.appendChild(b);
+      }
       r.ondragstart = (e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', f.path); this.c.setDrag({ path: f.path, name: f.name }); };
       r.ondragend = () => this.c.setDrag(null);
       r.ondblclick = () => this.c.preview(f.path, f.name);

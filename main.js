@@ -3,6 +3,7 @@
 // e põe cada janela de saída no monitor que a tela pede.
 const { app, BrowserWindow, Menu, protocol, net, session, screen, ipcMain, shell } = require('electron');
 const { Readable } = require('node:stream');
+const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
@@ -46,12 +47,37 @@ function listDir(dir) {
   const col = (a, b) => a.name.localeCompare(b.name, 'pt-BR', { numeric: true });
   return { dir, dirs: dirs.sort(col), files: files.sort(col) };
 }
+// ---------- preparar vídeo: H.264 "todo intra" (cada quadro é chave), como o DXV do Resolume ----------
+function findFfmpeg() {
+  const cands = [path.join(__dirname, 'tools', 'ffmpeg', 'ffmpeg.exe'), path.join(process.resourcesPath || '', 'ffmpeg', 'ffmpeg.exe')];
+  for (const c of cands) { try { if (fs.existsSync(c)) return c; } catch { } }
+  return 'ffmpeg';   // no PATH
+}
+const preparing = new Map();   // caminho de saída → processo
+function prepareMedia(src, fmt, onProgress) {
+  return new Promise((resolve, reject) => {
+    const ext = fmt === 'dxv' ? '.proj.mov' : '.proj.mp4';
+    const out = src.replace(/\.[^.\\/]+$/, '') + ext;
+    if (preparing.has(out)) return reject(new Error('já está sendo preparado'));
+    const args = ['-y', '-hide_banner', '-nostats', '-progress', 'pipe:1', '-i', src];
+    if (fmt === 'dxv') args.push('-c:v', 'dxv', '-an', out);
+    else args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '18', '-g', '1', '-keyint_min', '1', '-bf', '0', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-c:a', 'aac', '-b:a', '192k', out);
+    let dur = 0, err = '';
+    let p;
+    try { p = spawn(findFfmpeg(), args, { windowsHide: true }); } catch (e) { return reject(e); }
+    preparing.set(out, p);
+    p.on('error', (e) => { preparing.delete(out); reject(new Error('ffmpeg não encontrado: ' + e.message)); });
+    p.stderr.on('data', (d) => { const s = d.toString(); err += s.slice(-2000); const m = /Duration: (\d+):(\d+):([\d.]+)/.exec(s); if (m && !dur) dur = (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]); });
+    p.stdout.on('data', (d) => { const m = /out_time_us=(\d+)/.exec(d.toString()); if (m && dur) onProgress(Math.min(0.99, (+m[1] / 1e6) / dur)); });
+    p.on('close', (code) => { preparing.delete(out); if (code === 0 && fs.existsSync(out)) resolve({ path: out, size: fs.statSync(out).size }); else reject(new Error('ffmpeg saiu com código ' + code + ': ' + err.split('\n').filter(Boolean).slice(-2).join(' '))); });
+  });
+}
 const PREFS_FILE = () => path.join(app.getPath('userData'), 'prefs.json');
 const COMP_DIR = () => path.join(app.getPath('userData'), 'composicoes');
 const REC_DIR = (dir) => dir || path.join(app.getPath('videos'), 'Projecionista');
 const safeName = (name) => { const s = String(name).replace(/[\\/:*?"<>|]/g, '').trim(); if (!s) throw new Error('nome vazio'); return s; };
 const ORIGIN = 'app://projecionista';
-const ALLOWED = /^\/[\w./-]+\.(html|css|js|png|svg|ico)$/;
+const ALLOWED = /^\/[\w./-]+\.(html|css|js|mjs|png|svg|ico)$/;
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
@@ -163,6 +189,8 @@ app.whenReady().then(async () => {
   ipcMain.handle('rec:save', (_e, name, bytes, dir) => { const d = REC_DIR(dir); fs.mkdirSync(d, { recursive: true }); const full = path.join(d, safeName(name)); fs.writeFileSync(full, Buffer.from(bytes)); return { name: safeName(name), path: full, size: fs.statSync(full).size }; });
   ipcMain.handle('rec:list', (_e, dir) => { const d = REC_DIR(dir); try { return fs.readdirSync(d).filter(f => f.endsWith('.webm')).map(f => ({ name: f, path: path.join(d, f), size: fs.statSync(path.join(d, f)).size })); } catch { return []; } });
   ipcMain.handle('rec:show', (_e, p) => { shell.showItemInFolder(String(p)); return true; });
+  ipcMain.handle('media:prepare', (e, src, fmt) => prepareMedia(String(src), fmt, (f) => { if (!e.sender.isDestroyed()) e.sender.send('media:progress', { src, f }); }));
+  ipcMain.handle('media:read', (_e, p) => { const b = fs.readFileSync(String(p)); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); });
 
   // laser: um LaserCube por vez, controlado pela janela principal
   const laser = new LaserCube();

@@ -4,7 +4,7 @@ import { el, ICON, propsKit, fmtN } from './panel.js';
 import { BLENDS, FITS } from './engine.js';
 import { EFFECTS, effectById, mkFx } from './effects.js';
 import { sourceById } from './sources.js';
-import { renderText, playClip, pauseClip, seekClip, setRate, applyAudio } from './clips.js';
+import { renderText, playClip, pauseClip, seekClip, setRate, applyAudio, mediaOf } from './clips.js';
 import { AUTOPILOT } from './composition.js';
 
 const $ = (id) => document.getElementById(id);
@@ -95,7 +95,7 @@ export class Panels {
   }
   // transporte do vídeo: linha do tempo com entrada e saída, tocar para frente e para trás, modo, velocidade
   transportRows(P, clip) {
-    const t = clip.tr, v = clip.el, S = this.ctx.state, dur = clip.dur || 0;
+    const t = clip.tr, v = mediaOf(clip), S = this.ctx.state, dur = clip.dur || 0;
     P.appendChild(this.phead('Transporte', 'Transporte|Linha do tempo, direção, modo, velocidade, entrada e saída.'));
     const tl = el('div', 'timeline'); tl.dataset.help = 'Linha do tempo|Arraste para pular. As alças das pontas são a entrada (cut in) e a saída (cut out).';
     const range = el('div', 'range'), head = el('div', 'head'), hin = el('div', 'hnd in'), hout = el('div', 'hnd out'), txt = el('div', 'ttxt');
@@ -126,6 +126,13 @@ export class Panels {
     P.appendChild(this.pnum('Entrada', 'Entrada (cut in)|Onde o clipe começa, em segundos.', t.in, { min: 0, max: dur, step: 0.1, dec: 1, unit: ' s', bar: true, reset: 0 }, v2 => { t.in = Math.min(v2, (t.out || dur) - 0.1); }));
     P.appendChild(this.pnum('Saída', 'Saída (cut out)|Onde o clipe termina, em segundos.', t.out || dur, { min: 0, max: dur, step: 0.1, dec: 1, unit: ' s', bar: true, reset: dur }, v2 => { t.out = Math.max(v2, t.in + 0.1); }));
     P.appendChild(this.prow('Duração', 'Duração|Entre a entrada e a saída, na velocidade atual.', el('span', 'pinfo', fmtT1(((t.out || dur) - t.in) / (clip.speed * S.speed)) + ' · arquivo ' + fmtT1(dur))));
+    // arquivo preparado (H.264 todo intra ou DXV) toca no reprodutor próprio: ré e pulo lisos
+    const prog = this.ctx.preparing(clip);
+    if (clip.anim) P.appendChild(this.prow('Arquivo', 'Animação|GIF (ou WebP/AVIF) animado, quadro a quadro: ré, pulo e velocidade funcionam como num vídeo preparado.', el('span', 'pinfo ok', 'animação · ' + clip.player.frames + ' quadros · ' + clip.player.fps.toFixed(0) + ' fps')));
+    else if (clip.player) P.appendChild(this.prow('Arquivo', 'Preparado|Cada quadro é chave e o Projecionista decodifica por conta própria: ré, pulo e esfregar sem travar.', el('span', 'pinfo ok', 'preparado · ' + (clip.player.allIntra ? 'todo intra' : clip.player.codec) + ' · ' + clip.player.fps.toFixed(0) + ' fps')));
+    else if (prog != null) P.appendChild(this.prow('Preparando', '', el('span', 'pinfo', Math.round(prog * 100) + ' %')));
+    else if (clip.path) { P.appendChild(this.pbutton('Preparar (H.264 todo intra)', 'Preparar|Converte para H.264 com todos os quadros chave, como o DXV do Resolume: ré, pulo e esfregar ficam lisos. Cria nome.proj.mp4 ao lado do original.', () => this.ctx.prepare('h264'))); }
+    else P.appendChild(this.prow('Arquivo', '', el('span', 'pinfo', 'solto na janela sem caminho; abra pelo painel Arquivos para poder preparar')));
     const a = clip.audio;
     P.appendChild(this.phead('Áudio', 'Áudio|O som do arquivo.'));
     P.appendChild(this.pnum('Volume', 'Volume|', Math.round(a.vol * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v2 => { a.vol = v2 / 100; applyAudio(clip); }));
@@ -133,7 +140,7 @@ export class Panels {
     P.appendChild(this.pcheck('Mudo', 'Mudo|', a.mute, v2 => { a.mute = v2; applyAudio(clip); }, a.mute ? 'sem som' : 'com som'));
   }
   // chamado a cada quadro: move o cursor da linha do tempo sem redesenhar o painel
-  tick() { if (this.tl && this.tl.clip.el && document.body.contains(this.tl.place ? $('clipPan') : null)) { try { this.tl.place(); } catch { } } }
+  tick() { if (this.tl && mediaOf(this.tl.clip) && document.body.contains(this.tl.place ? $('clipPan') : null)) { try { this.tl.place(); } catch { } } }
   renderClip(P, clip) {
     this.tl = null;
     P.textContent = '';

@@ -43,6 +43,19 @@ casa específica (camada + coluna) ou parar; no fim do clipe ou depois de N segu
   favoritos), Fontes (13 geradores, Text Block, câmeras), Gravar (WebM). Itens 2, 3 (parcial),
   4 (parcial), 5, 6 (parcial) e 11 da ordem abaixo ficaram feitos de uma vez
 
+- **Preparar vídeo e reprodutor próprio** (2026-10-14). Reclamação: "a linha de transporte
+  tá uma merda, não seria o caso de pensar num formato mais adequado de vídeo pra ele voltar
+  sem travar?". O Resolume resolve isso com o DXV (cada quadro é chave, descomprimido na
+  placa). DXV é proprietário e sem especificação; o ffmpeg lê todos os DXV e só grava DXV1
+  (DXT1). Decisão dele ("pode seguir"): 1º H.264 todo intra (`nome.proj.mp4`, ffmpeg) +
+  reprodutor próprio por WebCodecs (`app/player.js`, mp4box.js para ler o MP4) — feito e
+  testado (frente, ré, pulo, 4x); 2º **ler DXV1 e depois DXV3 do Resolume** (DXT1/DXT5 +
+  compressão simples; estudar `dxv.c` do ffmpeg sem copiar; subir para a placa com
+  `WEBGL_compressed_texture_s3tc`) e oferecer "Preparar em DXV1" para arquivos que o Resolume
+  também vá abrir — **ainda não feito**
+- **GIF animado como clipe** (pedido em 2026-10-14: "quero que leia gif também"): feito pelo
+  ImageDecoder, com o mesmo transporte do vídeo preparado
+
 ## Ordem de trabalho
 
 1. **Advanced Output**, como no Resolume — feito, menos slices em polígono

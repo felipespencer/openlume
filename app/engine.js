@@ -172,8 +172,10 @@ export class Engine {
       this.tex.set(clip.id, e);
     }
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, e.t);
-    const el = clip.el; if (!el) return e.t;
-    if (clip.kind === 'video' || clip.kind === 'camera') {
+    const el = clip.el; if (!el && !clip.player) return e.t;
+    if (clip.player) {   // reprodutor próprio: o quadro decodificado pela placa de vídeo
+      const p = clip.player; if (p.frame && e.rev !== p.frameId) { try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, p.frame); e.rev = p.frameId; } catch { } }
+    } else if (clip.kind === 'video' || clip.kind === 'camera') {
       if (el.readyState >= 2) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
     } else if (clip.kind === 'text' || clip.kind === 'lasermirror') {
       if (e.rev !== clip.rev) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el); e.rev = clip.rev; }
@@ -265,7 +267,7 @@ export class Engine {
     else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
-  clipReady(clip) { return clip && clip.w > 0 && clip.h > 0 && (clip.kind === 'source' || clip.el); }
+  clipReady(clip) { return clip && clip.w > 0 && clip.h > 0 && (clip.kind === 'source' || clip.el || clip.player); }
   // uma camada = o clipe no ar (e, na transição, o anterior esmaecendo) com os efeitos do clipe e da camada
   drawLayer(L, W, H, targetFb) {
     const gl = this.gl;

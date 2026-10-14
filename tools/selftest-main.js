@@ -214,6 +214,33 @@ module.exports = (win, app, laser) => {
         P.C.pauseClip(vc); vc.tr.mode='once'; P.C.seekClip(vc,1.5); await S(100); P.C.playClip(vc,1,1); await S(900); const oncePos=vc.el.currentTime, oncePlaying=vc.tr.playing;
         P.eject(2); vc.ignoreColumn=true; P.triggerColumn(7); const ign=P.state.layers[2].on; vc.ignoreColumn=false; P.eject(0); P.eject(1); P.eject(2);
         R.transporte={loopPos, re:[re0,re1], oncePos, oncePlaying, ign}; P.state.sel={l:2,c:7}; P.render();
+        // preparar: ffmpeg gera va.proj.mp4 (todo intra) e o clipe passa para o reprodutor próprio
+        let prep={erro:'sem ponte'};
+        if(window.projDesktop){ try{
+          await P.prepareClip(2,7,'h264'); const pc=P.state.layers[2].clips[7], pl=pc.player;
+          prep={nome:pc.nome||pc.name, player:!!pl, intra:pl&&pl.allIntra, n:pl&&pl.samples.length, w:pc.w, h:pc.h, dur:pc.dur, thumb:(pc.thumb||'').slice(0,15)};
+          pc.tr.in=0; pc.tr.out=pc.dur; pc.tr.mode='loop'; P.trigger(2,7); await S(600);
+          const f0=pl.frameIndex, t0=pl.currentTime; prep.px=P.probe(mid)[0]; await S(500); prep.anda=[f0,pl.frameIndex,t0,pl.currentTime];
+          // para trás: o quadro mostrado anda para trás de verdade
+          P.C.seekClip(pc,2.0); await S(150); P.C.playClip(pc,-1,1); await S(150); const rf0=pl.frameIndex, rt0=pl.currentTime; await S(500); prep.re=[rf0,pl.frameIndex,rt0,pl.currentTime];
+          // pulo: a 0,5 s o quadro certo aparece em menos de 150 ms
+          P.C.pauseClip(pc); P.C.seekClip(pc,0.5); await S(150); prep.pulo=[pl.indexAt(0.5),pl.frameIndex];
+          // velocidade 4x: anda mais rápido que o relógio
+          P.C.seekClip(pc,0.2); pc.tr.mode='loop'; P.C.playClip(pc,1,4); const v0=pl.currentTime; await S(400); prep.rapido=pl.currentTime-v0; P.C.setRate(pc,1);
+          P.eject(2);
+        }catch(e){ prep={erro:e.message}; } }
+        R.prep=prep;
+        // GIF animado: vira clipe de vídeo de 20 quadros, toca e anda para trás
+        let gif={erro:''};
+        try{
+          await P.putPath(1,7,${JSON.stringify(dir.replace(/\\/g, '/') + '/anim.gif')},'anim.gif'); const gc=P.state.layers[1].clips[7], gp=gc.player;
+          gif={kind:gc.kind, anim:!!gc.anim, frames:gp&&gp.frames, w:gc.w, h:gc.h, dur:gc.dur, thumb:(gc.thumb||'').slice(0,15)};
+          gc.tr.mode='loop'; P.trigger(1,7); await S(400); const g0=gp.frameIndex; gif.px=P.probe(mid)[0]; await S(400); gif.anda=[g0,gp.frameIndex];
+          P.C.seekClip(gc,1.5); await S(100); P.C.playClip(gc,-1,1); await S(100); const gr0=gp.frameIndex; await S(500); gif.re=[gr0,gp.frameIndex];
+          const cp=P.C.cloneClip(gc); gif.copia=cp.player!==gp && cp.player.frames===gp.frames; cp.player.close();
+          P.eject(1); P.state.layers[1].clips[7]=null;
+        }catch(e){ gif.erro=e.message; }
+        R.gif=gif;
         window.__shotEditor=true;
         return R;
       })()`, true);
@@ -284,6 +311,12 @@ module.exports = (win, app, laser) => {
       const Tr = r.transporte;
       ok('transporte do clipe', Tr.loopPos >= 0.95 && Tr.loopPos <= 2.05 && Tr.re[1] < Tr.re[0] && Tr.re[1] > 1.0 && !Tr.oncePlaying && Tr.oncePos >= 1.9 && Tr.ign === -1,
         'loop entre 1 s e 2 s: posição ' + Tr.loopPos.toFixed(2) + '; para trás ' + Tr.re[0].toFixed(2) + ' → ' + Tr.re[1].toFixed(2) + '; uma vez parou em ' + Tr.oncePos.toFixed(2) + '; ignorar coluna: camada ficou ' + (Tr.ign === -1 ? 'fora do ar' : 'no ar'));
+      const Pp = r.prep;
+      ok('preparar e reprodutor próprio', Pp && !Pp.erro && Pp.player && Pp.intra && Pp.n >= 70 && Pp.w === 320 && Pp.h === 180 && Pp.thumb.startsWith('data:image') && nz(Pp.px) && Pp.anda[1] > Pp.anda[0] && Pp.re[1] < Pp.re[0] && Pp.re[3] < Pp.re[2] && Pp.re[3] > 1.0 && Pp.pulo[0] === Pp.pulo[1] && Pp.rapido > 1.0,
+        Pp && Pp.erro ? Pp.erro : Pp.n + ' quadros todo intra ' + Pp.w + '×' + Pp.h + ' ' + (Pp.dur || 0).toFixed(2) + ' s; toca ' + Pp.anda[0] + '→' + Pp.anda[1] + '; ré ' + Pp.re[0] + '→' + Pp.re[1] + ' (' + Pp.re[2].toFixed(2) + '→' + Pp.re[3].toFixed(2) + ' s); pulo para 0,5 s mostra o quadro ' + Pp.pulo[1] + ' (esperado ' + Pp.pulo[0] + '); 4x andou ' + (Pp.rapido || 0).toFixed(2) + ' s em 0,4');
+      const G = r.gif;
+      ok('GIF animado como clipe', G && !G.erro && G.kind === 'video' && G.anim && G.frames === 20 && G.w === 160 && G.h === 90 && Math.abs(G.dur - 2) < 0.1 && G.thumb.startsWith('data:image') && nz(G.px) && G.anda[1] > G.anda[0] && G.re[1] < G.re[0] && G.copia,
+        G && G.erro ? G.erro : G.frames + ' quadros ' + G.w + '×' + G.h + ' ' + (G.dur || 0).toFixed(2) + ' s; toca ' + G.anda[0] + '→' + G.anda[1] + '; ré ' + G.re[0] + '→' + G.re[1] + '; cópia independente=' + G.copia);
       await shot(win, 'pc-clipe.png');
       ok('editor', r.editor.aberto && r.editor.linhas === 3 && r.editor.slices === 2 && r.editor.grupos >= 8 && r.editorOut.slices === 2 && r.editorOut.ancoras === 8,   // malha 3×1 = 4×2 âncoras
         r.editor.linhas + ' linhas na árvore, ' + r.editor.slices + ' slices na Entrada, ' + r.editorOut.slices + ' na Saída, ' + r.editorOut.ancoras + ' âncoras, ' + r.editor.grupos + ' linhas de propriedades');

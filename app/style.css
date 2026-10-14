@@ -315,3 +315,5 @@ body{ grid-template-rows:30px minmax(0,1fr) 5px var(--botH); }
 .rprops .timeline .hnd{ position:absolute; top:-2px; width:8px; height:26px; margin-left:-4px; background:#6fe6c6; cursor:ew-resize; border-radius:2px; }
 .rprops .timeline .ttxt{ position:absolute; right:4px; top:3px; font-size:10px; color:#bdbdbd; pointer-events:none; font-variant-numeric:tabular-nums; }
 .rprops .pv.tr .ib{ font-size:11px; padding:0 4px; min-width:30px; width:auto; }
+.rprops .pinfo.ok{ color:#6fe6c6; }
+.browser .flist .item button.ib.prep{ margin-left:auto; height:20px; min-width:24px; padding:0 5px; border:0; border-radius:2px; background:#3a3a3a; color:var(--rt); font:inherit; font-size:11px; cursor:pointer; } .browser .flist .item button.ib.prep:hover{ background:var(--teal); color:#111; }

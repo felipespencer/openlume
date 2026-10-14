@@ -42,7 +42,7 @@ function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add
 // ---------- clipes na grade ----------
 function putClip(li, col, clip) {
   const L = state.layers[li], old = L.clips[col];
-  if (old) { if (L.on === col) { C.stopClip(old); L.on = -1; } engine.drop(old.id); }
+  if (old) { if (L.on === col) { C.stopClip(old); L.on = -1; } dropClip(old); }
   L.clips[col] = clip; state.sel = { l: li, c: col }; render();
 }
 async function putFiles(li, col, files) {
@@ -52,10 +52,34 @@ async function putFiles(li, col, files) {
   }
   return ok;
 }
-async function putPath(li, col, path, name) { try { putClip(li, col, await C.clipFromPath(path, name)); return true; } catch (e) { toast(e.message); return false; } }
+async function putPath(li, col, path, name) { try { putClip(li, col, await C.clipFromPath(path, name, D)); return true; } catch (e) { toast(e.message); return false; } }
+// preparar: converte o arquivo (H.264 todo intra ou DXV) e troca o clipe no lugar, mantendo os ajustes
+const preparingNow = new Map();
+if (D) D.media.onProgress(({ src, f }) => { preparingNow.set(src, f); if (panels) panels.render(); if (browser && browser.tab === 'files') browser.render(); });
+async function prepareFile(path, fmt = 'h264') {
+  if (!D || preparingNow.has(path)) return;
+  preparingNow.set(path, 0); browser.render();
+  try { const r = await D.media.prepare(path, fmt); toast('Preparado: ' + r.path.split(/[\\/]/).pop() + ' (' + (r.size / 1e6).toFixed(0) + ' MB)'); browser.listing = null; }
+  catch (e) { toast('Não consegui preparar: ' + e.message); }
+  preparingNow.delete(path); browser.render();
+}
+async function prepareClip(li, col, fmt) {
+  const L = state.layers[li], c = L.clips[col]; if (!c || !c.path || !D) return;
+  preparingNow.set(c.path, 0); panels.render();
+  try {
+    const r = await D.media.prepare(c.path, fmt);
+    const n = await C.clipFromPath(r.path, undefined, D);
+    n.fx = c.fx; n.transform = c.transform; n.ap = c.ap; n.audio = c.audio; n.blend = c.blend; n.opacity = c.opacity; n.trig = c.trig; n.ignoreColumn = c.ignoreColumn; n.fit = c.fit; n.speed = c.speed; n.tr = { ...c.tr, out: Math.min(c.tr.out || n.dur, n.dur) }; n.name = c.name.replace(/\.[^.]+$/, '') + (fmt === 'dxv' ? '.proj.mov' : '.proj.mp4');
+    const wasOn = L.on === col; if (wasOn) { C.stopClip(c); L.on = -1; }
+    dropClip(c); L.clips[col] = n; if (wasOn) { L.on = col; C.startClip(n, state.speed); }
+    toast('Preparado: ' + n.name + ' (' + (r.size / 1e6).toFixed(0) + ' MB)');
+  } catch (e) { toast('Não consegui preparar: ' + e.message); }
+  preparingNow.delete(c.path); render();
+}
 function putSource(li, col, id) { const c = C.sourceClip(id); if (c) putClip(li, col, c); return c; }
 function putText(li, col, text) { const c = C.textClip(text); putClip(li, col, c); return c; }
 async function putCamera(li, col, cam) { try { putClip(li, col, await C.cameraClip(cam.id, cam.label)); } catch (e) { toast('Câmera: ' + e.message); } }
+const dropClip = (c) => { engine.drop(c.id); if (c.player) { c.player.close(); c.player = null; } };
 function putLaserClip(li, col, frame) { putClip(li, col, C.laserClip(frame, laser.thumbSvg(frame))); }
 // soltar qualquer coisa numa casa
 function dropInto(li, col, d, files, ctrl) {
@@ -105,7 +129,7 @@ function clearCell(li, col) {
   const L = state.layers[li], c = L.clips[col];
   if (!c) return;
   if (L.on === col) { C.stopClip(c); L.on = -1; }
-  engine.drop(c.id); L.clips[col] = null;
+  dropClip(c); L.clips[col] = null;
   if (state.sel && state.sel.l === li && state.sel.c === col) state.sel = null;
   render();
 }
@@ -114,7 +138,7 @@ function moveClip(fl, fc, tl, tc, copy) {
   const A = state.layers[fl], B = state.layers[tl], src = A.clips[fc], dst = B.clips[tc];
   if (!src) return;
   if (copy) {
-    if (dst) { if (B.on === tc) { C.stopClip(dst); B.on = -1; } engine.drop(dst.id); }
+    if (dst) { if (B.on === tc) { C.stopClip(dst); B.on = -1; } dropClip(dst); }
     B.clips[tc] = C.cloneClip(src);
   } else {
     const aOn = A.on === fc, bOn = B.on === tc;
@@ -130,7 +154,7 @@ function moveClip(fl, fc, tl, tc, copy) {
 }
 function removeLayer(li) {
   const L = state.layers[li]; if (state.layers.length <= 1) return;
-  L.clips.forEach(c => { if (c) { C.stopClip(c); engine.drop(c.id); } });
+  L.clips.forEach(c => { if (c) { C.stopClip(c); dropClip(c); } });
   state.layers.splice(li, 1); state.sel = null; state.selLayer = Math.min(state.selLayer, state.layers.length - 1); render();
 }
 function applySpeed() { for (const L of state.layers) for (const c of L.clips) if (c && c.kind === 'video' && c.el) C.setRate(c, state.speed); }
@@ -355,13 +379,13 @@ const comps = {
   newComp() { resetComposition(); toast('Composição nova'); browser.render(); },
 };
 function resetComposition() {
-  for (const L of state.layers) for (const c of L.clips) if (c) { C.stopClip(c); engine.drop(c.id); }
+  for (const L of state.layers) for (const c of L.clips) if (c) { C.stopClip(c); dropClip(c); }
   state.layers = [mkLayer(3), mkLayer(2), mkLayer(1)]; state.name = ''; state.sel = null; state.selLayer = 0; state.master = state.opacity = state.speed = 1; engine.master = 1;
   engine.compFx = []; engine.compTransform = IDENT_TR(); state.compAutopilot = AUTOPILOT(); render(); renderScreens();
 }
 async function loadComposition(json, name) {
   const d = await deserializeComposition(json, { mkLayer, toast, laserClip: (f) => C.laserClip(f, laser.thumbSvg(f)) });
-  for (const L of state.layers) for (const c of L.clips) if (c) { C.stopClip(c); engine.drop(c.id); }
+  for (const L of state.layers) for (const c of L.clips) if (c) { C.stopClip(c); dropClip(c); }
   state.layers = d.layers.length ? d.layers : [mkLayer(1)]; state.name = name || d.name || ''; state.sel = null; state.selLayer = 0;
   state.master = d.master; state.opacity = 1; state.speed = d.speed; engine.master = state.master; engine.compFx = d.compFx; state.compAutopilot = d.compAutopilot;
   for (const L of state.layers) if (L.on >= 0 && L.clips[L.on]) C.startClip(L.clips[L.on], state.speed); else L.on = -1;
@@ -374,11 +398,12 @@ async function loadComposition(json, name) {
 // ---------- painéis e navegador ----------
 const panels = new Panels({
   state, engine, laser, toast, renderGrid: render, selectedClip, drag: () => drag, trigger, removeLayer, applySpeed,
+  prepare: (fmt) => { const s = selectedCell(); if (s) prepareClip(state.layers.indexOf(s.L), s.idx, fmt); }, preparing: (c) => preparingNow.has(c.path) ? preparingNow.get(c.path) : null,
   openLaser: (f) => { laser.sel = f; laser.show(); },
 });
 const recorder = new Recorder({ compCanvas: monCanvas, screens: () => state.screens, screenCanvas, desktop: D, toast, onChange: () => { if (browser.tab === 'rec') browser.render(); }, dir: window.__recDir || '' });
 const browser = new Browser({
-  desktop: D, toast, setDrag: (d) => { drag = d; }, preview: previewFile, recorder, comps,
+  desktop: D, toast, setDrag: (d) => { drag = d; }, preview: previewFile, recorder, comps, prepareFile, preparingFile: (p) => preparingNow.has(p) ? preparingNow.get(p) : null,
   putInSelection: (d) => { const s = state.sel || { l: state.selLayer, c: 0 }; const col = state.sel ? s.c : state.layers[s.l].clips.findIndex(c => !c); dropInto(s.l, col < 0 ? 0 : col, d, null, false); },
   addEffectToSelection: (id) => { const c = selectedClip(); if (!c) { toast('Selecione um clipe primeiro'); return; } c.fx.push(mkFx(id)); render(); },
 });
@@ -418,7 +443,7 @@ loop();
 render();
 
 // usado pelo teste automático (tools/selftest-main.js); não é interface de usuário
-window.projecionista = { state, engine, putFiles, putSource, putText, putPath, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
+window.projecionista = { state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
   probe: (pts) => engine.probe(state.layers, pts),
   probeScreen: (sc, pts) => engine.probeScreen(sc, state.layers, state.screens, pts),
   serialize: () => serializeComposition(state, laser, COLS), load: loadComposition, reset: resetComposition,

@@ -21,6 +21,11 @@ contextBridge.exposeInMainWorld('projDesktop', {
     save: (name, json) => ipcRenderer.invoke('comps:save', name, json),
     remove: (name) => ipcRenderer.invoke('comps:remove', name),
   },
+  media: {
+    prepare: (src, fmt) => ipcRenderer.invoke('media:prepare', src, fmt),
+    onProgress: (fn) => ipcRenderer.on('media:progress', (_e, p) => fn(p)),
+    read: (p) => ipcRenderer.invoke('media:read', p),
+  },
   rec: {
     save: (name, bytes, dir) => ipcRenderer.invoke('rec:save', name, bytes, dir),
     list: (dir) => ipcRenderer.invoke('rec:list', dir),

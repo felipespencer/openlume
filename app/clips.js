@@ -2,6 +2,7 @@
 // arquivo solto), fonte gerada (shader), texto, câmera e quadro do laser.
 import { IDENT_TR } from './engine.js';
 import { sourceById } from './sources.js';
+import { FramePlayer, GifPlayer, isPrepared, isAnimName } from './player.js';
 
 let seq = 1;
 export const nextId = () => seq++;
@@ -55,15 +56,35 @@ export function clipFromFile(file, pathOf) {
   const path = pathOf ? (pathOf(file) || '') : '';
   const clip = base(isVid ? 'video' : 'image', file.name);
   clip.path = path; clip.url = path ? mediaUrl(path) : URL.createObjectURL(file);
+  if (isAnimName(file.name)) return withGif(clip);
   return probeMedia(clip);
 }
-export function clipFromPath(path, name) {
+export function clipFromPath(path, name, desktop) {
   name = name || path.split(/[\\/]/).pop();
   if (!isVideoName(name) && !isImageName(name)) return Promise.reject(new Error('Não é vídeo nem imagem: ' + name));
   const clip = base(isVideoName(name) ? 'video' : 'image', name);
   clip.path = path; clip.url = mediaUrl(path);
+  if (clip.kind === 'video' && isPrepared(name) && typeof VideoDecoder !== 'undefined') return withPlayer(clip, desktop);
+  if (isAnimName(name)) return withGif(clip);
   return probeMedia(clip);
 }
+// GIF (WebP, AVIF) animado: toca como vídeo pelo ImageDecoder; com um quadro só fica imagem
+async function withGif(clip) {
+  let pl;
+  try { pl = await new GifPlayer(clip.url).load(); } catch { return probeMedia(clip); }
+  if (pl.frames <= 1) { pl.close(); return probeMedia(clip); }
+  clip.kind = 'video'; clip.player = pl; clip.w = pl.w; clip.h = pl.h; clip.dur = pl.duration; clip.tr.out = clip.dur; clip.thumb = pl.thumb(); clip.anim = true; clip.el = null;
+  return clip;
+}
+async function withPlayer(clip, desktop) {
+  const pl = new FramePlayer(clip.path, desktop, clip.url);
+  await pl.load();
+  clip.player = pl; clip.w = pl.w; clip.h = pl.h; clip.dur = pl.duration; clip.tr.out = clip.dur; clip.thumb = pl.thumb(); clip.prepared = true;
+  const a = document.createElement('video'); a.muted = true; a.playsInline = true; a.preload = 'auto'; a.src = clip.url; a.style.display = 'none'; pl.audio = a; clip.el = a;
+  return clip;
+}
+// o que toca de verdade: o reprodutor próprio, se houver, senão o <video>
+export const mediaOf = (c) => c.player || c.el;
 export function sourceClip(id) {
   const def = sourceById(id); if (!def) return null;
   const c = base('source', def.name); c.source = id; c.params = {}; for (const p of def.params) c.params[p.key] = p.def;
@@ -111,7 +132,8 @@ export function laserClip(frame, thumbSvg) {
 // cópia para outra casa: mesma mídia, elemento de vídeo próprio (cada casa toca por conta)
 export function cloneClip(c) {
   const n = { ...c, id: seq++, fx: (c.fx || []).map(f => ({ ...f, params: { ...f.params } })), transform: { ...c.transform } };
-  if (c.kind === 'video') { const v = document.createElement('video'); v.muted = true; v.loop = false; v.playsInline = true; v.preload = 'auto'; v.src = c.url; v.playbackRate = c.speed; n.el = v; }
+  if (c.kind === 'video' && c.anim) n.player = c.player.clone();
+  else if (c.kind === 'video') { const v = document.createElement('video'); v.muted = true; v.loop = false; v.playsInline = true; v.preload = 'auto'; v.src = c.url; v.playbackRate = c.speed; n.el = v; if (c.player) { n.player = new FramePlayer(c.path, null, c.url); n.player.config = c.player.config; n.player.samples = c.player.samples; n.player.allIntra = c.player.allIntra; Object.assign(n.player, { w: c.player.w, h: c.player.h, duration: c.player.duration, fps: c.player.fps, codec: c.player.codec }); n.player.newDecoder(); n.player.ready = true; n.player.audio = v; n.player.want(); } }
   n.tr = { ...c.tr }; n.audio = { ...c.audio };
   if (c.kind === 'source') { n.params = { ...c.params }; n.seed = Math.random() * 100; }
   if (c.kind === 'text') { n.text = { ...c.text }; n.el = document.createElement('canvas'); n.el.width = 1920; n.el.height = 1080; renderText(n); }
@@ -120,24 +142,24 @@ export function cloneClip(c) {
   n.ap = { ...c.ap };
   return n;
 }
-export function stopClip(c) { if (c && c.kind === 'video' && c.el) c.el.pause(); }
+export function stopClip(c) { if (c && c.kind === 'video') { if (c.player) c.player.pause(); if (c.el) c.el.pause(); } }
 export function startClip(c, speedMul = 1) {
-  if (c && c.kind === 'video' && c.el) {
-    const t = c.tr; t.playing = true;
-    try { c.el.currentTime = t.dir < 0 ? (t.out || c.dur) : t.in; } catch { }
+  if (c && c.kind === 'video' && mediaOf(c)) {
+    const t = c.tr, v = mediaOf(c); t.playing = true;
+    try { v.currentTime = t.dir < 0 ? (t.out || c.dur) : t.in; } catch { }
     applyAudio(c); setRate(c, speedMul);
-    if (t.dir > 0) c.el.play().catch(() => { }); else c.el.pause();   // para trás: o laço anda o tempo na mão
+    if (t.dir > 0) v.play().catch(() => { }); else v.pause();   // para trás: o laço anda o tempo na mão
   }
   if (c) c.startedAt = performance.now() / 1000;
 }
-export function setRate(c, speedMul = 1) { if (c.el && c.kind === 'video') { try { c.el.playbackRate = Math.max(0.0625, Math.min(16, c.speed * speedMul)); } catch { } } }
+export function setRate(c, speedMul = 1) { const v = mediaOf(c); if (v && c.kind === 'video') { try { v.playbackRate = Math.max(0.0625, Math.min(16, c.speed * speedMul)); } catch { } if (c.player && c.el) { try { c.el.playbackRate = Math.max(0.0625, Math.min(16, c.speed * speedMul)); } catch { } } } }
 // tocar/pausar/direção pelo painel
 export function playClip(c, dir, speedMul = 1) {
-  const t = c.tr; t.dir = dir; t.playing = true;
-  if (dir > 0) { setRate(c, speedMul); c.el.play().catch(() => { }); } else c.el.pause();
+  const t = c.tr, v = mediaOf(c); t.dir = dir; t.playing = true;
+  if (dir > 0) { setRate(c, speedMul); v.play().catch(() => { }); } else v.pause();
 }
-export function pauseClip(c) { c.tr.playing = false; c.el.pause(); }
-export function seekClip(c, s) { try { c.el.currentTime = Math.max(0, Math.min(c.dur || 0, s)); } catch { } }
+export function pauseClip(c) { c.tr.playing = false; mediaOf(c).pause(); }
+export function seekClip(c, s) { try { mediaOf(c).currentTime = Math.max(0, Math.min(c.dur || 0, s)); } catch { } }
 // áudio: volume, pan e mudo (pan por WebAudio, ligado só quando sai do centro)
 let actx = null;
 export function applyAudio(c) {
@@ -154,7 +176,8 @@ export function applyAudio(c) {
 }
 // laço: aplica entrada/saída, modo e direção a um clipe de vídeo no ar
 export function tickTransport(c, dt, speedMul = 1) {
-  const el = c.el, t = c.tr; if (!el || c.kind !== 'video' || !c.dur) return false;
+  const el = mediaOf(c), t = c.tr; if (!el || c.kind !== 'video' || !c.dur) return false;
+  if (c.player) c.player.advance(dt, t.playing && t.dir < 0);
   const inP = Math.max(0, Math.min(t.in, c.dur)), outP = Math.max(inP + 0.05, Math.min(t.out || c.dur, c.dur));
   if (!t.playing) return false;
   let pos = el.currentTime, ended = false;
