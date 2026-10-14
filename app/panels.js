@@ -1,7 +1,8 @@
 // Painéis de propriedades do rodapé, no formato do Resolume: Composição | Camada (esquerda),
 // Clipe (meio). Autopilot, master, mistura, transição, transformação e a cadeia de efeitos.
 import { el, ICON, propsKit, fmtN } from './panel.js';
-import { BLENDS, FITS } from './engine.js';
+import { FITS } from './engine.js';
+import { MIXER_OPTS, MIXER_OPT, mixerById } from './mixers.js';
 import { EFFECTS, effectById, mkFx } from './effects.js';
 import { sourceById } from './sources.js';
 import { renderText, playClip, pauseClip, seekClip, setRate, applyAudio, mediaOf } from './clips.js';
@@ -76,6 +77,12 @@ export class Panels {
     this.transformRows(P, E.compTransform, ' da composição inteira');
     this.fxRows(P, { fx: E.compFx }, 'da composição');
   }
+  // parâmetros que alguns modos de mistura/transição têm: cor (to Color) e suavidade (Luma Key, Dissolve, Wipe…)
+  mixerOptRows(P, modeId, opt, what) {
+    const m = mixerById(modeId);
+    if (m.color) P.appendChild(this.pcolor('Cor', 'Cor ' + what + '|A cor pela qual o modo "' + m.name + '" passa.', opt.color || '#000000', v => { opt.color = v; }));
+    if (m.smooth) P.appendChild(this.pnum('Suavidade', 'Suavidade ' + what + '|Borda macia do modo "' + m.name + '".', Math.round((opt.smooth ?? 0.1) * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 10 }, v => { opt.smooth = v / 100; }));
+  }
   renderLayer(P, L) {
     if (!L) return; const S = this.ctx.state;
     $('leftTitle').textContent = L.name;
@@ -84,11 +91,14 @@ export class Panels {
     P.appendChild(this.phead('Camada', 'Camada|Controles da camada.'));
     P.appendChild(this.pnum('Master', 'Master|Opacidade da camada; o fader da grade é o mesmo.', Math.round(L.opacity * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v => { L.opacity = v / 100; this.ctx.renderGrid(); }));
     P.appendChild(this.phead('Vídeo', 'Vídeo|Como a camada entra na composição.'));
-    P.appendChild(this.pselect('Mistura', 'Mistura|Normal, Somar, Tela ou Multiplicar.', Object.entries(BLENDS), L.blend, v => { L.blend = v; }));
+    P.appendChild(this.pselect('Mistura', 'Mistura|Como a camada entra sobre o que está embaixo, com os modos do Resolume. Até 50 % do fader a camada mistura; de 50 a 100 % vai ficando normal por cima. Os modos "50" misturam no fader inteiro.', MIXER_OPTS, L.blend === 'normal' ? 'alpha' : L.blend, v => { L.blend = v; }));
+    this.mixerOptRows(P, L.blend, L.blendOpt || (L.blendOpt = MIXER_OPT()), 'da mistura');
     P.appendChild(this.prow('Largura', '', el('span', 'pinfo', String(this.ctx.engine.W))));
     P.appendChild(this.prow('Altura', '', el('span', 'pinfo', String(this.ctx.engine.H))));
-    P.appendChild(this.phead('Transição', 'Transição|Ao disparar outro clipe nesta camada, o anterior esmaece durante este tempo.'));
-    P.appendChild(this.pnum('Duração', 'Duração da transição|0 corta seco.', L.transition || 0, { min: 0, max: 10, step: 0.1, dec: 1, unit: ' s', bar: true, reset: 0 }, v => { L.transition = v; }));
+    P.appendChild(this.phead('Transição', 'Transição|Ao disparar outro clipe nesta camada, o anterior sai e o novo entra pelo modo escolhido, durante a duração. Como no Resolume: a transição é um modo de mistura rodado no tempo.'));
+    P.appendChild(this.pselect('Modo', 'Modo da transição|Escolha da lista ou "Ao acaso", que sorteia um modo a cada disparo.', [['random', 'Ao acaso'], ...MIXER_OPTS], L.transMode || 'alpha', v => { L.transMode = v; }));
+    P.appendChild(this.pnum('Duração', 'Duração da transição|0 corta seco. Até 10 s, como no Resolume.', L.transition || 0, { min: 0, max: 10, step: 0.1, dec: 1, unit: ' s', bar: true, reset: 0 }, v => { L.transition = v; }));
+    if (L.transMode !== 'random') this.mixerOptRows(P, L.transMode, L.transOpt || (L.transOpt = MIXER_OPT()), 'da transição');
     this.transformRows(P, L.transform || (L.transform = { x: 0, y: 0, scale: 1, rot: 0 }), ' da camada');
     this.fxRows(P, L, 'da camada');
     if (S.layers.length > 1) P.appendChild(this.pbutton('Remover esta camada', 'Remover camada|Apaga a camada e os clipes dela.', () => this.ctx.removeLayer(S.selLayer)));
@@ -184,7 +194,7 @@ export class Panels {
     // vídeo e disparo, como no Resolume
     P.appendChild(this.phead('Vídeo', 'Vídeo|Opacidade e mistura só deste clipe.'));
     P.appendChild(this.pnum('Opacidade', 'Opacidade do clipe|Multiplica a da camada.', Math.round((clip.opacity ?? 1) * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v => { clip.opacity = v / 100; }));
-    P.appendChild(this.pselect('Mistura', 'Mistura do clipe|Vazio usa a da camada.', [['', 'Como a camada'], ...Object.entries(BLENDS)], clip.blend || '', v => { clip.blend = v; }));
+    P.appendChild(this.pselect('Mistura', 'Mistura do clipe|Vazio usa a da camada.', [['', 'Como a camada'], ...MIXER_OPTS], clip.blend === 'normal' ? 'alpha' : (clip.blend || ''), v => { clip.blend = v; }));
     if (clip.kind !== 'source' && clip.kind !== 'text') P.appendChild(this.prow('Tamanho', '', el('span', 'pinfo', clip.w + ' × ' + clip.h)));
     P.appendChild(this.phead('Disparo', 'Disparo|Como a casa reage ao clique.'));
     P.appendChild(this.pseg('Estilo', 'Estilo de disparo|Normal: clique dispara. Piano: fica no ar só enquanto o botão está apertado. Alternar: clicar de novo tira do ar.', [['normal', 'Normal'], ['piano', 'Piano'], ['toggle', 'Alternar']], clip.trig || 'normal', v => { clip.trig = v; this.ctx.renderGrid(); }));

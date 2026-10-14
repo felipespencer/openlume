@@ -14,6 +14,7 @@ import { tessellate } from './warp.js';
 import { softWidths, allSlices } from './screens.js';
 import { effectById, EFFECT_HELPERS } from './effects.js';
 import { sourceById } from './sources.js';
+import { FS_MIX, mixerCode, normMixer, hexRgb, MIXER_OPT } from './mixers.js';
 
 // camada/clipe: quad com ajuste, posição, escala e giro
 const VS_LAYER = `#version 300 es
@@ -83,7 +84,6 @@ const FX_HEAD = `#version 300 es
 precision highp float; in vec2 v; out vec4 o; uniform sampler2D uTex; uniform vec2 uRes; uniform float uTime;
 `;
 
-export const BLENDS = { normal: 'Normal', add: 'Somar', screen: 'Tela', multiply: 'Multiplicar' };
 export const FITS = { contain: 'Encaixar', cover: 'Preencher', stretch: 'Esticar' };
 export const IDENT_TR = () => ({ x: 0, y: 0, scale: 1, rot: 0 });
 
@@ -98,6 +98,7 @@ export class Engine {
     this.progSlice = this.program(VS_SLICE, FS_SLICE, ['uScreen', 'uIn', 'uRot', 'uFlip', 'uSrc', 'uTex', 'uBC', 'uRGB', 'uUseSoft', 'uSoft', 'uSoftP', 'uGamma', 'uUseMask', 'uMask']);
     this.progScreen = this.program(VS_QUAD, FS_SCREEN, ['uTex', 'uMask', 'uUseMask', 'uBC', 'uRGB', 'uOp']);
     this.progCopy = this.program(VS_QUAD, FS_COPY, ['uTex', 'uOpaque']);
+    this.progMix = this.program(VS_QUAD, FS_MIX, ['uA', 'uB', 'uK', 'uTrans', 'uMode', 'uColor', 'uSmooth', 'uTime', 'uRes', 'uSeed']);
     this.quad = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
@@ -118,6 +119,7 @@ export class Engine {
     this.srcProg = new Map();      // source id → programa
     this.srcFbo = new Map();       // clip.id → fbo da fonte gerada
     this.scratch = [this.fbo(width, height), this.fbo(width, height), this.fbo(width, height)];   // efeitos: entrada e pingue-pongue
+    this.mixFbo = [this.fbo(width, height), this.fbo(width, height), this.fbo(width, height), this.fbo(width, height)];   // mistura: clipe antigo, clipe novo, camada pronta, cópia do alvo
     this.compFx = []; this.bg = [0, 0, 0];
   }
   // Configurações da composição: tamanho novo refaz as texturas que dependem dele
@@ -126,6 +128,7 @@ export class Engine {
     this.W = w; this.H = h; this.canvas.width = w; this.canvas.height = h;
     del(this.comp); this.comp = this.fbo(w, h);
     this.scratch.forEach(del); this.scratch = [this.fbo(w, h), this.fbo(w, h), this.fbo(w, h)];
+    this.mixFbo.forEach(del); this.mixFbo = [this.fbo(w, h), this.fbo(w, h), this.fbo(w, h), this.fbo(w, h)];
     for (const f of this.srcFbo.values()) del(f); this.srcFbo.clear();
     for (const f of this.layerFbo.values()) del(f); this.layerFbo.clear();
     for (const f of this.screenFbo.values()) del(f); this.screenFbo.clear();
@@ -271,42 +274,83 @@ export class Engine {
     gl.uniform2f(P.u.uScale, sx * t.scale, sy * t.scale);
     gl.uniform2f(P.u.uPos, t.x, t.y); gl.uniform1f(P.u.uRot, -t.rot * Math.PI / 180); gl.uniform1f(P.u.uAspect, W / H);
     gl.uniform1f(P.u.uOp, opacity);
-    if (blend === 'add') gl.blendFunc(gl.ONE, gl.ONE);
-    else if (blend === 'screen') gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
-    else if (blend === 'multiply') gl.blendFunc(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA);
-    else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
   clipReady(clip) { return clip && clip.w > 0 && clip.h > 0 && (clip.kind === 'source' || clip.el || clip.player); }
-  // uma camada = o clipe no ar (e, na transição, o anterior esmaecendo) com os efeitos do clipe e da camada
-  drawLayer(L, W, H, targetFb) {
+  // o clipe pronto para a camada, numa textura do tamanho da composição: ajuste e transformação
+  // do clipe, efeitos do clipe e da camada, transformação da camada, opacidade do clipe
+  clipTexInto(fbo, c, L, W, H) {
+    const gl = this.gl, chain = [...(c.fx || []), ...(L.fx || [])], s = this.scratch[0];
+    const tex = this.texFor(c);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, s.fb); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    this.drawClipQuad(tex, c, c.transform, c.opacity ?? 1, W, H, 'normal');
+    const out = this.applyChain(s.t, W, H, chain);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo.fb); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    this.drawClipQuad(out, null, L.transform || IDENT_TR(), 1, W, H, 'normal');
+    return fbo.t;
+  }
+  // mistura A (embaixo / clipe antigo) com B (camada / clipe novo) no modo pedido, com o fader k, dentro de dst
+  mixInto(dst, texA, texB, k, mode, trans, opt, W, H, seed = 0) {
+    const gl = this.gl, P = this.progMix, o = opt || MIXER_OPT();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fb); gl.viewport(0, 0, W, H); gl.disable(gl.BLEND);
+    gl.useProgram(P.p); gl.bindVertexArray(this.quadVao);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texA); gl.uniform1i(P.u.uA, 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texB); gl.uniform1i(P.u.uB, 1);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform1f(P.u.uK, k); gl.uniform1i(P.u.uTrans, trans ? 1 : 0); gl.uniform1i(P.u.uMode, mixerCode(mode));
+    const [r, g, b] = hexRgb(o.color); gl.uniform3f(P.u.uColor, r, g, b); gl.uniform1f(P.u.uSmooth, o.smooth ?? 0.1);
+    gl.uniform1f(P.u.uTime, this.time); gl.uniform2f(P.u.uRes, W, H); gl.uniform1f(P.u.uSeed, seed);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.enable(gl.BLEND);
+    return dst.t;
+  }
+  // uma camada = o clipe no ar (e, na transição, o anterior saindo pelo modo escolhido) com os
+  // efeitos do clipe e da camada, misturada no alvo pelo modo de mistura da camada. target é um fbo {fb, t}.
+  drawLayer(L, W, H, target) {
     const gl = this.gl;
     if (L.bypass || L.opacity <= 0) return;
     const clip = L.on >= 0 ? L.clips[L.on] : null;
-    const items = [];
+    let k = 1;
     if (L.prev && L.prev.clip && this.clipReady(L.prev.clip)) {
-      const k = Math.min(1, (this.time - L.prev.t0) / Math.max(0.01, L.prev.dur));
-      if (k < 1) items.push({ clip: L.prev.clip, op: 1 - k }); else L.prev = null;
-    }
-    if (this.clipReady(clip)) items.push({ clip, op: L.prev ? Math.min(1, (this.time - L.prev.t0) / Math.max(0.01, L.prev.dur)) : 1 });
-    for (const it of items) {
-      const c = it.clip, chain = [...(c.fx || []), ...(L.fx || [])];
-      let tex = this.texFor(c), tr = L.transform || IDENT_TR();
-      // a fonte gerada desenha na textura dela e solta o framebuffer: volta ao alvo da camada
-      gl.bindFramebuffer(gl.FRAMEBUFFER, targetFb); gl.viewport(0, 0, W, H);
-      if (chain.length || (c.transform && (c.transform.x || c.transform.y || c.transform.scale !== 1 || c.transform.rot))) {
-        // clipe → textura própria (com o ajuste e a transformação do clipe) → efeitos → camada
-        const s = this.scratch[0];
-        gl.bindFramebuffer(gl.FRAMEBUFFER, s.fb); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-        this.drawClipQuad(tex, c, c.transform, 1, W, H, 'normal');
-        tex = this.applyChain(s.t, W, H, chain);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, targetFb); gl.viewport(0, 0, W, H);
-        this.drawClipQuad(tex, null, tr, L.opacity * it.op * (c.opacity ?? 1), W, H, c.blend || L.blend);
-      } else {
-        const t2 = { ...tr }; // ajuste do clipe e transformação da camada no mesmo quad
-        this.drawClipQuad(tex, c, t2, L.opacity * it.op * (c.opacity ?? 1), W, H, c.blend || L.blend);
+      k = Math.min(1, (this.time - L.prev.t0) / Math.max(0.01, L.prev.dur));
+      if (k >= 1) L.prev = null;
+    } else L.prev = null;
+    const transitioning = !!L.prev;
+    const blend = normMixer((clip && clip.blend) || L.blend);
+    if (!transitioning) {
+      if (!this.clipReady(clip)) return;
+      if (blend === 'alpha') {   // caminho direto: o clipe desenhado por cima do alvo
+        const c = clip, chain = [...(c.fx || []), ...(L.fx || [])];
+        let tex = this.texFor(c), tr = L.transform || IDENT_TR();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, target.fb); gl.viewport(0, 0, W, H);
+        if (chain.length || (c.transform && (c.transform.x || c.transform.y || c.transform.scale !== 1 || c.transform.rot))) {
+          const s = this.scratch[0];
+          gl.bindFramebuffer(gl.FRAMEBUFFER, s.fb); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+          this.drawClipQuad(tex, c, c.transform, 1, W, H, 'normal');
+          tex = this.applyChain(s.t, W, H, chain);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, target.fb); gl.viewport(0, 0, W, H);
+          this.drawClipQuad(tex, null, tr, L.opacity * (c.opacity ?? 1), W, H, 'normal');
+        } else this.drawClipQuad(tex, c, { ...tr }, L.opacity * (c.opacity ?? 1), W, H, 'normal');
+        return;
       }
     }
+    // a textura da camada: o clipe pronto ou, na transição, antigo e novo misturados no modo da transição
+    const F = this.mixFbo;
+    let layerTex;
+    if (transitioning) {
+      const a = this.clipTexInto(F[0], L.prev.clip, L, W, H);
+      let b;
+      if (this.clipReady(clip)) b = this.clipTexInto(F[1], clip, L, W, H);
+      else { gl.bindFramebuffer(gl.FRAMEBUFFER, F[1].fb); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); b = F[1].t; }
+      layerTex = this.mixInto(F[2], a, b, k, L.prev.mode || 'alpha', 1, L.prev.opt, W, H, L.prev.seed || 0);
+    } else layerTex = this.clipTexInto(F[2], clip, L, W, H);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target.fb); gl.viewport(0, 0, W, H);
+    if (blend === 'alpha') { this.drawClipQuad(layerTex, null, null, L.opacity, W, H, 'normal'); return; }
+    // modo de mistura: copia o alvo e mistura a camada por cima, com o fader da camada
+    gl.bindFramebuffer(gl.FRAMEBUFFER, F[3].fb); this.copyInto(target.t, W, H, false);
+    this.mixInto(target, F[3].t, layerTex, L.opacity, blend, 0, L.blendOpt, W, H, L.id);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
   // layers: de cima para baixo (como na grade). Desenha de baixo para cima na composição.
@@ -316,14 +360,14 @@ export class Engine {
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.comp.fb);
     gl.viewport(0, 0, W, H);
     gl.clearColor(this.bg[0], this.bg[1], this.bg[2], 1); gl.clear(gl.COLOR_BUFFER_BIT);
-    for (let i = layers.length - 1; i >= 0; i--) this.drawLayer(layers[i], W, H, this.comp.fb);
+    for (let i = layers.length - 1; i >= 0; i--) this.drawLayer(layers[i], W, H, this.comp);
     for (const L of layers) {
       if (!layerIds.has(L.id)) continue;
       let f = this.layerFbo.get(L.id);
       if (!f) { f = this.fbo(W, H); this.layerFbo.set(L.id, f); }
       gl.bindFramebuffer(gl.FRAMEBUFFER, f.fb); gl.viewport(0, 0, W, H);
       gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-      this.drawLayer(L, W, H, f.fb);
+      this.drawLayer(L, W, H, f);
     }
     // efeitos da composição e o master
     const out = this.applyChain(this.comp.t, W, H, this.compFx);
@@ -345,7 +389,7 @@ export class Engine {
     if (!this.prevFbo) this.prevFbo = this.fbo(W, H);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.prevFbo.fb); gl.viewport(0, 0, W, H);
     gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
-    this.drawLayer({ ...L, on: clipIdx, prev: null, bypass: false, opacity: 1 }, W, H, this.prevFbo.fb);
+    this.drawLayer({ ...L, on: clipIdx, prev: null, bypass: false, opacity: 1 }, W, H, this.prevFbo);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     this.copyTo(this.prevFbo.t, W, H);
   }

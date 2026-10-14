@@ -60,6 +60,15 @@ transformação e transição, mudando junto com a saída.
 - **Composição | Camada** (esquerda): Autopilot (direção ◀◀ OFF ▶▶ ⤮, duração pelo clipe ou
   tempo fixo, loop), master, velocidade, opacidade, mistura, transição entre clipes da camada,
   Transform (posição, escala, giro) e a cadeia de efeitos.
+- **Mistura e transição do jeito do Resolume**: a mesma lista de 60 modos (Alpha, Add, 50 Add, Multiply,
+  Screen, Luma Key, Cut, Dissolve, to Black, Push Left/Right/Up/Down, Zoom In/Out, Rotate X/Y, Cube,
+  Side by Side, Wipe Ellipse, Time Switcher…) serve para a camada entrar sobre o que está embaixo
+  e para a **transição entre clipes** da mesma camada (painel Camada → Transição: modo, duração
+  de 0 a 10 s, "Ao acaso" sorteia um modo a cada disparo). Como no Resolume, o fader de opacidade
+  tem duas metades: até 50 % a camada mistura (Add, Multiply…); de 50 a 100 % vai virando normal por
+  cima. Os modos "50" misturam no fader inteiro. Na transição o fader corre sozinho na duração e o
+  fim é só o clipe novo. "to Color" tem cor; Luma Key, Dissolve, Wipe Ellipse e Alpha Limiter têm
+  suavidade. O clipe pode ter a sua própria mistura (painel Clipe), que vale no lugar da da camada.
 - **Clipe** (meio): nome; **Transporte** do vídeo como no Resolume — linha do tempo arrastável
   com entrada e saída (cut in / cut out), tocar para frente e para trás, pausa, ir para a
   entrada/saída, passo de quadro, modo (loop, vai e volta, uma vez, aleatório), velocidade até

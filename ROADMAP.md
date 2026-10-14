@@ -79,7 +79,12 @@ casa específica (camada + coluna) ou parar; no fim do clipe ou depois de N segu
      entra junto, e os efeitos a copiar são os mais recentes do Resolume
    - A Saída avançada tem de ficar **mais parecida com a do Resolume** (2026-10-14). Referência:
      capturas reais do Advanced Output 7.26 feitas nesta máquina
-2. **Transição** entre clipes da mesma camada (duração e modo)
+2. **Transição** entre clipes da mesma camada (duração e modo) — **feito em 2026-10-14**, do
+   jeito que o REA mostrou no Resolume: transição e modo de mistura são a mesma lista (60 modos em
+   `app/mixers.js`), o fader tem duas metades, "50" mistura no fader inteiro, "Ao acaso" sorteia.
+   Os modos geométricos (Push, Zoom, Rotate, Cube, Side by Side, Wipe, Time Switcher, Twitch…) foram
+   feitos pelo que se vê no programa. Os quatro modos antigos (Normal/Somar/Tela/Multiplicar) viraram
+   Alpha/Add/Screen/Multiply com o comportamento do Resolume (Add a 100 % é normal por cima)
 3. **Transporte do clipe**: trecho de entrada e saída, vai e volta, tocar uma vez, ré
 4. **Efeitos** no clipe, na camada e na composição (os 24 do Projecionista antigo primeiro)
 5. **Salvar e abrir a composição**, com os arquivos de mídia por caminho

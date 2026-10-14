@@ -7,6 +7,7 @@
 //   - arquivo solto numa casa vira clipe guardado, sem ir para o ar;
 //   - abrir o programa começa sempre do zero.
 import { Engine, IDENT_TR } from './engine.js';
+import { MIXER_OPT, randomMixer } from './mixers.js';
 import * as M from './screens.js';
 import * as C from './clips.js';
 import { AdvancedOutput } from './ao.js';
@@ -26,7 +27,7 @@ const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) 
 const D = window.projDesktop || null;
 
 let seq = 1;
-const mkLayer = (n) => ({ id: seq++, name: typeof n === 'string' ? n : 'Camada ' + n, opacity: 1, blend: 'normal', bypass: false, on: -1, clips: Array(COLS).fill(null), autopilot: AUTOPILOT(), fx: [], transform: IDENT_TR(), transition: 0, prev: null });
+const mkLayer = (n) => ({ id: seq++, name: typeof n === 'string' ? n : 'Camada ' + n, opacity: 1, blend: 'normal', bypass: false, on: -1, clips: Array(COLS).fill(null), autopilot: AUTOPILOT(), fx: [], transform: IDENT_TR(), transition: 0, transMode: 'alpha', transOpt: MIXER_OPT(), blendOpt: MIXER_OPT(), prev: null });
 const state = { name: '', layers: [mkLayer(3), mkLayer(2), mkLayer(1)], selLayer: 0, sel: null, master: 1, opacity: 1, speed: 1, compAutopilot: AUTOPILOT(), settings: SETTINGS(), colNames: {} };   // layers[0] = a de cima
 let drag = null;
 
@@ -103,26 +104,32 @@ function syncLaser() {
   if (frame) { if (laser.active !== frame) laser.setActive(frame); laser.activeFromGrid = true; }
   else if (laser.activeFromGrid) { laser.activeFromGrid = false; laser.setActive(null); }
 }
+// troca de clipe na camada: com duração, o antigo sai pelo modo de transição da camada (ou um ao acaso)
+function swapClip(L, col) {
+  const old = L.on >= 0 ? L.clips[L.on] : null, clip = L.clips[col];
+  if (L.prev && L.prev.clip !== clip) C.stopClip(L.prev.clip);
+  if (old && L.transition > 0 && old.kind !== 'laser' && clip.kind !== 'laser') {
+    const mode = L.transMode === 'random' ? randomMixer() : (L.transMode || 'alpha');
+    L.prev = { clip: old, t0: engine.time, dur: L.transition, mode, opt: { ...(L.transOpt || MIXER_OPT()) }, seed: Math.random() * 100 };
+  } else { C.stopClip(old); L.prev = null; }
+  L.on = col; C.startClip(clip, state.speed);
+}
 function trigger(li, col) {
   const L = state.layers[li], clip = L.clips[col];
   state.selLayer = li; state.sel = { l: li, c: col };
   if (!clip) return eject(li);                 // casa vazia: a camada fica preta
-  if (L.on !== col) {
-    const old = L.on >= 0 ? L.clips[L.on] : null;
-    if (old && L.transition > 0 && old.kind !== 'laser') L.prev = { clip: old, t0: engine.time, dur: L.transition }; else C.stopClip(old);
-    L.on = col; C.startClip(clip, state.speed);
-  }
+  if (L.on !== col) swapClip(L, col);
   else if (clip.kind === 'video' && clip.el.paused) clip.el.play().catch(() => { });
   L.bypass = false;                            // disparar põe a camada no ar
   recorder.onTrigger();
   render();
 }
-function eject(li) { const L = state.layers[li]; C.stopClip(L.clips[L.on]); L.on = -1; L.prev = null; render(); }
+function eject(li) { const L = state.layers[li]; C.stopClip(L.clips[L.on]); if (L.prev) C.stopClip(L.prev.clip); L.on = -1; L.prev = null; render(); }
 function triggerColumn(col) {
   state.layers.forEach((L, li) => {
     if (L.ignoreColumn || (L.clips[col] && L.clips[col].ignoreColumn)) return;   // a camada ou a casa ignora o disparo de coluna
-    if (L.clips[col]) { if (L.on !== col) { const old = L.on >= 0 ? L.clips[L.on] : null; if (old && L.transition > 0) L.prev = { clip: old, t0: engine.time, dur: L.transition }; else C.stopClip(old); L.on = col; C.startClip(L.clips[col], state.speed); } L.bypass = false; }
-    else { C.stopClip(L.clips[L.on]); L.on = -1; L.prev = null; }
+    if (L.clips[col]) { if (L.on !== col) swapClip(L, col); L.bypass = false; }
+    else { C.stopClip(L.clips[L.on]); if (L.prev) C.stopClip(L.prev.clip); L.on = -1; L.prev = null; }
   });
   recorder.onTrigger();
   render();
@@ -158,7 +165,7 @@ function moveClip(fl, fc, tl, tc, copy) {
 function insertLayer(at, name) { state.layers.splice(at, 0, mkLayer(name || state.layers.length + 1)); if (state.sel && state.sel.l >= at) state.sel.l++; state.selLayer = at; render(); }
 function duplicateLayer(li) {
   const L = state.layers[li], n = mkLayer(L.name + ' cópia');
-  n.opacity = L.opacity; n.blend = L.blend; n.autopilot = { ...L.autopilot }; n.fx = L.fx.map(f => ({ ...f, params: { ...f.params } })); n.transform = { ...L.transform }; n.transition = L.transition; n.ignoreColumn = L.ignoreColumn;
+  n.opacity = L.opacity; n.blend = L.blend; n.autopilot = { ...L.autopilot }; n.fx = L.fx.map(f => ({ ...f, params: { ...f.params } })); n.transform = { ...L.transform }; n.transition = L.transition; n.transMode = L.transMode; n.transOpt = { ...(L.transOpt || MIXER_OPT()) }; n.blendOpt = { ...(L.blendOpt || MIXER_OPT()) }; n.ignoreColumn = L.ignoreColumn;
   n.clips = L.clips.map(c => c ? C.cloneClip(c) : null);
   state.layers.splice(li, 0, n); if (state.sel && state.sel.l >= li) state.sel.l++; state.selLayer = li; render();
 }
@@ -626,7 +633,7 @@ installShortcuts(SHORTCUTS);
 // ---------- laço de desenho ----------
 function loop() {
   const now = performance.now() / 1000, dt = Math.min(0.1, now - (loop.last || now)); loop.last = now;
-  for (const L of state.layers) if (L.prev && now - L.prev.t0 >= L.prev.dur) { C.stopClip(L.prev.clip); L.prev = null; }
+  for (const L of state.layers) if (L.prev && now - L.prev.t0 >= L.prev.dur) { if (L.clips[L.on] !== L.prev.clip) C.stopClip(L.prev.clip); L.prev = null; }
   // transporte dos vídeos no ar: entrada/saída, modo e direção
   for (const L of state.layers) { const c = L.on >= 0 ? L.clips[L.on] : null; if (c && c.kind === 'video') { if (C.tickTransport(c, dt, state.speed)) c.endedAt = now; } }
   panels.tick();
