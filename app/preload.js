@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('projLaser', {
   disconnect: () => ipcRenderer.invoke('laser:disconnect'),
   output: (on) => ipcRenderer.invoke('laser:output', on),
   rate: (r) => ipcRenderer.invoke('laser:rate', r),
+  fill: (f) => ipcRenderer.invoke('laser:fill', f),
   status: () => ipcRenderer.invoke('laser:status'),
   frame: (u16) => ipcRenderer.send('laser:frame', u16),
   onStatus: (fn) => { ipcRenderer.on('laser:status', (_e, s) => fn(s)); ipcRenderer.invoke('laser:status').then(fn); },

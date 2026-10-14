@@ -45,7 +45,7 @@ class LaserCube extends EventEmitter {
     this.frame = null;          // Uint16Array x,y,r,g,b por ponto (0..4095), repetido em laço
     this.frameAt = 0; this.pos = 0; this.msg = 0; this.frameNo = 0;
     this.bufFree = 0; this.bufSize = 0; this.lastReply = 0;
-    this.timer = null; this.poll = null; this.lastInfoAt = 0; this.batch = 0;
+    this.timer = null; this.poll = null; this.lastInfoAt = 0; this.batch = 0; this.fill = 0.5; this.resetStats();
   }
 
   // ---------- descoberta ----------
@@ -73,7 +73,7 @@ class LaserCube extends EventEmitter {
   // ---------- ligação ----------
   async connect(ip) {
     this.disconnect();
-    this.ip = ip;
+    this.ip = ip; this.resetStats();
     this.cmd = dgram.createSocket('udp4'); this.data = dgram.createSocket('udp4');
     this.cmd.on('message', (b) => this.onCmd(b)); this.data.on('message', (b) => this.onReply(b));
     this.cmd.on('error', (e) => this.emit('error', e.message)); this.data.on('error', (e) => this.emit('error', e.message));
@@ -96,6 +96,8 @@ class LaserCube extends EventEmitter {
     this.emit('status', this.status());
     return info;
   }
+  // estatísticas para achar a causa de piscadas: pausas entre quadros, buffer vazio, erros de pacote
+  resetStats() { this.stats = { frames: 0, maxGapMs: 0, blankPumps: 0, pumps: 0, minFree: 99999, maxFree: 0, underruns: 0, pktsSent: 0, maxPumpGapMs: 0, errMax: 0, since: Date.now() }; this.lastPumpAt = 0; }
   waitInfo(ms) {
     return new Promise((resolve) => {
       const t = setTimeout(() => { this.off('info', h); resolve(null); }, ms);
@@ -111,30 +113,40 @@ class LaserCube extends EventEmitter {
     this.emit('status', this.status());
   }
   send(cmd, payload = [], twice = false) { if (this.cmd && this.ip) { const b = Buffer.from([cmd, ...payload]); this.cmd.send(b, PORT_CMD, this.ip); if (twice) this.cmd.send(b, PORT_CMD, this.ip); } }
-  setOutput(on) { this.outputOn = !!on; this.send(CMD.OUTPUT, [on ? 1 : 0], !on); if (!on) this.send(CMD.CLEAR, [0], true);   // desligar vai em duplicata
+  setOutput(on) { this.outputOn = !!on; this.drainAt = 0; this.pumpAt = null; this.send(CMD.OUTPUT, [on ? 1 : 0], !on); if (!on) this.send(CMD.CLEAR, [0], true);   // desligar vai em duplicata
     this.emit('status', this.status()); }
+  // colchão: quanto do buffer do aparelho o driver tenta manter cheio (0,2 a 0,9). Mais cheio aguenta mais falha do Wi-Fi, mas atrasa a imagem.
+  setFill(f) { this.fill = Math.max(0.2, Math.min(0.9, +f || 0.5)); }
   setRate(r) { this.rate = Math.max(1000, Math.min(this.info && this.info.maxRate || 60000, r | 0)); const b = Buffer.alloc(4); b.writeUInt32LE(this.rate); this.send(CMD.RATE, [...b]); }
   onCmd(b) {
     if (b[0] === CMD.INFO) { const i = parseInfo(b, this.ip); if (i) { this.lastInfoAt = Date.now(); this.info = i; this.emit('info', i); this.emit('status', this.status()); } }
-    else if (b[0] === CMD.BUFFER_FREE && b.length >= 4) { this.bufFree = b.readUInt16LE(2); this.lastReply = Date.now(); }
+    else if (b[0] === CMD.BUFFER_FREE && b.length >= 4) { this.bufFree = b.readUInt16LE(2); this.lastReply = this.drainAt = Date.now(); }
   }
-  onReply(b) { if (b[0] === CMD.BUFFER_FREE && b.length >= 4) { this.bufFree = b.readUInt16LE(2); this.lastReply = Date.now(); } }
+  onReply(b) { if (b[0] === CMD.BUFFER_FREE && b.length >= 4) { this.bufFree = b.readUInt16LE(2); this.lastReply = this.drainAt = Date.now(); } }
   status() {
-    return { connected: !!this.ip, ip: this.ip, outputOn: this.outputOn, rate: this.rate, bufFree: this.bufFree, bufSize: this.bufSize, info: this.info };
+    if (this.info) this.stats.errMax = Math.max(this.stats.errMax, this.info.packetErrors || 0);
+    return { stats: this.stats, connected: !!this.ip, ip: this.ip, outputOn: this.outputOn, rate: this.rate, bufFree: this.bufFree, bufSize: this.bufSize, info: this.info };
   }
 
   // ---------- pontos ----------
   // o controle manda o quadro inteiro (x y r g b por ponto); aqui ele é repetido em laço
-  setFrame(u16) { this.frame = u16 && u16.length >= 5 ? u16 : null; this.frameAt = Date.now(); if (this.pos >= (this.frame ? this.frame.length / 5 : 0)) this.pos = 0; }
+  setFrame(u16) { const st = this.stats, nw = Date.now(); if (this.frameAt && this.outputOn) { st.maxGapMs = Math.max(st.maxGapMs, nw - this.frameAt); } st.frames++; this.frame = u16 && u16.length >= 5 ? u16 : null; this.frameAt = Date.now(); if (this.pos >= (this.frame ? this.frame.length / 5 : 0)) this.pos = 0; }
   pump() {
     if (!this.data || !this.ip || !this.outputOn) return;
     let frame = this.frame;
     // sem quadro novo há mais de um segundo: o laser recebe pontos apagados, não o último desenho
-    if (!frame || Date.now() - this.frameAt > 1000) frame = BLANK;
+    if (!frame || Date.now() - this.frameAt > 1000) { frame = BLANK; this.stats.blankPumps++; }
+    { const st = this.stats, nw = Date.now(); st.pumps++; if (this.lastPumpAt) st.maxPumpGapMs = Math.max(st.maxPumpGapMs, nw - this.lastPumpAt); this.lastPumpAt = nw; if (this.bufSize) { st.minFree = Math.min(st.minFree, this.bufFree); st.maxFree = Math.max(st.maxFree, this.bufFree); if (this.bufFree >= this.bufSize - 200) st.underruns++; } }
     const n = frame.length / 5;
     // mantém o buffer do aparelho com pelo menos metade cheio; sem resposta recente, manda devagar
-    const stale = Date.now() - this.lastReply > 250, now = Date.now();
-    let budget = stale ? Math.min(MAX_PTS, Math.round(this.rate * 0.004)) : Math.max(0, this.bufFree - Math.floor(this.bufSize / 2));
+    const now = Date.now();
+    // o aparelho esvazia o buffer na taxa configurada: sem isso o driver só sabia o nível pelas respostas, parava de
+    // mandar ao chegar na metade, não recebia resposta e ficava cego por 250 ms (buffer esvaziava: o laser piscava).
+    // Igual ao LaserOS, que soma 30 amostras por ms; aqui a taxa real. As respostas do aparelho corrigem a estimativa.
+    if (this.drainAt) this.bufFree = Math.min(this.bufSize, this.bufFree + this.rate * (now - this.drainAt) / 1000);
+    this.drainAt = now;
+    const stale = now - this.lastReply > 100;
+    let budget = stale ? Math.min(MAX_PTS, Math.round(this.rate * 0.004)) : Math.max(0, this.bufFree - Math.floor(this.bufSize * (1 - this.fill)));
     // nunca mais do que o laser consome, mesmo que o buffer diga que cabe: balde de fichas com
     // até 100 ms de pontos, reabastecido pela taxa
     if (this.pumpAt == null) { this.pumpAt = now; this.tokens = this.rate * 0.1; }
@@ -150,7 +162,7 @@ class LaserCube extends EventEmitter {
         b.writeUInt16LE(frame[p], o); b.writeUInt16LE(frame[p + 1], o + 2); b.writeUInt16LE(frame[p + 2], o + 4); b.writeUInt16LE(frame[p + 3], o + 6); b.writeUInt16LE(frame[p + 4], o + 8);
       }
       this.data.send(b, PORT_DATA, this.ip);
-      this.msg = (this.msg + 1) & 0xff; this.pos += cnt; budget -= cnt; this.bufFree -= cnt; this.tokens -= cnt; pkts++;
+      this.stats.pktsSent++; this.msg = (this.msg + 1) & 0xff; this.pos += cnt; budget -= cnt; this.bufFree -= cnt; this.tokens -= cnt; pkts++;
       if (this.pos >= n) { this.pos = 0; this.frameNo = (this.frameNo + 1) & 0xff; if (frame !== this.frame) break; }
     }
     if (pkts) this.batch = (this.batch + 1) & 0xff;   // o byte 3 muda a cada lote, não a cada quadro

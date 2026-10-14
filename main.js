@@ -246,6 +246,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('laser:disconnect', () => { laser.disconnect(); return true; });
   ipcMain.handle('laser:output', (_e, on) => { laser.setOutput(!!on); return true; });
   ipcMain.handle('laser:rate', (_e, r) => { laser.setRate(r | 0); return true; });
+  ipcMain.handle('laser:fill', (_e, f) => { laser.setFill(+f); return true; });
   ipcMain.handle('laser:status', () => laser.status());
   ipcMain.on('laser:frame', (_e, buf) => { laser.setFrame(new Uint16Array(buf.buffer, buf.byteOffset, buf.byteLength / 2)); });
   app.on('before-quit', () => laser.disconnect());

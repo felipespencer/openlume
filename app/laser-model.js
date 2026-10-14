@@ -9,7 +9,7 @@ import { FONTS } from './hershey.js';
 import { homography, applyHomography, meshFromRect, meshPoint, resampleMesh, cornersFromRect } from './warp.js';
 
 let seq = 1;
-export const LASER_DEFAULTS = () => ({ pps: 30000, bright: 0.6, corner: 3, safe: { w: 0.84, h: 0.76 }, flipX: true, flipY: false, flipCal: 1, fps: 30, scanHz: 60, showPoints: false, map: MAP_DEFAULTS() });
+export const LASER_DEFAULTS = () => ({ pps: 30000, bright: 0.6, corner: 3, safe: { w: 0.84, h: 0.76 }, flipX: true, flipY: false, flipCal: 1, fps: 30, scanHz: 60, fill: 50, showPoints: false, map: MAP_DEFAULTS() });
 // mapeamento da saída (como os quatro cantos e a malha da Saída avançada): pontos de ancoragem
 // que levam o quadrado do palco (-1..1) para onde o laser deve desenhar na superfície
 export const MAP_DEFAULTS = () => ({ mode: 'off', corners: cornersFromRect(-1, -1, 2, 2), divX: 2, divY: 2, mesh: meshFromRect(-1, -1, 2, 2, 2, 2) });

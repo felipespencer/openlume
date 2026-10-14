@@ -207,7 +207,7 @@ export class LaserModule {
     if (!this.open) return;
     const s = this.status, sc = this.lastScan;
     const lit = sc ? sc.lit.reduce((a, b) => a + b, 0) : 0;
-    $('lzFoot').innerHTML = `<span>Pontos no quadro <b>${sc ? sc.n : 0}</b> (${lit} acesos)</span><span>Taxa <b>${this.settings.fps} fps</b></span><span>Buffer do laser</span><span class="bar"><i style="width:${s.bufSize ? Math.round((1 - s.bufFree / s.bufSize) * 100) : 0}%"></i></span><span class="sp"></span><span>${this.active ? 'no laser: ' + this.active.name : 'nada indo para o laser'} · zona segura ${Math.round(this.settings.safe.w * 100)}% × ${Math.round(this.settings.safe.h * 100)}%</span>`;
+    $('lzFoot').innerHTML = `<span>Pontos no quadro <b>${sc ? sc.n : 0}</b> (${lit} acesos)</span><span>Taxa <b>${this.settings.fps} fps</b></span><span>Buffer do laser</span><span class="bar"><i style="width:${s.bufSize ? Math.round((1 - s.bufFree / s.bufSize) * 100) : 0}%"></i></span><span title="Quantas vezes o buffer do cubo chegou perto de esvaziar: cada uma é uma piscada">Esvaziou <b>${s.stats ? s.stats.underruns : 0}</b>×</span><span class="sp"></span><span>${this.active ? 'no laser: ' + this.active.name : 'nada indo para o laser'} · zona segura ${Math.round(this.settings.safe.w * 100)}% × ${Math.round(this.settings.safe.h * 100)}%</span>`;
   }
 
   // ---------- palco ----------
@@ -432,6 +432,7 @@ export class LaserModule {
     P.appendChild(this.pnum('Pontos/s', 'Pontos por segundo|Velocidade do galvanômetro. Mais pontos = traço mais parado, mas o laser pode não acompanhar.', S.pps, { min: 5000, max: 60000, step: 1000, bar: true, reset: 30000 }, v => { S.pps = v; if (this.c.laser) this.c.laser.rate(v); }));
     P.appendChild(this.pnum('Brilho', 'Brilho|Potência do feixe.', Math.round(S.bright * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 60 }, v => { S.bright = v / 100; }));
     P.appendChild(this.pnum('Atualização', 'Atualização do feixe|Quantas vezes por segundo o laser repassa o desenho inteiro. Abaixo de uns 50 o olho vê piscar; mais alto deixa o desenho firme, mas com menos pontos para o traço (pontos por segundo ÷ este valor).', S.scanHz || 60, { min: 30, max: 120, step: 5, unit: ' Hz', bar: true, reset: 60 }, v => { S.scanHz = v; }));
+    P.appendChild(this.pnum('Colchão', 'Colchão do buffer|Quanto do buffer do cubo o programa tenta manter cheio. Se o desenho pisca em instantes, suba (60 a 80 %): aguenta mais falha do Wi-Fi, mas a imagem chega um pouco atrasada. Para reação rápida ao som, desça.', S.fill || 50, { min: 20, max: 90, step: 5, unit: ' %', bar: true, reset: 50 }, v => { S.fill = v; if (this.c.laser && this.c.laser.fill) this.c.laser.fill(v / 100); }));
     P.appendChild(this.pnum('Taxa', 'Taxa|Quadros por segundo gerados pelo controle.', S.fps, { min: 10, max: 60, step: 5, unit: ' fps', bar: true, reset: 30 }, v => { S.fps = v; }));
     P.appendChild(this.pnum('Cantos', 'Pontos de canto|Quantos pontos o laser demora em cada canto e ponta. Mais = cantos mais nítidos, menos pontos sobrando para o traço.', S.corner, { min: 0, max: 10, step: 1, unit: ' pontos', bar: true, reset: 3 }, v => { S.corner = v; }));
     // mapeamento: pontos de ancoragem como na Saída avançada
@@ -458,7 +459,7 @@ export class LaserModule {
     this.searching = false; this.renderProps();
   }
   async connect(ip) {
-    try { await this.c.laser.connect(ip); this.c.laser.rate(this.settings.pps); this.c.toast('LaserCube conectado em ' + ip + '. A saída está desligada.'); }
+    try { await this.c.laser.connect(ip); this.c.laser.rate(this.settings.pps); if (this.c.laser.fill) this.c.laser.fill((this.settings.fill || 50) / 100); this.c.toast('LaserCube conectado em ' + ip + '. A saída está desligada.'); }
     catch (e) { this.c.toast(e.message); }
     this.renderProps();
   }
