@@ -10,7 +10,7 @@ export class Menubar {
   constructor(root, defs) {
     this.root = root; this.defs = defs; this.open = -1; this.layer = null;
     this.render();
-    addEventListener('pointerdown', (e) => { if (this.open >= 0 && !e.target.closest('#menubar, .menu')) this.close(); });
+    addEventListener('pointerdown', (e) => { if (this.open >= 0 && !this.root.contains(e.target) && !(this.layer && this.layer.contains(e.target))) this.close(); });
     addEventListener('keydown', (e) => { if (e.key === 'Escape' && this.open >= 0) { this.close(); e.stopPropagation(); } });
     addEventListener('blur', () => this.close());
   }
@@ -23,13 +23,15 @@ export class Menubar {
       this.root.appendChild(b);
     });
   }
+  // os botões não são recriados ao abrir: o pointerdown que abriu ainda está em curso neles
+  syncButtons() { [...this.root.children].forEach((b, j) => b.classList.toggle('on', j === this.open)); }
   show(i) {
-    this.close(); this.open = i; this.render();
+    this.close(); this.open = i; this.syncButtons();
     const b = this.root.children[i], r = b.getBoundingClientRect();
     this.layer = el('div', 'menuLayer'); document.body.appendChild(this.layer);
     this.popup(this.defs()[i].items(), r.left, r.bottom, null);
   }
-  close() { if (this.layer) this.layer.remove(); this.layer = null; if (this.open >= 0) { this.open = -1; this.render(); } }
+  close() { if (this.layer) this.layer.remove(); this.layer = null; if (this.open >= 0) { this.open = -1; this.syncButtons(); } }
   popup(items, x, y, parent) {
     const m = el('div', 'menu'); m.style.left = x + 'px'; m.style.top = y + 'px';
     for (const it of items) {
