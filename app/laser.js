@@ -3,7 +3,9 @@
 // desenho e a zona segura; propriedades à direita (texto, cor, distorção, posição, laser).
 import * as L from './laser-model.js';
 import { paintScan, contourPaths } from './laser-model.js';
-import { FONT_NAMES } from './hershey.js';
+import {  FONT_NAMES as HERSHEY_NAMES  } from './hershey.js';
+import { EMS_FONT_NAMES } from './vendor/fontes-laser/fontes.js';
+const FONT_NAMES = { ...EMS_FONT_NAMES, ...HERSHEY_NAMES };
 import { el, fmtN, ICON, propsKit } from './panel.js';
 
 const $ = (id) => document.getElementById(id);
@@ -387,7 +389,7 @@ export class LaserModule {
     }
     P.appendChild(this.phead('Texto', 'Texto|Escrito com fonte de traço único, feita para laser. Linhas separadas com Enter não: use a direção Pilha.'));
     P.appendChild(this.ptext('Conteúdo', 'Conteúdo|O texto. Vazio = sem texto neste quadro.', T.content, v => { T.content = v; tc(); }));
-    P.appendChild(this.pselect('Fonte', 'Fonte|Três fontes Hershey, de traço único.', Object.entries(FONT_NAMES), T.font, v => { T.font = v; tc(); }));
+    P.appendChild(this.pselect('Fonte', 'Fonte|Fontes de traço único: EMS (suaves, derivadas de fontes do Google) e Hershey.', Object.entries(FONT_NAMES), T.font, v => { T.font = v; tc(); }));
     P.appendChild(this.pseg('Direção', 'Direção|Horizontal, vertical (deitado de lado) ou pilha (uma letra embaixo da outra).', [['h', 'Horizontal'], ['v', 'Vertical'], ['stack', 'Pilha']], T.dir, v => { T.dir = v; tc(); }));
     P.appendChild(this.pnum('Tamanho', 'Tamanho|Altura das maiúsculas, em % da altura do palco.', Math.round(T.size * 100), { min: 2, max: 100, step: 1, unit: ' %', bar: true, reset: 22 }, v => { T.size = v / 100; tc(); }));
     P.appendChild(this.pnum('Espaçamento', 'Espaçamento|Distância entre as letras.', Math.round(T.spacing * 100), { min: 50, max: 250, step: 5, unit: ' %', bar: true, reset: 100 }, v => { T.spacing = v / 100; tc(); }));
@@ -436,12 +438,13 @@ export class LaserModule {
     P.appendChild(this.pnum('Taxa', 'Taxa|Quadros por segundo gerados pelo controle.', S.fps, { min: 10, max: 60, step: 5, unit: ' fps', bar: true, reset: 30 }, v => { S.fps = v; }));
     P.appendChild(this.pseg('Traço', 'Estilo do traço|LaserOS: o mesmo método do LaserOS (velocidade constante e pontos de espera nos cantos, no começo e no fim de cada traço): firme e fiel, mas gasta mais pontos. Adaptativo: espalha os pontos para caber no orçamento, mais leve e menos fiel nos cantos.', [['ol', 'LaserOS'], ['adaptive', 'Adaptativo']], S.style || 'ol', v => { S.style = v; }));
     if ((S.style || 'ol') === 'ol') {
-      P.appendChild(this.pnum('Velocidade do traço', 'Velocidade do traço|Quanto o feixe anda entre dois pontos acesos, em fração do meio palco. Menor = mais pontos, traço mais preciso e quadro mais pesado; maior = menos pontos, mais leve e mais grosseiro. O LaserOS usa 6,25 %.', Math.round((S.onSpeed ?? 0.0625) * 1000) / 10, { min: 1, max: 20, step: 0.5, dec: 1, unit: ' %', bar: true, reset: 6.25 }, v => { S.onSpeed = v / 100; }));
-      P.appendChild(this.pnum('Viagem apagada', 'Velocidade da viagem apagada|Quanto o feixe anda entre dois pontos apagados, ao pular de uma letra ou traço para outro. Menor = viagem mais lenta e sem rastro; maior = mais leve.', Math.round((S.offSpeed ?? 0.0625) * 1000) / 10, { min: 1, max: 20, step: 0.5, dec: 1, unit: ' %', bar: true, reset: 6.25 }, v => { S.offSpeed = v / 100; }));
-      P.appendChild(this.pnum('Espera no início', 'Espera no início|Pontos apagados parados no começo de cada traço, para o galvanômetro chegar e assentar antes de acender. Se aparecem riscos ligando as letras, suba. O LaserOS usa 8.', S.startWait ?? 8, { min: 0, max: 20, step: 1, unit: ' pontos', bar: true, reset: 8 }, v => { S.startWait = v; }));
-      P.appendChild(this.pnum('Espera no fim', 'Espera no fim|Pontos acesos parados no fim do traço (o canto final da letra fica nítido). O LaserOS usa 2.', S.endDwell ?? 2, { min: 0, max: 10, step: 1, unit: ' pontos', bar: true, reset: 2 }, v => { S.endDwell = v; }));
+      P.appendChild(this.pseg('Predefinição', 'Predefinição|Os três conjuntos de parâmetros do LaserOS. Padrão: o que o LaserOS usa normalmente. Qualidade: mais pontos por traço (desenho mais fiel, quadro mais pesado). Velocidade: menos esperas (mais leve, cantos mais redondos). Mudar qualquer valor abaixo vira "Personalizado".', [['standard', 'Padrão'], ['quality', 'Qualidade'], ['speed', 'Velocidade'], ['custom', 'Personalizado']], S.preset || 'custom', v => { if (v !== 'custom') L.applyOlPreset(S, v); else S.preset = 'custom'; }));
+      P.appendChild(this.pnum('Velocidade do traço', 'Velocidade do traço|Quanto o feixe anda entre dois pontos acesos, em fração do meio palco. Menor = mais pontos, traço mais preciso e quadro mais pesado; maior = menos pontos, mais leve e mais grosseiro. O LaserOS usa 6,25 %.', Math.round((S.onSpeed ?? 0.0625) * 1000) / 10, { min: 1, max: 20, step: 0.5, dec: 1, unit: ' %', bar: true, reset: 6.25 }, v => { S.onSpeed = v / 100; S.preset = 'custom'; }));
+      P.appendChild(this.pnum('Viagem apagada', 'Velocidade da viagem apagada|Quanto o feixe anda entre dois pontos apagados, ao pular de uma letra ou traço para outro. Menor = viagem mais lenta e sem rastro; maior = mais leve.', Math.round((S.offSpeed ?? 0.0625) * 1000) / 10, { min: 1, max: 20, step: 0.5, dec: 1, unit: ' %', bar: true, reset: 6.25 }, v => { S.offSpeed = v / 100; S.preset = 'custom'; }));
+      P.appendChild(this.pnum('Espera no início', 'Espera no início|Pontos apagados parados no começo de cada traço, para o galvanômetro chegar e assentar antes de acender. Se aparecem riscos ligando as letras, suba. O LaserOS usa 8.', S.startWait ?? 8, { min: 0, max: 20, step: 1, unit: ' pontos', bar: true, reset: 8 }, v => { S.startWait = v; S.preset = 'custom'; }));
+      P.appendChild(this.pnum('Espera no fim', 'Espera no fim|Pontos acesos parados no fim do traço (o canto final da letra fica nítido). O LaserOS usa 2.', S.endDwell ?? 2, { min: 0, max: 10, step: 1, unit: ' pontos', bar: true, reset: 2 }, v => { S.endDwell = v; S.preset = 'custom'; }));
     }
-    P.appendChild(this.pnum('Cantos', 'Pontos de canto|Quantos pontos o laser demora em cada canto e ponta. Mais = cantos mais nítidos, menos pontos sobrando para o traço.', S.corner, { min: 0, max: 10, step: 1, unit: ' pontos', bar: true, reset: 3 }, v => { S.corner = v; }));
+    P.appendChild(this.pnum('Cantos', 'Pontos de canto|Quantos pontos o laser demora em cada canto e ponta. Mais = cantos mais nítidos, menos pontos sobrando para o traço.', S.corner, { min: 0, max: 10, step: 1, unit: ' pontos', bar: true, reset: 3 }, v => { S.corner = v; S.preset = 'custom'; }));
     // mapeamento: pontos de ancoragem como na Saída avançada
     const M = S.map;
     P.appendChild(this.phead('Mapeamento', 'Mapeamento|Leva o desenho do laser para a superfície: arraste as âncoras no palco (bolinhas) até o contorno casar com a parede, a tela ou o objeto.'));

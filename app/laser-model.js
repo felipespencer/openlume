@@ -5,11 +5,13 @@
 // que o galvanômetro precisa: anda pelos caminhos em passos iguais, demora nos cantos e nas
 // pontas, viaja apagado entre um caminho e outro, corta o que sai da zona segura e devolve
 // x y r g b em 0..4095, prontos para o LaserCube.
-import { FONTS } from './hershey.js';
+import { FONTS as HERSHEY_FONTS } from './hershey.js';
+import { EMS_FONTS } from './vendor/fontes-laser/fontes.js';
+export const FONTS = { ...HERSHEY_FONTS, ...EMS_FONTS };
 import { homography, applyHomography, meshFromRect, meshPoint, resampleMesh, cornersFromRect } from './warp.js';
 
 let seq = 1;
-export const LASER_DEFAULTS = () => ({ pps: 30000, bright: 0.6, corner: 3, safe: { w: 0.84, h: 0.76 }, flipX: true, flipY: false, flipCal: 1, colorCal: 1, fps: 30, scanHz: 50, fill: 50, style: 'ol', onSpeed: 0.0625, offSpeed: 0.0625, startWait: 8, startDwell: 2, curveDwell: 1, endDwell: 2, endWait: 1, curveAngle: 30, showPoints: false, map: MAP_DEFAULTS() });
+export const LASER_DEFAULTS = () => ({ pps: 30000, bright: 0.6, corner: 3, safe: { w: 0.84, h: 0.76 }, flipX: true, flipY: false, flipCal: 1, colorCal: 1, fps: 30, scanHz: 50, fill: 50, style: 'ol', preset: 'standard', onSpeed: 0.0625, offSpeed: 0.0625, startWait: 8, startDwell: 2, curveDwell: 1, corner: 3, endDwell: 2, endWait: 1, curveAngle: 30, snap: 0.001, showPoints: false, map: MAP_DEFAULTS() });
 // mapeamento da saída (como os quatro cantos e a malha da Saída avançada): pontos de ancoragem
 // que levam o quadrado do palco (-1..1) para onde o laser deve desenhar na superfície
 export const MAP_DEFAULTS = () => ({ mode: 'off', corners: cornersFromRect(-1, -1, 2, 2), divX: 2, divY: 2, mesh: meshFromRect(-1, -1, 2, 2, 2, 2) });
@@ -36,7 +38,7 @@ export function mapScan(scan, settings) {
 
 export function mkFrame(name, kind = 'draw') {
   const f = { id: seq++, name, kind,
-    text: { content: kind === 'text' ? 'TEXTO' : '', font: 'simplex', dir: 'h', size: 0.22, spacing: 1, scroll: 'none' },
+    text: { content: kind === 'text' ? 'TEXTO' : '', font: 'emsReadability', dir: 'h', size: 0.22, spacing: 1, scroll: 'none' },
     paths: [],
     color: { mode: 'solid', c1: '#00ff00', c2: '#4dd2ff', speed: 1 },   // uma cor só por padrão (verde, o que o olho e o laser mostram mais firme); o arco-íris troca a cor a cada ponto
     distort: { wave: 0, spin: 0, pulse: 0, jitter: 0, mirror: 'none', audio: false },
@@ -71,7 +73,7 @@ export function shapePaths(kind) {
 // ---------- texto com fonte de traço único ----------
 // devolve caminhos em -1..1: altura de maiúscula = size (fração da altura do palco, que é 2)
 export function textPaths(t, time = 0) {
-  const font = FONTS[t.font] || FONTS.simplex, cap = 21, k = (t.size * 2) / cap;
+  const font = FONTS[t.font] || FONTS.emsReadability || FONTS.simplex, cap = 21, k = (t.size * 2) / cap;
   const lines = (t.content || '').split('\n');
   const glyph = (ch) => { const code = ch.charCodeAt(0); return font[code >= 32 && code < 127 ? code - 32 : 31] || font[0]; };
   const out = [];
@@ -147,50 +149,88 @@ export function scanPaths(paths, settings, color, time) {
   return (settings.style || 'ol') === 'ol' ? scanPathsOL(paths, settings, color, time) : scanPathsAdaptive(paths, settings, color, time);
 }
 
-// Gerador de pontos no jeito do LaserOS (OpenLase, preset "Standard" lido no ldCore.dll com o REA):
-// velocidade constante no traço (on_speed 0,0625 do meio palco por ponto), viagem apagada na off_speed, e pontos de
-// espera que dão tempo ao galvanômetro: 8 apagados no começo de cada traço, 2 acesos parados, 3 em cada canto
-// (ângulo maior que 30°), 1 nas curvas, 2 acesos e 1 apagado no fim. Se o quadro passar do orçamento de pontos
-// (pontos por segundo ÷ atualização), as velocidades sobem juntas até caber, como o OpenLase faz.
+// Predefinições de renderização do LaserOS (lidas no ldCore.dll com o REA, 2026-10-14): os parâmetros do OpenLase.
+// on/off = quanto o feixe anda por ponto (fração do meio palco, distância de Chebyshev); esperas em pontos.
+export const OL_PRESETS = {
+  standard: { label: 'Padrão', onSpeed: 0.0625, offSpeed: 0.0625, startWait: 8, startDwell: 2, curveDwell: 1, corner: 3, endDwell: 2, endWait: 1, curveAngle: 30, snap: 0.001 },
+  quality: { label: 'Qualidade', onSpeed: 0.025, offSpeed: 0.025, startWait: 6, startDwell: 1, curveDwell: 1, corner: 1, endDwell: 1, endWait: 2, curveAngle: 30, snap: 0 },
+  speed: { label: 'Velocidade', onSpeed: 0.0571, offSpeed: 0.0444, startWait: 2, startDwell: 0, curveDwell: 0, corner: 0, endDwell: 0, endWait: 1, curveAngle: 30, snap: 0 },
+};
+export function applyOlPreset(settings, id) { const p = OL_PRESETS[id]; if (!p) return; settings.preset = id; for (const k of Object.keys(p)) if (k !== 'label') settings[k] = p[k]; }
+
+// Gerador de pontos com o comportamento do OpenLase, o renderizador que o LaserOS usa (libol.c, LGPL; lido para
+// entender o método, reescrito aqui): distância de Chebyshev; cada traço começa com o primeiro ponto e `startDwell`
+// repetições dele, segue a `onSpeed` por ponto, demora `corner` pontos nos cantos (ângulo maior que `curveAngle`) e
+// `curveDwell` nas curvas, e termina com `endDwell` repetições do último ponto; a viagem apagada entre traços tem
+// `endWait` pontos parados, a travessia a `offSpeed` e `startWait` pontos parados no destino (se a distância passa de
+// `snap`). O quadro inteiro é levado ao tamanho fixo pontos/s ÷ atualização: se sobra, reamostra os pontos acesos
+// (os apagados ficam 1:1), se falta, completa com pontos apagados no último lugar. Com tamanho fixo o laser repete o
+// desenho num ritmo constante, que é o que o deixa firme.
 export function scanPathsOL(paths, settings, color, time) {
-  const maxLen = Math.max(150, Math.round(settings.pps / (settings.scanHz || settings.fps || 30)));
+  const P = (v, d) => (v == null || isNaN(v) ? d : v);
+  const on = Math.max(0.002, P(settings.onSpeed, 0.0625)), off = Math.max(0.002, P(settings.offSpeed, 0.0625));
+  const startWait = P(settings.startWait, 8) | 0, startDwell = P(settings.startDwell, 2) | 0, cornerDwell = P(settings.corner, 3) | 0, curveDwell = P(settings.curveDwell, 1) | 0, endDwell = P(settings.endDwell, 2) | 0, endWait = P(settings.endWait, 1) | 0;
+  const cosCurve = Math.cos(P(settings.curveAngle, 30) * Math.PI / 180), snap = P(settings.snap, 0.001);
+  const frameLen = Math.max(100, Math.round(settings.pps / (settings.scanHz || settings.fps || 30)));
   const sw = settings.safe.w, sh = settings.safe.h;
   const clip = (x, y) => { const inside = Math.abs(x) <= sw && Math.abs(y) <= sh; return [Math.max(-sw, Math.min(sw, x)), Math.max(-sh, Math.min(sh, y)), inside]; };
-  const P = (v, d) => (v == null || isNaN(v) ? d : v);
-  const startWait = P(settings.startWait, 8) | 0, startDwell = P(settings.startDwell, 2) | 0, cornerDwell = P(settings.corner, 3) | 0, curveDwell = P(settings.curveDwell, 1) | 0, endDwell = P(settings.endDwell, 2) | 0, endWait = P(settings.endWait, 1) | 0;
-  const cosCurve = Math.cos(P(settings.curveAngle, 30) * Math.PI / 180);
   let L = 0; for (const p of paths) for (let i = 1; i < p.length; i++) L += Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]);
-  const gen = (k) => {
-    const on = Math.max(0.004, P(settings.onSpeed, 0.0625) * k), off = Math.max(0.004, P(settings.offSpeed, 0.0625) * k);
-    const xy = [], rgb = [], lit = [];
-    const push = (x, y, isOn, u) => { const [cx, cy, inside] = clip(x, y); xy.push(cx, cy); const c = isOn && inside ? colorAt(color, u, time) : [0, 0, 0]; rgb.push(c[0], c[1], c[2]); lit.push(isOn && inside ? 1 : 0); };
-    let acc = 0, last = null;
-    for (const p of paths) {
-      if (p.length < 2) continue;
-      if (last) { const d = Math.hypot(p[0][0] - last[0], p[0][1] - last[1]), n = Math.max(1, Math.ceil(d / off)); for (let i = 1; i <= n; i++) push(last[0] + (p[0][0] - last[0]) * i / n, last[1] + (p[0][1] - last[1]) * i / n, 0, 0); }
-      for (let i = 0; i < startWait; i++) push(p[0][0], p[0][1], 0, 0);
-      for (let i = 0; i < startDwell; i++) push(p[0][0], p[0][1], 1, acc / (L || 1));
-      for (let i = 1; i < p.length; i++) {
-        const [x0, y0] = p[i - 1], [x1, y1] = p[i], d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.ceil(d / on));
-        for (let j = 1; j <= n; j++) push(x0 + (x1 - x0) * j / n, y0 + (y1 - y0) * j / n, 1, (acc + d * j / n) / (L || 1));
-        acc += d;
-        if (i < p.length - 1) {
-          const [x2, y2] = p[i + 1], ax = x1 - x0, ay = y1 - y0, bx = x2 - x1, by = y2 - y1, la = Math.hypot(ax, ay), lb = Math.hypot(bx, by);
-          if (la > 1e-9 && lb > 1e-9) { const c = (ax * bx + ay * by) / (la * lb); const m = c < cosCurve ? cornerDwell : curveDwell; for (let q = 0; q < m; q++) push(x1, y1, 1, acc / (L || 1)); }
-        }
+  const xy = [], rgb = [], lit = [];
+  const push = (x, y, isOn, u) => { const [cx, cy, inside] = clip(x, y); xy.push(cx, cy); const c = isOn && inside ? colorAt(color, u, time) : [0, 0, 0]; rgb.push(c[0], c[1], c[2]); lit.push(isOn && inside ? 1 : 0); };
+  let acc = 0, last = null;   // último ponto desenhado (para a viagem apagada)
+  for (const p of paths) {
+    if (p.length < 2) continue;
+    // viagem apagada (render_object): espera no fim, travessia a offSpeed, espera no começo
+    if (last) {
+      const dx = p[0][0] - last[0], dy = p[0][1] - last[1], dist = Math.max(Math.abs(dx), Math.abs(dy));
+      if (dist > snap) {
+        const n = Math.ceil(dist / off);
+        for (let i = 0; i < endWait; i++) push(last[0], last[1], 0, 0);
+        for (let j = 0; j < n; j++) push(last[0] + dx * j / n, last[1] + dy * j / n, 0, 0);
+        for (let i = 0; i < startWait; i++) push(p[0][0], p[0][1], 0, 0);
       }
-      const e = p[p.length - 1];
-      for (let i = 0; i < endDwell; i++) push(e[0], e[1], 1, acc / (L || 1));
-      for (let i = 0; i < endWait; i++) push(e[0], e[1], 0, 0);
-      last = e;
+    } else for (let i = 0; i < startWait; i++) push(p[0][0], p[0][1], 0, 0);
+    // o traço (line_to): primeiro ponto, depois cada segmento com a espera no vértice de saída
+    push(p[0][0], p[0][1], 1, acc / (L || 1));
+    let prevSlope = null, cur = p[0];
+    for (let i = 1; i < p.length; i++) {
+      const [x1, y1] = p[i], dx = x1 - cur[0], dy = y1 - cur[1];
+      // get_dwell: no segundo vértice é startDwell; depois, canto ou curva pelo ângulo entre o segmento anterior e o próximo
+      let dwell;
+      if (i === 1) dwell = startDwell;
+      else {
+        const dex = prevSlope[0] - cur[0], dey = prevSlope[1] - cur[1], dsx = cur[0] - x1, dsy = cur[1] - y1;
+        const lens = Math.hypot(dex, dey) * Math.hypot(dsx, dsy);
+        if (lens === 0) dwell = cornerDwell; else dwell = (dex * dsx + dey * dsy) / lens > cosCurve ? curveDwell : cornerDwell;
+      }
+      for (let k = 0; k < dwell; k++) push(cur[0], cur[1], 1, acc / (L || 1));
+      const dist = Math.max(Math.abs(dx), Math.abs(dy)), n = Math.max(1, Math.ceil(dist / on)), seg = Math.hypot(dx, dy);
+      for (let j = 1; j <= n; j++) push(cur[0] + dx * j / n, cur[1] + dy * j / n, 1, (acc + seg * j / n) / (L || 1));
+      acc += seg; prevSlope = cur; cur = p[i];
     }
-    return { xy, rgb, lit };
-  };
-  let k = 1, r = gen(k);
-  // acelerar o traço além de ~1,6x o padrão deixa os passos grandes demais para o galvanômetro (a letra sai borrada): passando disso
-  // o quadro fica mais longo e o feixe o repassa menos vezes por segundo (o rodapé mostra quantas), como no LaserOS
-  for (let tries = 0; tries < 8 && r.lit.length > maxLen && k < 1.6; tries++) { k = Math.min(1.6, k * Math.max(1.1, r.lit.length / maxLen * 0.95)); r = gen(k); }
-  return { xy: Float32Array.from(r.xy), rgb: Float32Array.from(r.rgb), lit: Uint8Array.from(r.lit), n: r.lit.length };
+    for (let k = 0; k < endDwell; k++) push(cur[0], cur[1], 1, acc / (L || 1));   // olEnd
+    last = cur;
+  }
+  let n = lit.length;
+  if (!n) return { xy: new Float32Array(0), rgb: new Float32Array(0), lit: new Uint8Array(0), n: 0 };
+  // fecha a volta: viagem apagada do fim até o começo do primeiro traço (o quadro repete em laço)
+  // (o OpenLase não faz isto; sem isto o laço emendava o último ponto aceso ao primeiro com um risco)
+  const first = paths.find(p => p.length >= 2);
+  if (first) { const dx = first[0][0] - last[0], dy = first[0][1] - last[1], dist = Math.max(Math.abs(dx), Math.abs(dy)); if (dist > snap) { const m = Math.ceil(dist / off); for (let i = 0; i < endWait; i++) push(last[0], last[1], 0, 0); for (let j = 0; j < m; j++) push(last[0] + dx * j / m, last[1] + dy * j / m, 0, 0); } n = lit.length; }
+  // tamanho fixo do quadro (render_output): reamostra se sobra, completa com apagados se falta
+  let oxy = xy, orgb = rgb, olit = lit;
+  if (n > frameLen) {
+    oxy = []; orgb = []; olit = [];
+    const delta = n / frameLen; let pos = 0;
+    while (pos < n - 1) {
+      const i = Math.floor(pos), rest = pos - i;
+      oxy.push(xy[i * 2] * (1 - rest) + xy[i * 2 + 2] * rest, xy[i * 2 + 1] * (1 - rest) + xy[i * 2 + 3] * rest);
+      if (!lit[i] || !lit[i + 1]) { orgb.push(0, 0, 0); olit.push(0); pos += 1; }
+      else { orgb.push(rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2]); olit.push(1); pos += delta; }
+    }
+  }
+  while (olit.length < frameLen) { const k = olit.length - 1; oxy.push(oxy[k * 2], oxy[k * 2 + 1]); orgb.push(0, 0, 0); olit.push(0); }
+  return { xy: Float32Array.from(oxy), rgb: Float32Array.from(orgb), lit: Uint8Array.from(olit), n: olit.length };
 }
 
 export function scanPathsAdaptive(paths, settings, color, time) {
