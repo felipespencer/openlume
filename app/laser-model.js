@@ -6,9 +6,33 @@
 // pontas, viaja apagado entre um caminho e outro, corta o que sai da zona segura e devolve
 // x y r g b em 0..4095, prontos para o LaserCube.
 import { FONTS } from './hershey.js';
+import { homography, applyHomography, meshFromRect, meshPoint, resampleMesh, cornersFromRect } from './warp.js';
 
 let seq = 1;
-export const LASER_DEFAULTS = () => ({ pps: 30000, bright: 0.6, corner: 3, safe: { w: 0.84, h: 0.76 }, flipX: false, flipY: false, fps: 30, showPoints: false });
+export const LASER_DEFAULTS = () => ({ pps: 30000, bright: 0.6, corner: 3, safe: { w: 0.84, h: 0.76 }, flipX: false, flipY: false, fps: 30, showPoints: false, map: MAP_DEFAULTS() });
+// mapeamento da saída (como os quatro cantos e a malha da Saída avançada): pontos de ancoragem
+// que levam o quadrado do palco (-1..1) para onde o laser deve desenhar na superfície
+export const MAP_DEFAULTS = () => ({ mode: 'off', corners: cornersFromRect(-1, -1, 2, 2), divX: 2, divY: 2, mesh: meshFromRect(-1, -1, 2, 2, 2, 2) });
+export function resetMap(map) { Object.assign(map, MAP_DEFAULTS(), { mode: map.mode }); }
+export function setMapDivisions(map, dx, dy) { map.mesh = resampleMesh(map.mesh, map.divX, map.divY, dx, dy); map.divX = dx; map.divY = dy; }
+// função ponto → ponto mapeado (null quando o mapeamento está desligado)
+export function mapFn(map) {
+  if (!map || map.mode === 'off') return null;
+  if (map.mode === 'corners') { const H = homography(map.corners); return H ? (x, y) => applyHomography(H, (x + 1) / 2, (y + 1) / 2) : null; }
+  return (x, y) => meshPoint(map.mesh, map.divX, map.divY, (x + 1) / 2, (y + 1) / 2);
+}
+// a varredura com os pontos levados pelo mapeamento (a zona segura já foi aplicada antes)
+export function mapScan(scan, settings) {
+  const fn = mapFn(settings.map); if (!fn) return scan;
+  // a zona segura vale de novo depois do mapa: âncora nenhuma leva o feixe para fora dela
+  const xy = new Float32Array(scan.xy.length), rgb = Float32Array.from(scan.rgb), lit = Uint8Array.from(scan.lit), sw = settings.safe.w, sh = settings.safe.h;
+  for (let i = 0; i < scan.n; i++) {
+    const q = fn(scan.xy[i * 2], scan.xy[i * 2 + 1]), inside = Math.abs(q[0]) <= sw && Math.abs(q[1]) <= sh;
+    xy[i * 2] = Math.max(-sw, Math.min(sw, q[0])); xy[i * 2 + 1] = Math.max(-sh, Math.min(sh, q[1]));
+    if (!inside) { lit[i] = 0; rgb[i * 3] = rgb[i * 3 + 1] = rgb[i * 3 + 2] = 0; }
+  }
+  return { xy, rgb, lit, n: scan.n };
+}
 
 export function mkFrame(name, kind = 'draw') {
   const f = { id: seq++, name, kind,
@@ -159,6 +183,7 @@ export function renderPoints(frame, settings, time, audio = 0) {
 }
 // pontos para o LaserCube: x y r g b em 0..4095, com brilho e espelho da saída
 export function toU16(scan, settings) {
+  scan = mapScan(scan, settings);
   const out = new Uint16Array(scan.n * 5), b = settings.bright;
   for (let i = 0; i < scan.n; i++) {
     let x = scan.xy[i * 2], y = scan.xy[i * 2 + 1];
@@ -224,6 +249,7 @@ export function deserializeLaser(json) {
   const d = typeof json === 'string' ? JSON.parse(json) : json;
   const frames = (d.frames || []).map(s => { const f = mkFrame(s.name || 'Quadro', s.kind || 'draw'); Object.assign(f.text, s.text || {}); f.paths = (s.paths || []).map(p => p.map(q => [+q[0], +q[1]])); Object.assign(f.color, s.color || {}); Object.assign(f.distort, s.distort || {}); Object.assign(f.pos, s.pos || {}); if (s.contour) f.contour = { ...s.contour }; return f; });
   const settings = Object.assign(LASER_DEFAULTS(), d.settings || {});
+  settings.map = Object.assign(MAP_DEFAULTS(), d.settings && d.settings.map || {}); if (settings.map.mesh.length !== (3 * settings.map.divX + 1) * (3 * settings.map.divY + 1)) settings.map.mesh = meshFromRect(-1, -1, 2, 2, settings.map.divX, settings.map.divY);
   return { frames, settings, active: d.active != null ? frames[d.frames.findIndex((_, i) => i === d.active)] : null };
 }
 

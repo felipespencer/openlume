@@ -21,6 +21,12 @@ if (cmd === 'eval' || cmd === 'evalfile') {
   const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
   if (r.result.exceptionDetails) console.error('ERRO', r.result.exceptionDetails.exception?.description || r.result.exceptionDetails.text);
   else console.log(JSON.stringify(r.result.result.value, null, 1));
+} else if (cmd === 'drag') {   // arrasto de verdade (pointerdown/move/up pelo CDP): node tools/drive.mjs drag "x0 y0 x1 y1"
+  const [x0, y0, x1, y1] = a1.split(/[ ,]+/).map(Number);
+  const ev = (type, x, y, extra = {}) => send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons: 1, clickCount: 1, ...extra });
+  await ev('mouseMoved', x0, y0, { buttons: 0 }); await ev('mousePressed', x0, y0);
+  for (let i = 1; i <= 8; i++) await ev('mouseMoved', x0 + (x1 - x0) * i / 8, y0 + (y1 - y0) * i / 8);
+  await ev('mouseReleased', x1, y1); console.log('arrastou', x0, y0, '→', x1, y1);
 } else if (cmd === 'shot') {
   const r = await send('Page.captureScreenshot', { format: 'png' });
   const fs = await import('node:fs'); fs.writeFileSync(a1, Buffer.from(r.result.data, 'base64')); console.log('captura em', a1);

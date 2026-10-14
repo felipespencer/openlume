@@ -55,6 +55,11 @@ casa específica (camada + coluna) ou parar; no fim do clipe ou depois de N segu
   também vá abrir — **ainda não feito**
 - **GIF animado como clipe** (pedido em 2026-10-14: "quero que leia gif também"): feito pelo
   ImageDecoder, com o mesmo transporte do vídeo preparado
+- **Mapeamento do laser por âncoras** (pedido em 2026-10-14: "quero poder ter anchor points
+  no laser também pra mapear"): `settings.map` com 4 cantos (homografia) ou malha bezier,
+  reaproveitando `warp.js`; aplicado em `toU16` antes de ir ao LaserCube; âncoras arrastáveis
+  no palco da aba Laser. Falta provar no aparelho real (sentido dos eixos pode exigir o
+  espelho da saída junto)
 
 ## Ordem de trabalho
 

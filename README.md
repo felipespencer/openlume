@@ -114,6 +114,11 @@ O botão "Laser", na barra de cima, abre o módulo do laser (maquete: `laser-moc
 - **Aba Laser**: procurar o LaserCube na rede (ou digitar o IP), conectar, pontos por segundo,
   brilho, pontos de canto, zona segura e espelho da saída. A saída começa sempre desligada e
   desliga ao desconectar e ao fechar o programa.
+- **Mapeamento** (na aba Laser): pontos de ancoragem como na Saída avançada — "4 cantos"
+  (perspectiva) ou "Malha" (rede de curvas, divisões ajustáveis). As âncoras aparecem no
+  palco e se arrastam até o contorno casar com a parede ou o objeto; o palco mostra o desenho
+  já mapeado. Vale para tudo que vai ao laser; "Zerar" volta aos cantos. Fica salvo junto com
+  os quadros e a composição.
 
 O protocolo (UDP, portas 45456–45458) está descrito em `lasercube.js`; veio da biblioteca
 aberta da Wicked Lasers (libLaserdockCore) e do LaserCubeSharp, sem copiar código.

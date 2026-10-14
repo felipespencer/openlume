@@ -231,6 +231,7 @@ button.gh:hover{ color:var(--txt); background:var(--bg3); }
 #lzView svg .safe{ fill:none; stroke:var(--red); stroke-opacity:.55; stroke-dasharray:6 5; vector-effect:non-scaling-stroke; pointer-events:none; }
 #lzView svg .selbox{ fill:rgba(111,230,198,.04); stroke:var(--teal); stroke-dasharray:4 3; vector-effect:non-scaling-stroke; cursor:move; }
 #lzView svg .hd{ fill:#1b1b1b; stroke:var(--teal); stroke-width:1.5; vector-effect:non-scaling-stroke; cursor:nwse-resize; }
+#lzView svg .hd.anc{ fill:var(--teal); cursor:grab; } #lzView svg .mapline{ fill:none; stroke:var(--teal); stroke-width:1.5; vector-effect:non-scaling-stroke; } #lzView svg .mapgrid{ fill:none; stroke:rgba(111,230,198,.45); stroke-width:1; vector-effect:non-scaling-stroke; }
 #lzView svg .drawing{ fill:none; stroke:#fff; stroke-width:1.5; stroke-dasharray:5 4; vector-effect:non-scaling-stroke; pointer-events:none; }
 #lzFoot{ display:flex; align-items:center; gap:10px; padding:4px 0 0; color:var(--rd); font-size:11px; } #lzFoot .sp{ flex:1; } #lzFoot b{ color:var(--rt); font-weight:600; }
 #lzFoot .bar{ width:160px; height:8px; background:#1b1b1b; border:1px solid #444; } #lzFoot .bar i{ display:block; height:100%; background:var(--teal); }

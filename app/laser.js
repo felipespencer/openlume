@@ -238,6 +238,19 @@ export class LaserModule {
         for (const [hx, hy, i] of [[a[0], a[1], 0], [b[0], a[1], 1], [a[0], b[1], 2], [b[0], b[1], 3]]) S('rect', { x: hx - 6, y: hy - 6, width: 12, height: 12, class: 'hd', 'data-k': 'resize', 'data-i': i });
       }
     }
+    // mapeamento: contorno do quadrado mapeado e âncoras arrastáveis (aba Laser)
+    const M = this.settings.map;
+    if (this.tab === 'laser' && M && M.mode !== 'off') {
+      const fn = L.mapFn(M), edge = (a, b) => { const o = []; for (let i = 0; i <= 16; i++) { const q = fn(a[0] + (b[0] - a[0]) * i / 16, a[1] + (b[1] - a[1]) * i / 16); o.push(this.toS(q).join(',')); } return o.join(' '); };
+      if (fn) { S('polyline', { points: [[[-1, -1], [1, -1]], [[1, -1], [1, 1]], [[1, 1], [-1, 1]], [[-1, 1], [-1, -1]]].map(([a, b]) => edge(a, b)).join(' '), class: 'mapline' }); }
+      if (M.mode === 'corners') M.corners.forEach((p, i) => { const s = this.toS(p); S('circle', { cx: s[0], cy: s[1], r: 7, class: 'hd anc', 'data-k': 'mapc', 'data-i': i }); });
+      else {
+        const cols = 3 * M.divX + 1, rows = 3 * M.divY + 1;
+        for (let r = 0; r < rows; r += 3) for (let c = 0; c + 3 < cols; c += 3) { const d = []; for (let i = 0; i <= 12; i++) d.push(this.toS(L.mapFn(M)((c / (cols - 1) + (3 / (cols - 1)) * i / 12) * 2 - 1, (r / (rows - 1)) * 2 - 1)).join(',')); S('polyline', { points: d.join(' '), class: 'mapgrid' }); }
+        for (let c = 0; c < cols; c += 3) for (let r = 0; r + 3 < rows; r += 3) { const d = []; for (let i = 0; i <= 12; i++) d.push(this.toS(L.mapFn(M)((c / (cols - 1)) * 2 - 1, (r / (rows - 1) + (3 / (rows - 1)) * i / 12) * 2 - 1)).join(',')); S('polyline', { points: d.join(' '), class: 'mapgrid' }); }
+        M.mesh.forEach((p, i) => { const r = Math.floor(i / cols), c = i % cols; if (r % 3 || c % 3) return; const s = this.toS(p); S('circle', { cx: s[0], cy: s[1], r: 6, class: 'hd anc', 'data-k': 'mapm', 'data-i': i }); });
+      }
+    }
     if (this.poly) S('polyline', { points: this.poly.map(p => this.toS(p).join(',')).join(' '), class: 'drawing' });
     if (this.drag && this.drag.preview) S('polyline', { points: this.drag.preview.map(p => this.toS(p).join(',')).join(' '), class: 'drawing' });
   }
@@ -289,7 +302,7 @@ export class LaserModule {
         if (this.open && this.tab === 'live') { this.lastScan = scan; this.paint(scan); }
       } else if (this.open && this.tab === 'live') { this.lastScan = this.scanNow(now); this.paint(this.lastScan); }
       if (this.open && this.tab === 'frames') { if (this.sel !== this.active) this.updateContour(this.sel); this.lastScan = this.sel === this.active ? this.scanNow(now) : L.renderPoints(this.sel, this.settings, now, this.audio); this.paint(this.lastScan); }
-      if (this.open && this.tab === 'laser') this.paint(null);
+      if (this.open && this.tab === 'laser') { const sc = this.scanNow(now); this.lastScan = sc; this.paint(L.mapScan(sc, this.settings)); }
       if (this.open && (now * 2 | 0) !== this.lastFoot) { this.lastFoot = now * 2 | 0; this.renderFoot(); }
       setTimeout(tick, 1000 / this.settings.fps);
     };
@@ -298,7 +311,12 @@ export class LaserModule {
 
   // ---------- ferramentas ----------
   down(e) {
-    if (e.button !== 0 || this.tab !== 'frames') return;
+    if (e.button !== 0) return;
+    if (this.tab === 'laser') {   // arrastar uma âncora do mapeamento
+      const t = e.target.closest('[data-k]'); if (!t) return;
+      this.svg.setPointerCapture(e.pointerId); this.drag = { k: t.dataset.k, i: +t.dataset.i }; return;
+    }
+    if (this.tab !== 'frames') return;
     const p = this.fromS(e), f = this.sel;
     if (this.tool === 'poly') { if (!this.poly) this.poly = []; this.poly.push(p); this.draw(); return; }
     if (!f && this.tool !== 'select') { this.add('draw'); }
@@ -317,6 +335,13 @@ export class LaserModule {
   move(e) {
     const d = this.drag; if (!d) return;
     const p = this.fromS(e), f = d.f;
+    if (d.k === 'mapc' || d.k === 'mapm') {
+      const M = this.settings.map, q = [Math.max(-1, Math.min(1, p[0])), Math.max(-1, Math.min(1, p[1]))];
+      if (d.k === 'mapc') M.corners[d.i] = q;
+      else { const cols = 3 * M.divX + 1, old = M.mesh[d.i], dx = q[0] - old[0], dy = q[1] - old[1]; M.mesh[d.i] = q; const r = Math.floor(d.i / cols), c = d.i % cols;   // as alças vizinhas acompanham a âncora
+        for (const [dr, dc] of [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]) { const rr = r + dr, cc = c + dc; if (rr < 0 || cc < 0 || rr >= 3 * M.divY + 1 || cc >= cols) continue; const h = M.mesh[rr * cols + cc]; h[0] += dx; h[1] += dy; } }
+      this.draw(); return;
+    }
     if (d.k === 'body') { f.pos.x = d.pos.x + (p[0] - d.start[0]); f.pos.y = d.pos.y + (p[1] - d.start[1]); L.touch(f); this.draw(); this.renderProps(); }
     else if (d.k === 'resize') { const k = Math.max(0.05, d.pos.scale * (1 + (Math.hypot(p[0] - f.pos.x, p[1] - f.pos.y) - Math.hypot(d.start[0] - f.pos.x, d.start[1] - f.pos.y)) / Math.max(0.1, Math.hypot(d.start[0] - f.pos.x, d.start[1] - f.pos.y)))); f.pos.scale = Math.min(3, k); L.touch(f); this.draw(); this.renderProps(); }
     else if (d.k === 'pencil') { d.pts.push(p); d.preview = d.pts; this.draw(); }
@@ -326,7 +351,7 @@ export class LaserModule {
   }
   up(e) {
     const d = this.drag; if (!d) return; this.drag = null; try { this.svg.releasePointerCapture(e.pointerId); } catch { }
-    if (d.k === 'body' || d.k === 'resize') { this.c.onChange(); this.refresh(); return; }
+    if (d.k === 'body' || d.k === 'resize' || d.k === 'mapc' || d.k === 'mapm') { this.c.onChange(); this.refresh(); return; }
     if (!d.preview || d.preview.length < 2) { this.draw(); return; }
     this.pushUndo();
     const pts = d.k === 'pencil' ? L.simplify(d.preview, 0.006) : d.preview;
@@ -408,6 +433,15 @@ export class LaserModule {
     P.appendChild(this.pnum('Brilho', 'Brilho|Potência do feixe.', Math.round(S.bright * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 60 }, v => { S.bright = v / 100; }));
     P.appendChild(this.pnum('Taxa', 'Taxa|Quadros por segundo gerados pelo controle.', S.fps, { min: 10, max: 60, step: 5, unit: ' fps', bar: true, reset: 30 }, v => { S.fps = v; }));
     P.appendChild(this.pnum('Cantos', 'Pontos de canto|Quantos pontos o laser demora em cada canto e ponta. Mais = cantos mais nítidos, menos pontos sobrando para o traço.', S.corner, { min: 0, max: 10, step: 1, unit: ' pontos', bar: true, reset: 3 }, v => { S.corner = v; }));
+    // mapeamento: pontos de ancoragem como na Saída avançada
+    const M = S.map;
+    P.appendChild(this.phead('Mapeamento', 'Mapeamento|Leva o desenho do laser para a superfície: arraste as âncoras no palco (bolinhas) até o contorno casar com a parede, a tela ou o objeto.'));
+    P.appendChild(this.pseg('Modo', 'Modo|Não: sai como está. 4 cantos: perspectiva pelos quatro cantos. Malha: rede de curvas com mais âncoras, para superfícies tortas.', [['off', 'Não'], ['corners', 'Cantos'], ['mesh', 'Malha']], M.mode, v => { M.mode = v; this.renderProps(); this.draw(); }));
+    if (M.mode === 'mesh') {
+      P.appendChild(this.pnum('Divisões ↔', 'Divisões|Quantos retalhos na horizontal.', M.divX, { min: 1, max: 6, step: 1, bar: true, reset: 2 }, v => { L.setMapDivisions(M, v, M.divY); this.draw(); }));
+      P.appendChild(this.pnum('Divisões ↕', 'Divisões|Quantos retalhos na vertical.', M.divY, { min: 1, max: 6, step: 1, bar: true, reset: 2 }, v => { L.setMapDivisions(M, M.divX, v); this.draw(); }));
+    }
+    if (M.mode !== 'off') P.appendChild(this.pbutton('Zerar mapeamento', 'Zerar|Volta as âncoras para os cantos do palco.', () => { L.resetMap(M); this.renderProps(); this.draw(); }));
     P.appendChild(this.phead('Zona segura', 'Zona segura|O feixe é cortado fora deste retângulo. Use para não varrer o público nem o teto.'));
     P.appendChild(this.pnum('Largura', '', Math.round(S.safe.w * 100), { min: 10, max: 100, step: 1, unit: ' %', bar: true, reset: 84 }, v => { S.safe.w = v / 100; }));
     P.appendChild(this.pnum('Altura', '', Math.round(S.safe.h * 100), { min: 10, max: 100, step: 1, unit: ' %', bar: true, reset: 76 }, v => { S.safe.h = v / 100; }));
