@@ -11,7 +11,7 @@ export const FONTS = { ...HERSHEY_FONTS, ...EMS_FONTS };
 import { homography, applyHomography, meshFromRect, meshPoint, resampleMesh, cornersFromRect } from './warp.js';
 
 let seq = 1;
-export const LASER_DEFAULTS = () => ({ pps: 30000, bright: 0.6, corner: 3, safe: { w: 0.84, h: 0.76 }, flipX: true, flipY: false, flipCal: 1, colorCal: 1, fps: 30, scanHz: 50, fill: 50, style: 'ol', preset: 'standard', onSpeed: 0.0625, offSpeed: 0.0625, startWait: 8, startDwell: 2, curveDwell: 1, corner: 3, endDwell: 2, endWait: 1, curveAngle: 30, snap: 0.001, showPoints: false, map: MAP_DEFAULTS() });
+export const LASER_DEFAULTS = () => ({ pps: 30000, bright: 0.6, corner: 3, safe: { w: 0.84, h: 0.76 }, flipX: true, flipY: false, flipCal: 1, colorCal: 1, fps: 30, scanHz: 60, hzCal: 1, fill: 50, style: 'ol', preset: 'standard', onSpeed: 0.0625, offSpeed: 0.0625, startWait: 8, startDwell: 2, curveDwell: 1, corner: 3, endDwell: 2, endWait: 1, curveAngle: 30, snap: 0.001, showPoints: false, map: MAP_DEFAULTS() });
 // mapeamento da saída (como os quatro cantos e a malha da Saída avançada): pontos de ancoragem
 // que levam o quadrado do palco (-1..1) para onde o laser deve desenhar na superfície
 export const MAP_DEFAULTS = () => ({ mode: 'off', corners: cornersFromRect(-1, -1, 2, 2), divX: 2, divY: 2, mesh: meshFromRect(-1, -1, 2, 2, 2, 2) });
@@ -344,6 +344,8 @@ export function deserializeLaser(json) {
   // o LaserCube de teste (Wi-Fi, 2026-10-14) mostra o desenho espelhado na horizontal: arquivos sem a marca de calibração ganham o espelho horizontal
   if (!(d.settings && d.settings.flipCal)) { settings.flipX = true; settings.flipCal = 1; }
   // quadros salvos antes de a cor fixa virar o padrão: o arco-íris (a cor antiga padrão) vira verde fixo, uma vez só
+  // atualização: o padrão subiu para 60 Hz (a 50 o olho ainda via piscar); arquivos antigos com 50 sobem uma vez
+  if (!(d.settings && d.settings.hzCal)) { if (!settings.scanHz || settings.scanHz <= 50) settings.scanHz = 60; settings.hzCal = 1; }
   if (!(d.settings && d.settings.colorCal)) { for (const f of frames) if (f.color.mode === 'rainbow') { f.color.mode = 'solid'; f.color.c1 = '#00ff00'; } settings.colorCal = 1; }
   settings.map = Object.assign(MAP_DEFAULTS(), d.settings && d.settings.map || {}); if (settings.map.mesh.length !== (3 * settings.map.divX + 1) * (3 * settings.map.divY + 1)) settings.map.mesh = meshFromRect(-1, -1, 2, 2, settings.map.divX, settings.map.divY);
   return { frames, settings, active: d.active != null ? frames[d.frames.findIndex((_, i) => i === d.active)] : null };
