@@ -71,7 +71,7 @@ module.exports = (win, app, laser) => {
         R.bToca=!L[1].clips[0].el.paused;
         // clique no rodapé: só seleciona, não troca o que está no ar
         const antes=L[0].on; document.querySelector('.cell[data-layer="0"][data-col="1"] .nm').click(); await S(200);
-        R.rodape={on:L[0].on===antes, sel:P.state.sel, prev:!!document.querySelector('#prevScr img'), nome:document.getElementById('prevName').textContent};
+        R.rodape={on:L[0].on===antes, sel:P.state.sel, prev:!!document.querySelector('#prevScr canvas, #prevScr img'), nome:document.getElementById('prevName').textContent};
         // casa vazia: a camada fica preta
         document.querySelector('.cell[data-layer="1"][data-col="5"]').click(); await S(200);
         R.vaziaPreta={on:L[1].on, pausado:L[1].clips[0].el.paused, px:P.probe(pts)};
@@ -143,7 +143,7 @@ module.exports = (win, app, laser) => {
         // ---------- efeitos, fontes, texto, transição, autopilot, composição ----------
         // efeito na camada: inverter o vermelho dá ciano
         P.trigger(0,3); await S(200); const semFx=P.probe(mid)[0];
-        L[0].fx.push({id:'invertrgb',params:{r:1,g:1,b:1},bypass:false}); const comFx=P.probe(mid)[0]; L[0].fx=[];
+        L[0].fx.push({id:'invertrgb',params:{r:1,g:1,b:1},bypass:false}); const comFx=P.probe(mid)[0]; await S(120); const pv=document.querySelector('#prevScr canvas'); const prevFx=pv?[...pv.getContext('2d').getImageData(960,540,1,1).data].slice(0,3):null; L[0].fx=[];
         // efeito na composição
         P.engine.compFx.push({id:'threshold',params:{level:0.2},bypass:false}); const compFx=P.probe([[0.5,0.5],[0.05,0.5]]); P.engine.compFx=[];
         // fonte gerada: Test Card no meio é colorido; Solid Color vermelho
@@ -155,7 +155,7 @@ module.exports = (win, app, laser) => {
         L[0].transition=1; P.putSource(0,2,'solidcolor'); L[0].clips[2].params.hue=0.33; P.trigger(0,3); await S(100); P.trigger(0,2); await S(400); const meio=P.probe(mid)[0]; await S(800); const fim=P.probe(mid)[0]; L[0].transition=0; P.eject(0);
         // autopilot: tempo fixo de 0,3 s, próximo com loop → troca de casa sozinho
         L[0].autopilot={dir:'next',dur:'fixed',secs:0.4,loop:true}; P.trigger(0,2); const ap0=L[0].on; await S(600); const ap1=L[0].on; await S(400); const ap2=L[0].on; L[0].autopilot.dir='off'; P.eject(0);
-        R.extras={semFx,comFx,compFx,fonte,solido,texto,meio,fim,ap:[ap0,ap1,ap2]};
+        R.extras={semFx,comFx,prevFx,compFx,fonte,solido,texto,meio,fim,ap:[ap0,ap1,ap2]};
         // composição: salva e abre de volta
         L[0].name='Topo'; L[1].fx.push({id:'blur',params:{amount:0.5},bypass:false});
         const cjson=P.serialize(); const antesN=P.state.layers.map(l=>l.clips.filter(c=>c&&(c.path||c.kind!=='video'&&c.kind!=='image')).length);   // arquivo solto sem caminho não vai para o arquivo
@@ -235,8 +235,8 @@ module.exports = (win, app, laser) => {
       ok('salvar e abrir', r.serial.telas === 1 && r.serial.itens === 2 && r.serial.in && r.serial.pts, 'preset volta com os mesmos retângulos e pontos');
       ok('preset em disco', r.preset && r.preset.na && r.preset.igual && !r.preset.depois, r.preset ? 'gravado, lido igual e apagado' : 'sem ponte com o processo principal');
       const X = r.extras;
-      ok('efeitos na camada e na composição', X.semFx[0] > 200 && X.semFx[1] < 40 && X.comFx[0] < 40 && X.comFx[1] > 200 && X.comFx[2] > 200 && X.compFx[0][0] > 200 && X.compFx[0][1] > 200 && X.compFx[1].join() === '0,0,0',
-        'vermelho ' + X.semFx + ' → Invert RGB ' + X.comFx + '; Threshold na composição: centro ' + X.compFx[0] + ', faixa ' + X.compFx[1]);
+      ok('efeitos na camada e na composição', X.semFx[0] > 200 && X.semFx[1] < 40 && X.comFx[0] < 40 && X.comFx[1] > 200 && X.comFx[2] > 200 && X.prevFx && X.prevFx[0] < 40 && X.prevFx[1] > 200 && X.compFx[0][0] > 200 && X.compFx[0][1] > 200 && X.compFx[1].join() === '0,0,0',
+        'vermelho ' + X.semFx + ' → Invert RGB ' + X.comFx + '; prévia mostra o efeito: ' + X.prevFx + '; Threshold na composição: centro ' + X.compFx[0] + ', faixa ' + X.compFx[1]);
       ok('fontes geradas e texto', X.fonte[0].join() !== '0,0,0' && X.solido[0] > 200 && X.solido[1] < 40 && X.texto[0] > 200 && X.texto[1] > 200,
         'Test Card centro ' + X.fonte[0] + '; Solid Color ' + X.solido + '; texto ' + X.texto);
       ok('transição entre clipes', X.meio[0] > 40 && X.meio[1] > 40 && X.fim[1] > 200 && X.fim[0] < 40, 'no meio ' + X.meio + ' (vermelho e verde misturados), no fim ' + X.fim);

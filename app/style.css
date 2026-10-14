@@ -16,7 +16,7 @@ input[type=range]{ accent-color:var(--accent); height:14px; margin:0; }
 #top .st{ color:var(--ghost); } #top .st.on{ color:var(--accent); }
 #top button{ height:22px; padding:0 10px; }
 
-#mid{ display:grid; grid-template-columns:minmax(0,1fr) 340px; min-height:0; }
+#mid{ display:grid; grid-template-columns:minmax(0,1fr) 5px var(--monW); min-height:0; }
 #gridWrap{ overflow:auto; border-right:1px solid var(--line); }
 #grid{ display:grid; grid-template-columns:200px repeat(var(--cols), minmax(104px,1fr)); min-width:1040px; }
 .gh{ position:sticky; top:0; z-index:2; height:24px; display:flex; align-items:center; justify-content:center; padding:0; border:0; border-radius:0;
@@ -257,9 +257,12 @@ button.gh:hover{ color:var(--txt); background:var(--bg3); }
 .cell.laser .th{ background:#000 center / 60% no-repeat; outline:1px solid #2b5; }
 
 /* ---------- rodapé no formato do Resolume: Composição | Camada · Clipe · navegador ---------- */
-body{ grid-template-rows:30px minmax(0,1fr) 300px; }
+:root{ --monW:340px; --botH:300px; --leftW:380px; --rightW:380px; }
+body{ grid-template-rows:30px minmax(0,1fr) 5px var(--botH); }
+.split{ background:#141518; position:relative; z-index:3; } .split.v{ cursor:col-resize; width:5px; } .split.h{ cursor:row-resize; height:5px; }
+.split:hover, .split.drag{ background:var(--accent); }
 #top #compName{ color:var(--dim); margin-left:4px; }
-#bot{ grid-template-columns:380px minmax(0,1fr) 380px; background:#1b1b1b; }
+#bot{ grid-template-columns:var(--leftW) 5px minmax(0,1fr) 5px var(--rightW); background:#1b1b1b; }
 .rpan{ --rp:#2b2b2b; --rh:#3a3a3a; --rl:#1f1f1f; --rt:#d4d4d4; --rd:#8a8a8a; --teal:#6fe6c6; background:#2b2b2b; border-right:2px solid #1b1b1b; }
 .rpan .ptabs{ background:#1b1b1b; border:0; } .rpan .ptabs span{ background:#272727; color:var(--rd); box-shadow:none; cursor:pointer; flex:1; min-width:0; padding:6px 4px; text-align:center; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .rpan .ptabs span.on{ background:#3a3a3a; color:var(--rt); }
 .rpan .ptitle{ height:26px; display:flex; align-items:center; padding:0 8px; background:#3a3a3a; font-weight:600; color:var(--rt); flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }

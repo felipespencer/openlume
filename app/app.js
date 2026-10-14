@@ -16,6 +16,7 @@ import { Browser } from './browser.js';
 import { Recorder } from './record.js';
 import { mkFx } from './effects.js';
 import { AUTOPILOT, serializeComposition, deserializeComposition } from './composition.js';
+import { initSplitters } from './splitters.js';
 
 const COLS = 8, COMP_W = 1920, COMP_H = 1080;
 const $ = (id) => document.getElementById(id);
@@ -130,11 +131,13 @@ function removeLayer(li) {
   state.layers.splice(li, 1); state.sel = null; state.selLayer = Math.min(state.selLayer, state.layers.length - 1); render();
 }
 function applySpeed() { for (const L of state.layers) for (const c of L.clips) if (c && c.kind === 'video' && c.el) c.el.playbackRate = c.speed * state.speed; }
-function selectedClip() {
-  let L = state.sel ? state.layers[state.sel.l] : null, clip = L ? L.clips[state.sel.c] : null;
-  if (!clip) { L = state.layers[state.selLayer]; clip = L && L.on >= 0 ? L.clips[L.on] : null; }
-  return clip;
+// a casa selecionada (clique no nome) ou, sem seleção, o que está no ar na camada selecionada
+function selectedCell() {
+  let L = state.sel ? state.layers[state.sel.l] : null, idx = L ? state.sel.c : -1;
+  if (!L || !L.clips[idx]) { L = state.layers[state.selLayer]; idx = L ? L.on : -1; }
+  return L && idx >= 0 && L.clips[idx] ? { L, idx, clip: L.clips[idx] } : null;
 }
+function selectedClip() { const c = selectedCell(); return c ? c.clip : null; }
 // autopilot: quando o clipe acaba, a camada passa para o próximo, o anterior ou um ao acaso
 function tickAutopilot(now) {
   let anyOn = false, allEnded = true;
@@ -234,17 +237,19 @@ function render() {
 })();
 
 // ---------- prévia ----------
+// o clipe selecionado como ele sai: renderizado pelo motor a cada quadro, com efeitos e tudo
 let prevKey = '';
+const prevCanvas = document.createElement('canvas'); prevCanvas.width = COMP_W; prevCanvas.height = COMP_H;
+const prevCtx = prevCanvas.getContext('2d');
 function renderPreview() {
   const clip = selectedClip(), key = clip ? 'c' + clip.id : previewPath ? 'p' + previewPath : '';
   if (key !== prevKey) {
     prevKey = key;
     const p = $('prevScr'); p.textContent = '';
-    const src = clip ? clip.url : previewPath ? C.mediaUrl(previewPath) : '';
-    const name = clip ? clip.name : previewName;
-    if (clip && (clip.kind === 'laser' || clip.kind === 'text' || clip.kind === 'source')) { const im = el('img'); im.draggable = false; im.src = clip.thumb; p.appendChild(im); }
-    else if (clip && clip.kind === 'camera') { const v = el('video'); v.muted = true; v.autoplay = true; v.playsInline = true; v.srcObject = clip.stream; p.appendChild(v); }
-    else if (src && (clip ? clip.kind === 'video' : C.isVideoName(name))) { const v = el('video'); v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true; v.src = src; p.appendChild(v); }
+    const src = previewPath ? C.mediaUrl(previewPath) : '';
+    if (clip && clip.kind === 'laser') { const im = el('img'); im.draggable = false; im.src = clip.thumb; p.appendChild(im); }
+    else if (clip) p.appendChild(prevCanvas);
+    else if (src && C.isVideoName(previewName)) { const v = el('video'); v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true; v.src = src; p.appendChild(v); }
     else if (src) { const im = el('img'); im.draggable = false; im.src = src; p.appendChild(im); }
   }
   $('prevName').textContent = clip ? (clip.kind === 'laser' ? 'laser · ' : clip.kind === 'source' ? 'fonte · ' : clip.w + '×' + clip.h + ' · ') + clip.name : previewPath ? 'arquivo · ' + previewName : '—';
@@ -366,12 +371,20 @@ const browser = new Browser({
   addEffectToSelection: (id) => { const c = selectedClip(); if (!c) { toast('Selecione um clipe primeiro'); return; } c.fx.push(mkFx(id)); render(); },
 });
 
+// ---------- divisórias ----------
+(async () => {
+  let prefs = {}; if (D) { try { prefs = await D.prefs.get(); } catch { } }
+  initSplitters(prefs).onSave((sizes) => { if (D) D.prefs.get().then(p => D.prefs.set({ ...p, sizes })).catch(() => { }); });
+})();
+
 // ---------- laço de desenho ----------
 (function loop() {
   const now = performance.now() / 1000;
   for (const L of state.layers) if (L.prev && now - L.prev.t0 >= L.prev.dur) { C.stopClip(L.prev.clip); L.prev = null; }
   engine.render(state.layers, engine.neededLayers(state.screens), now);
   engine.blit(monCtx);
+  const pc = selectedCell();
+  if (pc && pc.clip.kind !== 'laser' && prevCanvas.isConnected) { engine.previewLayer(pc.L, pc.idx); engine.blit(prevCtx); }
   for (const sc of state.screens) {
     const open = sc.win && !sc.win.closed;
     if (!open && !(ao.open && ao.curScreen() === sc)) continue;

@@ -26,6 +26,13 @@ npm start
   nele em tela cheia. Numa janela comum, F ou duplo clique alterna a tela cheia.
 - Abrir o programa começa sempre do zero.
 
+### Janela
+
+As divisórias entre a grade e os monitores, entre o meio e o rodapé e entre os três painéis
+de baixo se arrastam; duplo clique devolve o tamanho padrão. Os tamanhos ficam guardados.
+A **Prévia** mostra o clipe selecionado como ele sai: renderizado pelo motor, com efeitos,
+transformação e transição, mudando junto com a saída.
+
 ### Rodapé no formato do Resolume
 
 - **Composição | Camada** (esquerda): Autopilot (direção ◀◀ OFF ▶▶ ⤮, duração pelo clipe ou

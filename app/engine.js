@@ -326,6 +326,17 @@ export class Engine {
     // a composição vai para o canvas mestre, para o monitor e para as sondas
     this.copyTo(this.comp.t, W, H);
   }
+  // prévia: um clipe da camada (mesmo fora do ar) renderizado como sairia, com os efeitos do
+  // clipe e da camada; fica no canvas mestre para o blit
+  previewLayer(L, clipIdx) {
+    const gl = this.gl, W = this.W, H = this.H;
+    if (!this.prevFbo) this.prevFbo = this.fbo(W, H);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.prevFbo.fb); gl.viewport(0, 0, W, H);
+    gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    this.drawLayer({ ...L, on: clipIdx, prev: null, bypass: false, opacity: 1 }, W, H, this.prevFbo.fb);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    this.copyTo(this.prevFbo.t, W, H);
+  }
   copyInto(tex, w, h, opaque) {
     const gl = this.gl;
     gl.viewport(0, 0, w, h); gl.disable(gl.BLEND);
