@@ -24,6 +24,8 @@ npm start
 - X tira a camada do ar. B desliga e liga a camada sem perder o clipe.
 - "Abrir saída" abre a janela do projetor. Com um segundo monitor ligado, ela já abre nele em
   tela cheia. Numa janela comum, F ou duplo clique alterna a tela cheia.
+- "Mapear", no monitor de saída, amplia a imagem e mostra os quatro cantos: puxe cada um até
+  encaixar na superfície. Duplo clique num canto devolve só aquele; "Zerar" devolve todos.
 - Abrir o programa começa sempre do zero.
 
 ## Como é feito
@@ -47,7 +49,7 @@ O teste roda dentro do próprio programa, lê pixels da composição e confere a
 
 ## Ainda não tem
 
-Efeitos, mapeamento (cantos e malha), vários projetores com recorte, transição entre clipes,
+Efeitos, mapeamento por malha e por camada, vários projetores com recorte, transição entre clipes,
 decks, MIDI, texto e câmera como clipe, salvar e abrir composição.
 
 ## Origem das ideias

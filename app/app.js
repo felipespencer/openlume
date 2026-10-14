@@ -286,6 +286,51 @@ $('pickFile').onchange = () => {
   }
 };
 
+// ---------- mapeamento da saída ----------
+// Quatro cantos (cima-esquerda, cima-direita, baixo-direita, baixo-esquerda), em fração da tela
+// do projetor. A janela de saída lê window.__projMap e deforma a imagem; aqui o monitor
+// ampliado mostra a mesma deformação e deixa puxar os cantos.
+const IDENT = [[0, 0], [1, 0], [1, 1], [0, 1]];
+state.map = IDENT.map(p => p.slice());
+window.__projMap = state.map;
+function layoutMap() {
+  const scr = $('outScr'), ov = $('mapOv');
+  const on = document.body.classList.contains('mapping');
+  if (!on) { canvas.style.transform = ''; return; }
+  const W = scr.clientWidth, H = scr.clientHeight;
+  const px = state.map.map(p => [p[0] * W, p[1] * H]);
+  canvas.style.transform = window.projMapIsIdentity(state.map) ? '' : window.projHomography(W, H, px);
+  if (ov.children.length !== 5) {
+    ov.textContent = '';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'polygon'));
+    ov.appendChild(svg);
+    state.map.forEach((_, i) => {
+      const h = el('div', 'hd', String(i + 1)); h.dataset.i = i;
+      h.onpointerdown = (e) => { h.setPointerCapture(e.pointerId); e.preventDefault(); };
+      h.onpointermove = (e) => {
+        if (!h.hasPointerCapture(e.pointerId)) return;
+        const r = scr.getBoundingClientRect();
+        // o canto pode sair um pouco da tela: às vezes a superfície é maior que a área útil
+        state.map[i][0] = Math.min(1.25, Math.max(-0.25, (e.clientX - r.left) / r.width));
+        state.map[i][1] = Math.min(1.25, Math.max(-0.25, (e.clientY - r.top) / r.height));
+        layoutMap();
+      };
+      h.ondblclick = () => { state.map[i][0] = IDENT[i][0]; state.map[i][1] = IDENT[i][1]; layoutMap(); };
+      ov.appendChild(h);
+    });
+  }
+  ov.querySelector('polygon').setAttribute('points', px.map(p => p.join(',')).join(' '));
+  ov.querySelectorAll('.hd').forEach((h, i) => { h.style.left = px[i][0] + 'px'; h.style.top = px[i][1] + 'px'; });
+}
+$('btnMap').onclick = () => {
+  const on = document.body.classList.toggle('mapping');
+  $('btnMap').textContent = on ? 'Voltar à grade' : 'Mapear';
+  layoutMap();
+};
+$('btnMapReset').onclick = () => { IDENT.forEach((p, i) => { state.map[i][0] = p[0]; state.map[i][1] = p[1]; }); layoutMap(); };
+addEventListener('resize', layoutMap);
+
 // ---------- saída ----------
 let outWin = null;
 $('btnOut').onclick = () => {
@@ -302,4 +347,4 @@ render();
 
 // usado pelo teste automático (tools/selftest-main.js); não é interface de usuário
 window.projecionista = { state, engine, putFiles, trigger, eject, triggerColumn, moveClip, clearCell, render,
-  probe: (pts) => engine.probe(state.layers, pts), outWin: () => outWin };
+  probe: (pts) => engine.probe(state.layers, pts), outWin: () => outWin, layoutMap };

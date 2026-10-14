@@ -58,6 +58,10 @@ module.exports = (win, app) => {
         P.trigger(2,0); P.trigger(1,0); L[0].opacity=0.35; P.render(); await S(700);
         document.getElementById('btnOut').click(); await S(2500);
         R.saida=!!(P.outWin() && !P.outWin().closed);
+        // mapeamento: puxa o canto de cima à direita para (0.8, 0.1)
+        document.getElementById('btnMap').click(); P.state.map[1][0]=0.8; P.state.map[1][1]=0.1; P.layoutMap(); await S(500);
+        const scr=document.getElementById('outScr'), hd=document.querySelector('#mapOv .hd[data-i="1"]');
+        R.mapa={modo:document.body.classList.contains('mapping'), tr:scr.querySelector('canvas').style.transform.slice(0,8), hx:parseFloat(hd.style.left)/scr.clientWidth, hy:parseFloat(hd.style.top)/scr.clientHeight};
         return R;
       })()`, true);
       const nz = (p) => p[0] + p[1] + p[2] > 30;
@@ -85,6 +89,16 @@ module.exports = (win, app) => {
         fs.writeFileSync(path.join(dir, 'pc-saida.png'), (await o.webContents.capturePage()).toPNG());
       }
       ok('janela de saída', r.saida && ov && ov.w === 1920 && ov.h === 1080 && ov.anda, ov ? ov.w + '×' + ov.h + ', recebendo quadros=' + ov.anda : 'não abriu');
+      // o canto de cima à direita da imagem tem de cair em (0.8, 0.1) da tela do projetor
+      const canto = `(()=>{ const v=document.getElementById('v'); const t=getComputedStyle(v).transform; if(t==='none') return null; const q=new DOMMatrix(t).transformPoint(new DOMPoint(innerWidth,0,0,1)); return [q.x/q.w/innerWidth, q.y/q.w/innerHeight]; })()`;
+      const c1 = o ? await o.webContents.executeJavaScript(canto) : null;
+      ok('mapeamento na saída', r.mapa.modo && r.mapa.tr === 'matrix3d' && Math.abs(r.mapa.hx - 0.8) < 0.01 && Math.abs(r.mapa.hy - 0.1) < 0.01 && c1 && Math.abs(c1[0] - 0.8) < 0.005 && Math.abs(c1[1] - 0.1) < 0.005,
+        'canto 2 puxado para (0,8; 0,1); na saída ele cai em ' + (c1 ? c1.map(x => x.toFixed(3)).join('; ') : 'sem transformação'));
+      if (o) fs.writeFileSync(path.join(dir, 'pc-saida-mapeada.png'), (await o.webContents.capturePage()).toPNG());
+      fs.writeFileSync(path.join(dir, 'pc-mapear.png'), (await win.webContents.capturePage()).toPNG());
+      await win.webContents.executeJavaScript(`document.getElementById('btnMapReset').click(); document.getElementById('btnMap').click(); true`, true); await sleep(400);
+      const c2 = o ? await o.webContents.executeJavaScript(canto) : 'x';
+      ok('zerar mapeamento', c2 === null, c2 === null ? 'saída sem deformação' : 'ainda deformada');
     } catch (e) { ok('execução', false, e.message); }
     const f = out.filter(x => !x.pass);
     console.log(f.length ? 'REPROVADO: ' + f.map(x => x.name).join(', ') : 'APROVADO: ' + out.length + ' verificações');

@@ -17,7 +17,7 @@
   <div id="mid">
     <div id="gridWrap"><div id="grid"></div></div>
     <div id="mons">
-      <div class="mon"><div class="cap"><span>Saída</span><span id="compInfo"></span></div><div class="scr" id="outScr"></div></div>
+      <div class="mon out"><div class="cap"><span>Saída <i id="compInfo"></i></span><span class="acts"><button id="btnMapReset" type="button" title="Desfaz o mapeamento: a imagem volta a ocupar a tela inteira">Zerar</button><button id="btnMap" type="button" title="Amplia a saída para você puxar os quatro cantos e encaixar a imagem na superfície">Mapear</button></span></div><div class="scr" id="outScr"><div id="mapOv"></div></div></div>
       <div class="mon"><div class="cap"><span>Prévia</span><span id="prevName">—</span></div><div class="scr" id="prevScr"></div></div>
     </div>
   </div>
@@ -35,6 +35,7 @@
     </div>
   </div>
   <div id="toast"></div>
+  <script src="map.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
