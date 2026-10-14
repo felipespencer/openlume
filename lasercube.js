@@ -45,7 +45,7 @@ class LaserCube extends EventEmitter {
     this.frame = null;          // Uint16Array x,y,r,g,b por ponto (0..4095), repetido em laço
     this.frameAt = 0; this.pos = 0; this.msg = 0; this.frameNo = 0;
     this.bufFree = 0; this.bufSize = 0; this.lastReply = 0;
-    this.timer = null; this.poll = null; this.lastInfoAt = 0; this.batch = 0; this.fill = 0.5; this.resetStats();
+    this.timer = null; this.poll = null; this.lastInfoAt = 0; this.batch = 0; this.fill = 0.5; this.pending = null; this.hasPending = false; this.resetStats();
   }
 
   // ---------- descoberta ----------
@@ -109,7 +109,7 @@ class LaserCube extends EventEmitter {
     if (this.cmd) { try { this.send(CMD.OUTPUT, [0], true); } catch { } }
     clearInterval(this.timer); clearInterval(this.poll); this.timer = this.poll = null;
     for (const s of [this.cmd, this.data]) { if (s) { try { s.close(); } catch { } } }
-    this.cmd = this.data = null; this.ip = null; this.info = null; this.outputOn = false; this.frame = null;
+    this.cmd = this.data = null; this.ip = null; this.info = null; this.outputOn = false; this.frame = null; this.pending = null; this.hasPending = false;
     this.emit('status', this.status());
   }
   send(cmd, payload = [], twice = false) { if (this.cmd && this.ip) { const b = Buffer.from([cmd, ...payload]); this.cmd.send(b, PORT_CMD, this.ip); if (twice) this.cmd.send(b, PORT_CMD, this.ip); } }
@@ -130,14 +130,22 @@ class LaserCube extends EventEmitter {
 
   // ---------- pontos ----------
   // o controle manda o quadro inteiro (x y r g b por ponto); aqui ele é repetido em laço
-  setFrame(u16) { const st = this.stats, nw = Date.now(); if (this.frameAt && this.outputOn) { st.maxGapMs = Math.max(st.maxGapMs, nw - this.frameAt); } st.frames++; this.frame = u16 && u16.length >= 5 ? u16 : null; this.frameAt = Date.now(); if (this.pos >= (this.frame ? this.frame.length / 5 : 0)) this.pos = 0; }
+  // O quadro novo espera o fim da volta do feixe para entrar: trocar no meio desenhava uma linha de salto a cada
+  // quadro novo (30 vezes por segundo, o que se via como piscada). Se vários chegam numa volta, vale o último.
+  setFrame(u16) {
+    const st = this.stats, nw = Date.now(); if (this.frameAt && this.outputOn) st.maxGapMs = Math.max(st.maxGapMs, nw - this.frameAt); st.frames++;
+    this.pending = u16 && u16.length >= 5 ? u16 : null; this.hasPending = true; this.frameAt = nw;
+    if (!this.frame || this.pending === null) { this.frame = this.pending; this.hasPending = false; this.pos = 0; }
+  }
   pump() {
     if (!this.data || !this.ip || !this.outputOn) return;
+    if (this.hasPending && this.pos === 0) { this.frame = this.pending; this.pending = null; this.hasPending = false; }
     let frame = this.frame;
     // sem quadro novo há mais de um segundo: o laser recebe pontos apagados, não o último desenho
     if (!frame || Date.now() - this.frameAt > 1000) { frame = BLANK; this.stats.blankPumps++; }
     { const st = this.stats, nw = Date.now(); st.pumps++; if (this.lastPumpAt) st.maxPumpGapMs = Math.max(st.maxPumpGapMs, nw - this.lastPumpAt); this.lastPumpAt = nw; if (this.bufSize) { st.minFree = Math.min(st.minFree, this.bufFree); st.maxFree = Math.max(st.maxFree, this.bufFree); if (this.bufFree >= this.bufSize - 200) st.underruns++; } }
-    const n = frame.length / 5;
+    let n = frame.length / 5;
+    if (this.pos >= n) this.pos = 0;   // quadro menor que a posição atual (ou quadro apagado): recomeça
     // mantém o buffer do aparelho com pelo menos metade cheio; sem resposta recente, manda devagar
     const now = Date.now();
     // o aparelho esvazia o buffer na taxa configurada: sem isso o driver só sabia o nível pelas respostas, parava de
@@ -155,6 +163,7 @@ class LaserCube extends EventEmitter {
     let pkts = 0;
     while (budget > 0 && pkts < MAX_PKTS) {
       const cnt = Math.min(MAX_PTS, budget, n - this.pos);
+      if (cnt <= 0) { this.pos = 0; break; }
       const b = Buffer.alloc(4 + cnt * 10);
       b[0] = CMD.DATA; b[1] = 0; b[2] = this.msg; b[3] = this.batch;
       for (let i = 0; i < cnt; i++) {
@@ -163,7 +172,11 @@ class LaserCube extends EventEmitter {
       }
       this.data.send(b, PORT_DATA, this.ip);
       this.stats.pktsSent++; this.msg = (this.msg + 1) & 0xff; this.pos += cnt; budget -= cnt; this.bufFree -= cnt; this.tokens -= cnt; pkts++;
-      if (this.pos >= n) { this.pos = 0; this.frameNo = (this.frameNo + 1) & 0xff; if (frame !== this.frame) break; }
+      if (this.pos >= n) {
+        this.pos = 0; this.frameNo = (this.frameNo + 1) & 0xff;
+        if (frame !== this.frame) break;   // era o quadro apagado
+        if (this.hasPending) { this.frame = frame = this.pending; this.pending = null; this.hasPending = false; if (!frame) break; n = frame.length / 5; }   // fim da volta: entra o quadro novo
+      }
     }
     if (pkts) this.batch = (this.batch + 1) & 0xff;   // o byte 3 muda a cada lote, não a cada quadro
   }

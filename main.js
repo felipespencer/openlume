@@ -241,6 +241,8 @@ app.whenReady().then(async () => {
 
   // laser: um LaserCube por vez, controlado pela janela principal
   const laser = new LaserCube();
+  // com a saida ligada, a cada 10 s o registro ganha as estatisticas do fluxo de pontos (para achar a causa de piscadas)
+  setInterval(() => { try { if (laser.outputOn && laser.ip) { const s = laser.stats; logLine('laser', JSON.stringify({ quadros: s.frames, maiorPausaQuadroMs: s.maxGapMs, quadroApagado: s.blankPumps, bufferVazio: s.underruns, errosPacote: s.errMax, bufLivreMin: s.minFree, pacotes: s.pktsSent, pps: laser.rate, preenchimento: laser.fill })); laser.resetStats(); } } catch { } }, 10000);
   ipcMain.handle('laser:discover', () => laser.discover());
   ipcMain.handle('laser:connect', (_e, ip) => laser.connect(String(ip)));
   ipcMain.handle('laser:disconnect', () => { laser.disconnect(); return true; });
