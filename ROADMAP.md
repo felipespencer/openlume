@@ -87,6 +87,13 @@ da nota; os botões de pista usam a mesma nota em canais 1–8 (48 desligar, 49 
 anterior, 52 limpar, 66 próximo clipe); faders são CC 7 por canal, master CC 14, knobs de
 pista CC 48–55, knobs da direita CC 16–23, crossfader CC 15 (sem função no mapa do Resolume).
 
+## Catálogo do Resolume (2026-10-14)
+
+Pedido do Felipe: "abra o resolume e puxe o máximo de coisas que o resolume tem". Feito:
+`referencia-resolume/CATALOGO.md` lista menus, painéis, os 90 efeitos de vídeo, os 23 plugins
+Wire (os mais novos, com Background Removal e os de profundidade), fontes, transições, Record
+e Autopilot, com as capturas ao lado (fora do git).
+
 ## Como estudar o Resolume para o item 1
 
 - O que o próprio programa instala: `rest/docs/swagger.yaml`, `default/Example.avc`,
