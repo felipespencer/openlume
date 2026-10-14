@@ -41,7 +41,7 @@ export class Menubar {
       if (it === '-') { m.appendChild(el('div', 'sep')); continue; }
       const row = el('div', 'mi' + (it.disabled ? ' dis' : '') + (it.sub ? ' sub' : ''));
       row.append(el('span', 'ck', it.check ? '✓' : ''), el('span', 'lb', it.label), el('span', 'key', it.sub ? '▸' : (it.key || '')));
-      if (it.sub) row.onpointerenter = () => { this.closeFrom(m); const r = row.getBoundingClientRect(); this.popup(it.sub(), r.right - 2, r.top - 4, m); };
+      if (it.sub && !it.disabled) row.onpointerenter = () => { this.closeFrom(m); const r = row.getBoundingClientRect(); this.popup(it.sub(), r.right - 2, r.top - 4, m); };
       else row.onpointerenter = () => this.closeFrom(m);
       if (!it.disabled && !it.sub) row.onclick = () => { this.close(); it.fn && it.fn(); };
       m.appendChild(row);

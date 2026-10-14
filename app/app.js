@@ -513,7 +513,7 @@ function tickAutopilot(now) {
     const dur = ap.dur === 'fixed' ? ap.secs : ap.dur === 'beats' ? (ap.beats || 4) * 60 / effBpm(state.bpm) : (clip.kind === 'video' && clip.dur ? Math.max(0.05, ((clip.tr.out || clip.dur) - clip.tr.in)) / (clip.speed * layerSpeed(L)) : ap.secs);
     const elapsed = now - (clip.startedAt || now);
     if (elapsed < dur && !(clip.kind === 'video' && clip.tr.mode === 'once' && !clip.tr.playing)) { allEnded = false; continue; }
-    if (ap.dir === 'off') { if (clip.kind === 'video') allEnded = allEnded && clip.el.ended; continue; }
+    if (ap.dir === 'off') { if (clip.kind === 'video') { const m = clip.el || clip.player; allEnded = allEnded && (!m || !!m.ended); } continue; }   // clipe preparado não tem el: o reprodutor próprio diz se acabou
     if (ap.dir === 'stop') { eject(li); continue; }
     if (ap.dir === 'cell') { const tl = Math.min(cap.l, state.layers.length - 1); if (state.layers[tl].clips[cap.c]) { if (tl !== li) clip.startedAt = now; trigger(tl, cap.c); } else clip.startedAt = now; continue; }
     const idx = L.clips.map((c, i) => c ? i : -1).filter(i => i >= 0);
