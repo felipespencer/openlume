@@ -1,0 +1,15 @@
+{
+  "name": "projecionista",
+  "productName": "Projecionista",
+  "version": "0.1.0",
+  "description": "Projecionista: grade de clipes, mistura de camadas e saída para projetor",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node tools/selftest.mjs"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11"
+  }
+}

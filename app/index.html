@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'">
+<title>Projecionista</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="top">
+    <span class="logo">PROJECIO<b>NISTA</b></span>
+    <span class="sp"></span>
+    <span id="outState" class="st">saída fechada</span>
+    <button id="btnOut" type="button" title="Abre a janela de saída. Com um projetor ligado, ela já abre nele em tela cheia.">Abrir saída</button>
+  </div>
+
+  <div id="mid">
+    <div id="gridWrap"><div id="grid"></div></div>
+    <div id="mons">
+      <div class="mon"><div class="cap"><span>Saída</span><span id="compInfo"></span></div><div class="scr" id="outScr"></div></div>
+      <div class="mon"><div class="cap"><span>Prévia</span><span id="prevName">—</span></div><div class="scr" id="prevScr"></div></div>
+    </div>
+  </div>
+
+  <div id="bot">
+    <div class="pan"><div class="ptabs"><span>Clipe</span></div><div class="pbody" id="clipPan"></div></div>
+    <div class="pan"><div class="ptabs"><span>Camada</span></div><div class="pbody" id="layerPan"></div></div>
+    <div class="pan"><div class="ptabs"><span>Arquivos</span></div>
+      <div class="pbody" id="filesPan">
+        <button type="button" class="wide" id="pick">Escolher vídeos e imagens…</button>
+        <input type="file" id="pickFile" accept="image/*,video/*" multiple hidden>
+        <div id="fileList"></div>
+        <div class="dica">Arraste daqui para uma casa da grade, ou arraste direto de uma pasta do Windows. Dentro da grade, arrastar move o clipe; com Ctrl, copia.</div>
+      </div>
+    </div>
+  </div>
+  <div id="toast"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

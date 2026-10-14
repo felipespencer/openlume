@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Projecionista — saída</title>
+<style>
+  html,body{ margin:0; height:100%; background:#000; overflow:hidden; cursor:none; }
+  video{ width:100%; height:100%; object-fit:contain; display:block; background:#000; }
+</style>
+</head>
+<body>
+<video id="v" autoplay muted playsinline></video>
+<script>
+  // A saída não mistura nada: mostra a imagem que a janela de controle já misturou.
+  var v = document.getElementById('v');
+  function liga(){
+    try{
+      var s = window.opener && window.opener.__projStream;
+      if(s && v.srcObject !== s){ v.srcObject = s; v.play().catch(function(){}); }
+    }catch(e){}
+  }
+  liga(); setInterval(liga, 1000);
+  // F ou duplo clique: tela cheia. Esc sai.
+  function cheia(){ if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(function(){}); }
+  addEventListener('keydown', function(e){ if(e.key === 'f' || e.key === 'F') cheia(); });
+  addEventListener('dblclick', cheia);
+</script>
+</body>
+</html>
