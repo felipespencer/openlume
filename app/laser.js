@@ -431,6 +431,7 @@ export class LaserModule {
     P.appendChild(this.phead('Saída', 'Saída|Vale para todos os quadros.'));
     P.appendChild(this.pnum('Pontos/s', 'Pontos por segundo|Velocidade do galvanômetro. Mais pontos = traço mais parado, mas o laser pode não acompanhar.', S.pps, { min: 5000, max: 60000, step: 1000, bar: true, reset: 30000 }, v => { S.pps = v; if (this.c.laser) this.c.laser.rate(v); }));
     P.appendChild(this.pnum('Brilho', 'Brilho|Potência do feixe.', Math.round(S.bright * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 60 }, v => { S.bright = v / 100; }));
+    P.appendChild(this.pnum('Atualização', 'Atualização do feixe|Quantas vezes por segundo o laser repassa o desenho inteiro. Abaixo de uns 50 o olho vê piscar; mais alto deixa o desenho firme, mas com menos pontos para o traço (pontos por segundo ÷ este valor).', S.scanHz || 60, { min: 30, max: 120, step: 5, unit: ' Hz', bar: true, reset: 60 }, v => { S.scanHz = v; }));
     P.appendChild(this.pnum('Taxa', 'Taxa|Quadros por segundo gerados pelo controle.', S.fps, { min: 10, max: 60, step: 5, unit: ' fps', bar: true, reset: 30 }, v => { S.fps = v; }));
     P.appendChild(this.pnum('Cantos', 'Pontos de canto|Quantos pontos o laser demora em cada canto e ponta. Mais = cantos mais nítidos, menos pontos sobrando para o traço.', S.corner, { min: 0, max: 10, step: 1, unit: ' pontos', bar: true, reset: 3 }, v => { S.corner = v; }));
     // mapeamento: pontos de ancoragem como na Saída avançada

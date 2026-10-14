@@ -268,7 +268,7 @@ module.exports = (win, app, laser) => {
         const lback=LM.deserializeLaser(LM.serializeLaser(Z.frames,Z.settings,null)); const mapaVolta=lback.settings.map.mode==="mesh"&&lback.settings.map.mesh.length===nMesh&&Math.abs(lback.settings.map.mesh[0][0]+0.5)<1e-6;
         LM.resetMap(MP); MP.mode='off'; const um3=LM.toU16(zs1,Z.settings); let zmin=4095; for(let i=0;i<zs1.n;i++) zmin=Math.min(zmin,um3[i*5]);
         R.laserMapa={xmin,xmax,foraAceso,lim,nMesh,mmin,mmax,mapaVolta,zmin,flipPadrao};
-        R.laserPontos={n:zs1.n, lit:lit1, orcamento:Math.round(Z.settings.pps/Z.settings.fps), fora, acesos, u16len:u16.length, max, svg:svgPaths.length};
+        R.laserPontos={n:zs1.n, lit:lit1, orcamento:Math.round(Z.settings.pps/(Z.settings.scanHz||Z.settings.fps)), fora, acesos, u16len:u16.length, max, svg:svgPaths.length};
         // clipe de laser na grade: disparar manda o quadro para o laser, tirar do ar tira
         Z.frames.push(fr); P.putLaserClip(0,6,fr); P.trigger(0,6); await S(100); const ativo1=Z.active===fr; P.eject(0); await S(100); const ativo2=Z.active;
         R.laserGrade={casa:document.querySelector('.cell[data-layer="0"][data-col="6"]').classList.contains('laser'), ativo1, ativo2:ativo2===null};
