@@ -207,6 +207,13 @@ module.exports = (win, app, laser) => {
         red.ap={mode:'cell',l:1,c:2,dur:'fixed',secs:0.3}; P.putSource(1,2,'testcard'); P.state.layers[1].clips[2].ap={mode:'stop',l:0,c:0,dur:'fixed',secs:0.3};
         P.eject(0); P.eject(1); P.trigger(0,3); await S(600); const apCell=[P.state.layers[0].on,P.state.layers[1].on]; red.ap.mode='layer'; await S(600); const apStop=P.state.layers[1].on;
         R.apClip={cell:apCell, stop:apStop}; P.eject(0); P.eject(1); P.state.layers[1].clips[2]=null; P.state.layers[0].clips[0]=null; P.state.layers[0].clips[3]=null; P.render();
+        // transporte do clipe: entrada/saída em loop, para trás, uma vez, ignorar coluna
+        await P.putPath(2,7,${JSON.stringify(dir.replace(/\\/g, '/') + '/va.mp4')},'va.mp4'); const vc=P.state.layers[2].clips[7];
+        vc.tr.in=1.0; vc.tr.out=2.0; vc.tr.mode='loop'; P.trigger(2,7); await S(1300); const loopPos=vc.el.currentTime;
+        P.C.seekClip(vc,1.8); await S(100); P.C.playClip(vc,-1,1); const re0=vc.el.currentTime; await S(400); const re1=vc.el.currentTime;
+        P.C.pauseClip(vc); vc.tr.mode='once'; P.C.seekClip(vc,1.5); await S(100); P.C.playClip(vc,1,1); await S(900); const oncePos=vc.el.currentTime, oncePlaying=vc.tr.playing;
+        P.eject(2); vc.ignoreColumn=true; P.triggerColumn(7); const ign=P.state.layers[2].on; vc.ignoreColumn=false; P.eject(0); P.eject(1); P.eject(2);
+        R.transporte={loopPos, re:[re0,re1], oncePos, oncePlaying, ign}; P.state.sel={l:2,c:7}; P.render();
         window.__shotEditor=true;
         return R;
       })()`, true);
@@ -274,6 +281,10 @@ module.exports = (win, app, laser) => {
       ok('laser: espelho na projeção', r.espelho.borda.join() !== '0,0,0' && r.espelho.centro.join() === '0,0,0', 'borda do círculo ' + r.espelho.borda + ', centro ' + r.espelho.centro);
       ok('laser: contorno da projeção', r.contorno.caminhos >= 1 && r.contorno.pontos >= 4, r.contorno.caminhos + ' caminho(s), ' + r.contorno.pontos + ' pontos em volta do retângulo');
       ok('autopilot do clipe', r.apClip.cell.join() === '3,2' && r.apClip.stop === -1, 'casa específica disparou a camada 2 coluna 3; "parar" tirou do ar');
+      const Tr = r.transporte;
+      ok('transporte do clipe', Tr.loopPos >= 0.95 && Tr.loopPos <= 2.05 && Tr.re[1] < Tr.re[0] && Tr.re[1] > 1.0 && !Tr.oncePlaying && Tr.oncePos >= 1.9 && Tr.ign === -1,
+        'loop entre 1 s e 2 s: posição ' + Tr.loopPos.toFixed(2) + '; para trás ' + Tr.re[0].toFixed(2) + ' → ' + Tr.re[1].toFixed(2) + '; uma vez parou em ' + Tr.oncePos.toFixed(2) + '; ignorar coluna: camada ficou ' + (Tr.ign === -1 ? 'fora do ar' : 'no ar'));
+      await shot(win, 'pc-clipe.png');
       ok('editor', r.editor.aberto && r.editor.linhas === 3 && r.editor.slices === 2 && r.editor.grupos >= 8 && r.editorOut.slices === 2 && r.editorOut.ancoras === 8,   // malha 3×1 = 4×2 âncoras
         r.editor.linhas + ' linhas na árvore, ' + r.editor.slices + ' slices na Entrada, ' + r.editorOut.slices + ' na Saída, ' + r.editorOut.ancoras + ' âncoras, ' + r.editor.grupos + ' linhas de propriedades');
       ok('desfazer e refazer', r.desfazer.depoisApagar === 1 && r.desfazer.depoisDesfazer === 2 && r.desfazer.refazer === 1, 'apagar → 1 item, desfazer → 2, refazer → 1');

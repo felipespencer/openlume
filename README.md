@@ -38,8 +38,12 @@ transformação e transição, mudando junto com a saída.
 - **Composição | Camada** (esquerda): Autopilot (direção ◀◀ OFF ▶▶ ⤮, duração pelo clipe ou
   tempo fixo, loop), master, velocidade, opacidade, mistura, transição entre clipes da camada,
   Transform (posição, escala, giro) e a cadeia de efeitos.
-- **Clipe** (meio): nome, transporte e velocidade (vídeo), parâmetros da fonte gerada ou do
-  texto, **Autopilot do clipe** (para onde manda ao acabar: como a camada, próximo, anterior,
+- **Clipe** (meio): nome; **Transporte** do vídeo como no Resolume — linha do tempo arrastável
+  com entrada e saída (cut in / cut out), tocar para frente e para trás, pausa, ir para a
+  entrada/saída, passo de quadro, modo (loop, vai e volta, uma vez, aleatório), velocidade até
+  10x, duração; **Áudio** (volume, pan, mudo); **Vídeo** (opacidade e mistura do clipe);
+  **Disparo** (normal, piano, alternar; ignorar disparo de coluna); parâmetros da fonte gerada
+  ou do texto; **Autopilot do clipe** (para onde manda ao acabar: como a camada, próximo, anterior,
   ao acaso, casa específica ou parar), ajuste, Transform e a cadeia de efeitos do clipe.
 - **Laser e projeção juntos**: a fonte "Laser (espelho)" (aba Fontes) mostra na projeção o que
   o LaserCube desenha; o quadro "Contorno da projeção" (menu + do Laser) faz o laser traçar as

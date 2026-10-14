@@ -94,6 +94,7 @@ function trigger(li, col) {
 function eject(li) { const L = state.layers[li]; C.stopClip(L.clips[L.on]); L.on = -1; L.prev = null; render(); }
 function triggerColumn(col) {
   state.layers.forEach((L, li) => {
+    if (L.clips[col] && L.clips[col].ignoreColumn) return;   // a casa ignora o disparo de coluna
     if (L.clips[col]) { if (L.on !== col) { const old = L.on >= 0 ? L.clips[L.on] : null; if (old && L.transition > 0) L.prev = { clip: old, t0: engine.time, dur: L.transition }; else C.stopClip(old); L.on = col; C.startClip(L.clips[col], state.speed); } L.bypass = false; }
     else { C.stopClip(L.clips[L.on]); L.on = -1; L.prev = null; }
   });
@@ -132,7 +133,7 @@ function removeLayer(li) {
   L.clips.forEach(c => { if (c) { C.stopClip(c); engine.drop(c.id); } });
   state.layers.splice(li, 1); state.sel = null; state.selLayer = Math.min(state.selLayer, state.layers.length - 1); render();
 }
-function applySpeed() { for (const L of state.layers) for (const c of L.clips) if (c && c.kind === 'video' && c.el) c.el.playbackRate = c.speed * state.speed; }
+function applySpeed() { for (const L of state.layers) for (const c of L.clips) if (c && c.kind === 'video' && c.el) C.setRate(c, state.speed); }
 // a casa selecionada (clique no nome) ou, sem seleção, o que está no ar na camada selecionada
 function selectedCell() {
   let L = state.sel ? state.layers[state.sel.l] : null, idx = L ? state.sel.c : -1;
@@ -149,9 +150,9 @@ function tickAutopilot(now) {
     // o clipe pode ter o seu próprio destino; senão vale o autopilot da camada
     const cap = clip.ap && clip.ap.mode !== 'layer' ? clip.ap : null;
     const ap = cap ? { dir: cap.mode, dur: cap.dur, secs: cap.secs, loop: true } : L.autopilot;
-    const dur = ap.dur === 'fixed' ? ap.secs : (clip.kind === 'video' && clip.dur ? clip.dur / (clip.speed * state.speed) : ap.secs);
+    const dur = ap.dur === 'fixed' ? ap.secs : (clip.kind === 'video' && clip.dur ? Math.max(0.05, ((clip.tr.out || clip.dur) - clip.tr.in)) / (clip.speed * state.speed) : ap.secs);
     const elapsed = now - (clip.startedAt || now);
-    if (elapsed < dur) { allEnded = false; continue; }
+    if (elapsed < dur && !(clip.kind === 'video' && clip.tr.mode === 'once' && !clip.tr.playing)) { allEnded = false; continue; }
     if (ap.dir === 'off') { if (clip.kind === 'video') allEnded = allEnded && clip.el.ended; continue; }
     if (ap.dir === 'stop') { eject(li); continue; }
     if (ap.dir === 'cell') { const tl = Math.min(cap.l, state.layers.length - 1); if (state.layers[tl].clips[cap.c]) { if (tl !== li) clip.startedAt = now; trigger(tl, cap.c); } else clip.startedAt = now; continue; }
@@ -212,10 +213,14 @@ function render() {
         cell.ondragend = () => { drag = null; };
         cell.oncontextmenu = (e) => { e.preventDefault(); clearCell(li, c); };
       } else cell.append(el('div', 'th'), el('div', 'nm', ' '));
+      // estilo de disparo: normal dispara; alternar tira do ar se já estiver; piano fica no ar só enquanto segura
       cell.onclick = (e) => {
         if (clip && e.target.classList.contains('nm')) { state.selLayer = li; state.sel = { l: li, c }; render(); return; }   // rodapé: só prévia
+        if (clip && clip.trig === 'piano') return;
+        if (clip && clip.trig === 'toggle' && L.on === c) { eject(li); return; }
         trigger(li, c);
       };
+      if (clip && clip.trig === 'piano') { cell.onpointerdown = (e) => { if (e.button === 0 && !e.target.classList.contains('nm')) { trigger(li, c); const up = () => { eject(li); removeEventListener('pointerup', up); }; addEventListener('pointerup', up); } }; }
       g.appendChild(cell);
     }
   });
@@ -385,9 +390,12 @@ const browser = new Browser({
 })();
 
 // ---------- laço de desenho ----------
-(function loop() {
-  const now = performance.now() / 1000;
+function loop() {
+  const now = performance.now() / 1000, dt = Math.min(0.1, now - (loop.last || now)); loop.last = now;
   for (const L of state.layers) if (L.prev && now - L.prev.t0 >= L.prev.dur) { C.stopClip(L.prev.clip); L.prev = null; }
+  // transporte dos vídeos no ar: entrada/saída, modo e direção
+  for (const L of state.layers) { const c = L.on >= 0 ? L.clips[L.on] : null; if (c && c.kind === 'video') { if (C.tickTransport(c, dt, state.speed)) c.endedAt = now; } }
+  panels.tick();
   // espelho do laser: o desenho do LaserCube vai para a projeção
   { const s = selectedCell(); for (const L of state.layers) { const c = L.on >= 0 ? L.clips[L.on] : null; for (const m of [c, s && s.clip]) if (m && m.kind === 'lasermirror' && m.paintedAt !== now) { m.paintedAt = now; paintScan(m.el.getContext('2d'), 1080, 1080, laser.scanNow(now), false); m.rev++; } } }
   engine.render(state.layers, engine.neededLayers(state.screens), now);
@@ -404,7 +412,8 @@ const browser = new Browser({
   ao.frame();
   tickAutopilot(now);
   requestAnimationFrame(loop);
-})();
+}
+loop();
 
 render();
 

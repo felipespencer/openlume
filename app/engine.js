@@ -289,10 +289,10 @@ export class Engine {
         this.drawClipQuad(tex, c, c.transform, 1, W, H, 'normal');
         tex = this.applyChain(s.t, W, H, chain);
         gl.bindFramebuffer(gl.FRAMEBUFFER, targetFb); gl.viewport(0, 0, W, H);
-        this.drawClipQuad(tex, null, tr, L.opacity * it.op, W, H, L.blend);
+        this.drawClipQuad(tex, null, tr, L.opacity * it.op * (c.opacity ?? 1), W, H, c.blend || L.blend);
       } else {
         const t2 = { ...tr }; // ajuste do clipe e transformação da camada no mesmo quad
-        this.drawClipQuad(tex, c, t2, L.opacity * it.op, W, H, L.blend);
+        this.drawClipQuad(tex, c, t2, L.opacity * it.op * (c.opacity ?? 1), W, H, c.blend || L.blend);
       }
     }
   }

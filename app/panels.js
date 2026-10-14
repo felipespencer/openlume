@@ -4,11 +4,12 @@ import { el, ICON, propsKit, fmtN } from './panel.js';
 import { BLENDS, FITS } from './engine.js';
 import { EFFECTS, effectById, mkFx } from './effects.js';
 import { sourceById } from './sources.js';
-import { renderText } from './clips.js';
+import { renderText, playClip, pauseClip, seekClip, setRate, applyAudio } from './clips.js';
 import { AUTOPILOT } from './composition.js';
 
 const $ = (id) => document.getElementById(id);
 const fmtT = (s) => { s = Math.max(0, s || 0); return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0'); };
+const fmtT1 = (s) => { s = Math.max(0, s || 0); return Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0'); };
 const FONTS = ['Segoe UI', 'Arial', 'Impact', 'Georgia', 'Times New Roman', 'Courier New', 'Verdana', 'Trebuchet MS', 'Comic Sans MS', 'Bahnschrift'];
 
 export class Panels {
@@ -92,20 +93,55 @@ export class Panels {
     this.fxRows(P, L, 'da camada');
     if (S.layers.length > 1) P.appendChild(this.pbutton('Remover esta camada', 'Remover camada|Apaga a camada e os clipes dela.', () => this.ctx.removeLayer(S.selLayer)));
   }
+  // transporte do vídeo: linha do tempo com entrada e saída, tocar para frente e para trás, modo, velocidade
+  transportRows(P, clip) {
+    const t = clip.tr, v = clip.el, S = this.ctx.state, dur = clip.dur || 0;
+    P.appendChild(this.phead('Transporte', 'Transporte|Linha do tempo, direção, modo, velocidade, entrada e saída.'));
+    const tl = el('div', 'timeline'); tl.dataset.help = 'Linha do tempo|Arraste para pular. As alças das pontas são a entrada (cut in) e a saída (cut out).';
+    const range = el('div', 'range'), head = el('div', 'head'), hin = el('div', 'hnd in'), hout = el('div', 'hnd out'), txt = el('div', 'ttxt');
+    tl.append(range, head, hin, hout, txt);
+    const place = () => { const i = (t.in / dur) * 100, o = ((t.out || dur) / dur) * 100; range.style.left = i + '%'; range.style.width = Math.max(0, o - i) + '%'; hin.style.left = i + '%'; hout.style.left = o + '%'; head.style.left = (v.currentTime / dur) * 100 + '%'; txt.textContent = fmtT1(v.currentTime) + ' / ' + fmtT1(dur); };
+    place(); this.tl = { place, clip };
+    const drag = (what) => (e) => {
+      e.preventDefault(); tl.setPointerCapture(e.pointerId);
+      const at = (ev) => { const r = tl.getBoundingClientRect(); const f = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)), s = f * dur;
+        if (what === 'in') t.in = Math.min(s, (t.out || dur) - 0.1); else if (what === 'out') t.out = Math.max(s, t.in + 0.1); else seekClip(clip, s); place(); };
+      at(e); tl.onpointermove = (ev) => { if (tl.hasPointerCapture(ev.pointerId)) at(ev); }; tl.onpointerup = () => { tl.onpointermove = null; this.render(); };
+    };
+    hin.onpointerdown = drag('in'); hout.onpointerdown = drag('out'); tl.onpointerdown = (e) => { if (e.target === hin || e.target === hout) return; drag('seek')(e); };
+    const row = el('div', 'prow tlrow'); row.append(el('span', 'pl', 'Linha do tempo'), tl); P.appendChild(row);
+    const btn = (txt0, help, on, fn) => { const b = el('button', 'ib' + (on ? ' on' : ''), txt0); b.type = 'button'; b.dataset.help = help; b.onclick = () => { fn(); setTimeout(() => this.render(), 40); }; return b; };
+    const tr = el('div', 'pv tr');
+    tr.append(
+      btn('|◀', 'Ir para a entrada|Volta ao ponto de entrada.', false, () => { seekClip(clip, t.in); }),
+      btn('◀', 'Para trás|Toca de trás para a frente.', t.playing && t.dir < 0, () => playClip(clip, -1, S.speed)),
+      btn('‖', 'Pausar|Para onde está.', !t.playing, () => pauseClip(clip)),
+      btn('▶', 'Para a frente|Toca normalmente.', t.playing && t.dir > 0, () => playClip(clip, 1, S.speed)),
+      btn('▶|', 'Ir para a saída|Pula para o ponto de saída.', false, () => { seekClip(clip, (t.out || dur) - 0.05); }),
+      btn('−1q', 'Um quadro para trás|', false, () => { pauseClip(clip); seekClip(clip, v.currentTime - 1 / 30); }),
+      btn('+1q', 'Um quadro para a frente|', false, () => { pauseClip(clip); seekClip(clip, v.currentTime + 1 / 30); }));
+    P.appendChild(this.prow('Tocar', '', tr));
+    P.appendChild(this.pseg('Modo', 'Modo|Loop repete; vai e volta inverte nas pontas; uma vez para na saída; aleatório pula pelo clipe.', [['loop', 'Loop'], ['bounce', 'Vai e volta'], ['once', 'Uma vez'], ['random', 'Aleatório']], t.mode, v2 => { t.mode = v2; }));
+    P.appendChild(this.pnum('Velocidade', 'Velocidade|1x é a do arquivo; até 10x.', clip.speed, { min: 0.05, max: 10, step: 0.05, dec: 2, unit: 'x', bar: true, reset: 1 }, v2 => { clip.speed = v2; setRate(clip, S.speed); }));
+    P.appendChild(this.pnum('Entrada', 'Entrada (cut in)|Onde o clipe começa, em segundos.', t.in, { min: 0, max: dur, step: 0.1, dec: 1, unit: ' s', bar: true, reset: 0 }, v2 => { t.in = Math.min(v2, (t.out || dur) - 0.1); }));
+    P.appendChild(this.pnum('Saída', 'Saída (cut out)|Onde o clipe termina, em segundos.', t.out || dur, { min: 0, max: dur, step: 0.1, dec: 1, unit: ' s', bar: true, reset: dur }, v2 => { t.out = Math.max(v2, t.in + 0.1); }));
+    P.appendChild(this.prow('Duração', 'Duração|Entre a entrada e a saída, na velocidade atual.', el('span', 'pinfo', fmtT1(((t.out || dur) - t.in) / (clip.speed * S.speed)) + ' · arquivo ' + fmtT1(dur))));
+    const a = clip.audio;
+    P.appendChild(this.phead('Áudio', 'Áudio|O som do arquivo.'));
+    P.appendChild(this.pnum('Volume', 'Volume|', Math.round(a.vol * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v2 => { a.vol = v2 / 100; applyAudio(clip); }));
+    P.appendChild(this.pnum('Pan', 'Pan|Esquerda −100, direita 100.', Math.round(a.pan * 100), { min: -100, max: 100, step: 1, bar: true, reset: 0 }, v2 => { a.pan = v2 / 100; applyAudio(clip); }));
+    P.appendChild(this.pcheck('Mudo', 'Mudo|', a.mute, v2 => { a.mute = v2; applyAudio(clip); }, a.mute ? 'sem som' : 'com som'));
+  }
+  // chamado a cada quadro: move o cursor da linha do tempo sem redesenhar o painel
+  tick() { if (this.tl && this.tl.clip.el && document.body.contains(this.tl.place ? $('clipPan') : null)) { try { this.tl.place(); } catch { } } }
   renderClip(P, clip) {
+    this.tl = null;
     P.textContent = '';
     if (!clip) { $('clipTitle').textContent = 'Clipe'; P.appendChild(el('div', 'vazio', 'Nenhum clipe selecionado. Clique no nome de um clipe para ver a prévia, ou na miniatura para pôr no ar. Solte aqui um arquivo, uma fonte ou um efeito.')); return; }
     $('clipTitle').textContent = clip.name;
     P.appendChild(this.ptext('Nome', 'Nome|O nome do clipe.', clip.name, v => { clip.name = v || clip.name; this.ctx.renderGrid(); }));
-    if (clip.kind === 'video') {
-      P.appendChild(this.phead('Transporte', 'Transporte|Tocar, pausar, voltar ao começo e velocidade.'));
-      const tr = el('div', 'pv tr'), el0 = clip.el;
-      const b0 = el('button', 'ib', '|◀'); b0.type = 'button'; b0.title = 'Voltar ao começo'; b0.onclick = () => { try { el0.currentTime = 0; } catch { } };
-      const b1 = el('button', 'ib' + (el0.paused ? '' : ' on'), el0.paused ? '▶' : '‖'); b1.type = 'button'; b1.title = 'Tocar ou pausar'; b1.onclick = () => { if (el0.paused) el0.play().catch(() => { }); else el0.pause(); setTimeout(() => this.render(), 60); };
-      tr.append(b0, b1); P.appendChild(this.prow('Tocar', '', tr));
-      P.appendChild(this.pnum('Velocidade', 'Velocidade|1x é a do arquivo.', clip.speed, { min: 0.1, max: 4, step: 0.05, dec: 2, unit: 'x', bar: true, reset: 1 }, v => { clip.speed = v; el0.playbackRate = v * this.ctx.state.speed; }));
-      P.appendChild(this.prow('Duração', '', el('span', 'pinfo', fmtT(clip.dur) + ' · ' + clip.w + ' × ' + clip.h)));
-    } else if (clip.kind === 'image') P.appendChild(this.prow('Tamanho', '', el('span', 'pinfo', clip.w + ' × ' + clip.h)));
+    if (clip.kind === 'video') this.transportRows(P, clip);
+    else if (clip.kind === 'image') P.appendChild(this.prow('Tamanho', '', el('span', 'pinfo', clip.w + ' × ' + clip.h)));
     else if (clip.kind === 'source') {
       const def = sourceById(clip.source);
       P.appendChild(this.phead(def.name, def.name + '|' + def.desc));
@@ -138,6 +174,14 @@ export class Panels {
       P.appendChild(this.pselect('Quando', 'Quando|No fim do clipe (vídeo) ou depois de um tempo fixo.', [['clip', 'No fim do clipe'], ['fixed', 'Tempo fixo']], ap.dur, v => { ap.dur = v; }));
       if (ap.dur === 'fixed') P.appendChild(this.pnum('Segundos', '', ap.secs, { min: 0.2, max: 600, step: 0.5, dec: 1, unit: ' s', bar: true, reset: 5 }, v => { ap.secs = v; }));
     }
+    // vídeo e disparo, como no Resolume
+    P.appendChild(this.phead('Vídeo', 'Vídeo|Opacidade e mistura só deste clipe.'));
+    P.appendChild(this.pnum('Opacidade', 'Opacidade do clipe|Multiplica a da camada.', Math.round((clip.opacity ?? 1) * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v => { clip.opacity = v / 100; }));
+    P.appendChild(this.pselect('Mistura', 'Mistura do clipe|Vazio usa a da camada.', [['', 'Como a camada'], ...Object.entries(BLENDS)], clip.blend || '', v => { clip.blend = v; }));
+    if (clip.kind !== 'source' && clip.kind !== 'text') P.appendChild(this.prow('Tamanho', '', el('span', 'pinfo', clip.w + ' × ' + clip.h)));
+    P.appendChild(this.phead('Disparo', 'Disparo|Como a casa reage ao clique.'));
+    P.appendChild(this.pseg('Estilo', 'Estilo de disparo|Normal: clique dispara. Piano: fica no ar só enquanto o botão está apertado. Alternar: clicar de novo tira do ar.', [['normal', 'Normal'], ['piano', 'Piano'], ['toggle', 'Alternar']], clip.trig || 'normal', v => { clip.trig = v; this.ctx.renderGrid(); }));
+    P.appendChild(this.pcheck('Coluna', 'Ignorar disparo de coluna|A casa não entra quando a coluna inteira é disparada.', !!clip.ignoreColumn, v => { clip.ignoreColumn = v; }, clip.ignoreColumn ? 'ignora o disparo da coluna' : 'entra com a coluna'));
     if (clip.kind !== 'source' && clip.kind !== 'text') P.appendChild(this.pselect('Ajuste', 'Ajuste na tela|Encaixar mantém a proporção com faixas; Preencher corta; Esticar deforma.', Object.entries(FITS), clip.fit, v => { clip.fit = v; }));
     this.transformRows(P, clip.transform, ' do clipe');
     this.fxRows(P, clip, 'do clipe');
