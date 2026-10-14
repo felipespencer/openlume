@@ -178,7 +178,7 @@ function render() {
         cell.ondragstart = (e) => { drag = { l: li, c }; e.dataTransfer.effectAllowed = 'copyMove'; e.dataTransfer.setData('text/plain', 'clip'); };
         cell.ondragend = () => { drag = null; };
         cell.oncontextmenu = (e) => { e.preventDefault(); clearCell(li, c); };
-      }
+      } else cell.append(el('div', 'th'), el('div', 'nm', ' '));
       cell.onclick = (e) => {
         if (clip && e.target.classList.contains('nm')) { state.selLayer = li; state.sel = { l: li, c }; render(); return; }   // rodapé: só prévia
         trigger(li, c);

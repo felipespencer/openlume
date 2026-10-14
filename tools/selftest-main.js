@@ -99,6 +99,7 @@ module.exports = (win, app) => {
       await win.webContents.executeJavaScript(`document.getElementById('btnMapReset').click(); document.getElementById('btnMap').click(); true`, true); await sleep(400);
       const c2 = o ? await o.webContents.executeJavaScript(canto) : 'x';
       ok('zerar mapeamento', c2 === null, c2 === null ? 'saída sem deformação' : 'ainda deformada');
+      fs.writeFileSync(path.join(dir, 'pc-grade.png'), (await win.webContents.capturePage()).toPNG());
     } catch (e) { ok('execução', false, e.message); }
     const f = out.filter(x => !x.pass);
     console.log(f.length ? 'REPROVADO: ' + f.map(x => x.name).join(', ') : 'APROVADO: ' + out.length + ' verificações');

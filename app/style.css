@@ -34,12 +34,13 @@ button.gh:hover{ color:var(--txt); background:var(--bg3); }
 .lh .b button.act{ background:var(--warn); border-color:var(--warn); color:#0b0b0d; }
 .lh .nm{ font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .lh input[type=range]{ grid-column:1 / -1; width:100%; }
-.cell{ position:relative; min-height:92px; padding:5px; display:flex; flex-direction:column; gap:3px; cursor:pointer;
+.cell{ position:relative; padding:5px; display:flex; flex-direction:column; gap:3px; cursor:pointer;
   background:var(--bg); border-bottom:1px solid var(--line); border-right:1px solid var(--line); }
-.cell.empty::after{ content:""; position:absolute; inset:5px 5px 22px 5px; border:1px dashed var(--line); border-radius:2px; }
-.cell.empty.sel::after{ border:1px solid var(--sel); }
+.cell.empty .th{ border:1px dashed var(--line); background:none; }
+.cell.empty.sel .th{ border:1px solid var(--sel); }
 .cell.over{ outline:2px dashed var(--accent); outline-offset:-3px; background:#1e2a1c; }
-.cell .th{ flex:1; min-height:56px; border-radius:2px; border:2px solid transparent; background:#000 center / contain no-repeat; pointer-events:none; }
+/* a miniatura tem o formato da composição (16:9): um clipe 16:9 ocupa a casa inteira, sem faixas */
+.cell .th{ flex:none; width:100%; aspect-ratio:16/9; border-radius:2px; border:2px solid transparent; background:#000 center / contain no-repeat; pointer-events:none; }
 .cell .nm{ font-size:10px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:1px 2px; border-radius:2px; }
 .cell.full .nm:hover{ background:var(--bg3); color:var(--txt); }
 .cell.on .th{ border-color:var(--accent); }
