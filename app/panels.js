@@ -25,9 +25,12 @@ export class Panels {
 
   render() {
     const S = this.ctx.state;
+    const G = this.ctx.selectedGroup ? this.ctx.selectedGroup() : null;
+    $('leftTabs').querySelector('[data-tab=group]').hidden = !S.groups || !S.groups.length;
+    if (this.tab === 'group' && !G) this.tab = 'layer';
     $('leftTabs').querySelectorAll('[data-tab]').forEach(t => t.classList.toggle('on', t.dataset.tab === this.tab));
     const P = $('leftPan'); P.textContent = '';
-    if (this.tab === 'comp') this.renderComp(P); else this.renderLayer(P, S.layers[S.selLayer]);
+    if (this.tab === 'comp') this.renderComp(P); else if (this.tab === 'group') this.renderGroup(P, G); else this.renderLayer(P, S.layers[S.selLayer]);
     this.renderClip($('clipPan'), this.ctx.selectedClip());
   }
   autopilotRows(P, ap, onSet, help) {
@@ -74,6 +77,13 @@ export class Panels {
     P.appendChild(this.pnum('Velocidade', 'Velocidade|Multiplica a velocidade de todos os vídeos.', S.speed, { min: 0.1, max: 4, step: 0.05, dec: 2, unit: 'x', bar: true, reset: 1 }, v => { S.speed = v; this.ctx.applySpeed(); }));
     P.appendChild(this.phead('Vídeo', 'Vídeo|Opacidade da composição.'));
     P.appendChild(this.pnum('Opacidade', 'Opacidade|Esmaece a composição inteira.', Math.round(S.opacity * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v => { S.opacity = v / 100; E.master = S.master * S.opacity; }));
+    const X = S.xfade;
+    P.appendChild(this.phead('Crossfader', 'Crossfader|Camadas e grupos no bus A ficam de um lado, os do bus B do outro; o fader embaixo da grade passa de um para o outro. O bus de cada camada é escolhido no painel Camada.'));
+    P.appendChild(this.pnum('Posição', 'Posição|0 % mostra só o bus A, 100 % só o bus B.', Math.round(X.pos * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 50 }, v => { X.pos = v / 100; X.target = null; this.ctx.renderDecks(); }));
+    P.appendChild(this.pselect('Curva', 'Curva|Linear: proporcional. Potência igual: os dois lados somam sempre o mesmo brilho. Corte: troca seca no meio.', [['linear', 'Linear'], ['power', 'Potência igual'], ['cut', 'Corte']], X.curve, v => { X.curve = v; }));
+    P.appendChild(this.pselect('Comportamento', 'Comportamento|O que os botões A e B fazem: cortam na hora ou esmaecem no tempo abaixo.', [['cut', 'Corta'], ['fade', 'Esmaece']], X.behaviour, v => { X.behaviour = v; }));
+    if (X.behaviour === 'fade') P.appendChild(this.pnum('Tempo', 'Tempo|Quanto demora o esmaecer dos botões A e B.', X.secs, { min: 0.1, max: 30, step: 0.1, dec: 1, unit: ' s', bar: true, reset: 2 }, v => { X.secs = v; }));
+    const xb = el('div', 'pv'); const fa = el('button', 'wide', 'Ir para A'); fa.type = 'button'; fa.onclick = () => this.ctx.fadeTo('A'); const fb = el('button', 'wide', 'Ir para B'); fb.type = 'button'; fb.onclick = () => this.ctx.fadeTo('B'); xb.append(fa, fb); P.appendChild(this.prow('Ir para', 'Ir para A / B|O mesmo que os botões ao lado do fader.', xb));
     this.transformRows(P, E.compTransform, ' da composição inteira');
     this.fxRows(P, { fx: E.compFx }, 'da composição');
   }
@@ -93,6 +103,8 @@ export class Panels {
     P.appendChild(this.phead('Vídeo', 'Vídeo|Como a camada entra na composição.'));
     P.appendChild(this.pselect('Mistura', 'Mistura|Como a camada entra sobre o que está embaixo, com os modos do Resolume. Até 50 % do fader a camada mistura; de 50 a 100 % vai ficando normal por cima. Os modos "50" misturam no fader inteiro.', MIXER_OPTS, L.blend === 'normal' ? 'alpha' : L.blend, v => { L.blend = v; }));
     this.mixerOptRows(P, L.blend, L.blendOpt || (L.blendOpt = MIXER_OPT()), 'da mistura');
+    P.appendChild(this.pselect('Bus', 'Bus do crossfader|A ou B: o crossfader embaixo da grade esmaece entre os dois lados. Nenhum: a camada não entra no crossfader.', [['', 'Nenhum'], ['A', 'A'], ['B', 'B']], L.bus || '', v => { L.bus = v || null; }));
+    P.appendChild(this.pselect('Grupo', 'Grupo|Em que grupo a camada está. Grupos juntam camadas vizinhas numa só, com opacidade, mistura e efeitos próprios.', [['', 'Nenhum'], ...S.groups.map(g => [String(g.id), g.name])], L.group != null ? String(L.group) : '', v => this.ctx.setLayerGroup(S.selLayer, v ? +v : null)));
     P.appendChild(this.prow('Largura', '', el('span', 'pinfo', String(this.ctx.engine.W))));
     P.appendChild(this.prow('Altura', '', el('span', 'pinfo', String(this.ctx.engine.H))));
     P.appendChild(this.phead('Transição', 'Transição|Ao disparar outro clipe nesta camada, o anterior sai e o novo entra pelo modo escolhido, durante a duração. Como no Resolume: a transição é um modo de mistura rodado no tempo.'));
@@ -102,6 +114,23 @@ export class Panels {
     this.transformRows(P, L.transform || (L.transform = { x: 0, y: 0, scale: 1, rot: 0 }), ' da camada');
     this.fxRows(P, L, 'da camada');
     if (S.layers.length > 1) P.appendChild(this.pbutton('Remover esta camada', 'Remover camada|Apaga a camada e os clipes dela.', () => this.ctx.removeLayer(S.selLayer)));
+  }
+  renderGroup(P, g) {
+    if (!g) return; const S = this.ctx.state;
+    $('leftTitle').textContent = g.name;
+    P.appendChild(this.ptext('Nome', 'Nome|O nome do grupo, como aparece na grade.', g.name, v => { g.name = v || g.name; this.ctx.renderGrid(); }));
+    P.appendChild(this.phead('Grupo', 'Grupo|Controles do grupo inteiro: as camadas dele entram na composição como uma só.'));
+    P.appendChild(this.pnum('Master', 'Master|Opacidade do grupo; o fader da grade é o mesmo.', Math.round(g.opacity * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v => { g.opacity = v / 100; this.ctx.renderGrid(); }));
+    P.appendChild(this.pnum('Velocidade', 'Velocidade|Multiplica a velocidade dos vídeos das camadas do grupo.', g.speed, { min: 0.1, max: 4, step: 0.05, dec: 2, unit: 'x', bar: true, reset: 1 }, v => { g.speed = v; this.ctx.applySpeed(); }));
+    P.appendChild(this.phead('Vídeo', 'Vídeo|Como o grupo entra na composição.'));
+    P.appendChild(this.pselect('Mistura', 'Mistura do grupo|Os mesmos modos da camada.', MIXER_OPTS, g.blend || 'alpha', v => { g.blend = v; }));
+    this.mixerOptRows(P, g.blend, g.blendOpt || (g.blendOpt = MIXER_OPT()), 'da mistura');
+    P.appendChild(this.pselect('Bus', 'Bus do crossfader|A ou B: o grupo inteiro entra no crossfader.', [['', 'Nenhum'], ['A', 'A'], ['B', 'B']], g.bus || '', v => { g.bus = v || null; }));
+    P.appendChild(this.prow('Camadas', '', el('span', 'pinfo', S.layers.filter(L => L.group === g.id).map(L => L.name).join(', ') || 'nenhuma')));
+    this.transformRows(P, g.transform || (g.transform = { x: 0, y: 0, scale: 1, rot: 0 }), ' do grupo');
+    this.fxRows(P, g, 'do grupo');
+    P.appendChild(this.pbutton('Adicionar camada ao grupo', 'Adicionar camada|Uma camada nova por cima das do grupo.', () => this.ctx.addLayerToGroup(g)));
+    P.appendChild(this.pbutton('Remover o grupo (manter as camadas)', 'Remover grupo|As camadas ficam, soltas.', () => this.ctx.removeGroup(g, false)));
   }
   // transporte do vídeo: linha do tempo com entrada e saída, tocar para frente e para trás, modo, velocidade
   transportRows(P, clip) {

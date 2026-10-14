@@ -163,6 +163,20 @@ module.exports = (win, app, laser) => {
         L[0].blend = 'multiply50'; trans.mult = P.probe(mid)[0]; L[0].blend = 'add50'; trans.add = P.probe(mid)[0]; L[0].blend = 'alpha'; trans.alpha = P.probe(mid)[0];
         L[0].opacity = 0.5; L[0].blend = 'add'; trans.add50 = P.probe(mid)[0]; L[0].opacity = 1; L[0].blend = 'normal'; P.eject(0); P.eject(1);
         R.trans = trans;
+        // decks: o deck novo fica vazio, o clipe que estava no ar continua (ghost); disparar no deck novo tira o ghost; o deck 1 volta com os clipes
+        P.trigger(0,2); await S(100); const dk = {}; P.addDeck(1); await S(100);
+        dk.vazio = L[0].clips.every(c => !c) && L[1].clips.every(c => !c); dk.decks = P.state.decks.length; dk.atual = P.state.deck; dk.ghost = !!L[0].ghost; dk.px = P.probe(mid)[0];
+        P.putSource(0,0,'solidcolor'); L[0].clips[0].params.hue = 0.66; P.trigger(0,0); await S(100); dk.novo = P.probe(mid)[0]; dk.semGhost = !L[0].ghost;
+        P.switchDeck(0); await S(100); dk.volta = [L[0].clips.filter(Boolean).length, L[0].on, !!L[0].ghost]; P.eject(0); P.removeDeck(1); dk.fim = P.state.decks.length; dk.semClipe0 = !L[0].clips[0];
+        // grupos: camadas 1 e 2 num grupo a 50 % → verde pela metade; solo do grupo esconde a camada 3; bus A com o crossfader em B esconde
+        P.trigger(0,2); await S(100); const gp = {}; const gr = P.newGroup(0); P.setLayerGroup(1, gr.id); gp.membros = L.map(x => x.group); gr.opacity = 0.5; gp.meio = P.probe(mid)[0]; gr.opacity = 1;
+        L[0].transform.scale = 0.5; P.putSource(2,0,'solidcolor'); L[2].clips[0].params.hue = 0; P.trigger(2,0); await S(100);
+        gp.canto = P.probe([[0.05,0.5]])[0]; gr.solo = true; gp.soloCanto = P.probe([[0.05,0.5]])[0]; gr.solo = false;
+        L[2].bus = 'A'; P.state.xfade.pos = 1; gp.busB = P.probe([[0.05,0.5]])[0]; P.state.xfade.pos = 0.5; gp.busMeio = P.probe([[0.05,0.5]])[0]; L[2].bus = null;
+        gp.grade = { linhas: document.querySelectorAll('#grid .grp').length, colunas: document.querySelectorAll('#grid .gcol').length, decks: document.querySelectorAll('#decks button').length };
+        L[0].transform.scale = 1; P.removeGroup(gr, false); gp.semGrupo = L.every(x => x.group == null) && P.state.groups.length === 0 && document.querySelectorAll('#grid .grp').length === 0;
+        P.eject(0); P.eject(2); P.state.layers[2].clips[0] = null;
+        R.decks = dk; R.grupos = gp;
         // autopilot: tempo fixo de 0,3 s, próximo com loop → troca de casa sozinho
         L[0].autopilot={dir:'next',dur:'fixed',secs:0.4,loop:true}; P.trigger(0,2); const ap0=L[0].on; await S(600); const ap1=L[0].on; await S(400); const ap2=L[0].on; L[0].autopilot.dir='off'; P.eject(0);
         R.extras={semFx,comFx,prevFx,compFx,fonte,solido,texto,meio,fim,ap:[ap0,ap1,ap2]};
@@ -321,6 +335,11 @@ module.exports = (win, app, laser) => {
       const Tm = r.trans;
       ok('transições do Resolume', Tm.cutAntes[0][0] > 200 && Tm.cutAntes[0][1] < 40 && Tm.cutDepois[1] > 200 && Tm.cutDepois[0] < 40 && Tm.push[0][0] > 200 && Tm.push[0][1] < 40 && Tm.push[1][1] > 200 && Tm.push[1][0] < 40 && Tm.preto[0][0] < 70 && Tm.preto[0][1] < 70,
         'Cut: antes ' + Tm.cutAntes[0] + ', depois ' + Tm.cutDepois + '; Push Left no meio: esquerda ' + Tm.push[0] + ', direita ' + Tm.push[1] + '; to Black no meio ' + Tm.preto[0]);
+      const Dk = r.decks, Gp = r.grupos;
+      ok('decks', Dk.vazio && Dk.decks === 2 && Dk.atual === 1 && Dk.ghost && Dk.px[1] > 200 && Dk.novo[2] > 200 && Dk.novo[1] < 60 && Dk.semGhost && Dk.volta[0] >= 2 && Dk.volta[1] === -1 && Dk.volta[2] && Dk.fim === 1 && Dk.semClipe0,
+        'deck novo vazio com o verde ainda no ar ' + Dk.px + '; disparo no deck 2 ' + Dk.novo + '; de volta ao deck 1: ' + Dk.volta[0] + ' clipes, no ar ' + Dk.volta[1] + ', ghost ' + Dk.volta[2] + '; removido → ' + Dk.fim + ' deck');
+      ok('grupos, solo e crossfader', Gp.membros[0] != null && Gp.membros[0] === Gp.membros[1] && Gp.membros[2] == null && Gp.meio[1] > 100 && Gp.meio[1] < 160 && Gp.canto[0] > 200 && Gp.soloCanto[0] < 20 && Gp.busB[0] < 20 && Gp.busMeio[0] > 100 && Gp.busMeio[0] < 160 && Gp.grade.linhas === 1 && Gp.grade.colunas === 8 && Gp.grade.decks === 2 && Gp.semGrupo,
+        'grupo a 50 % ' + Gp.meio + '; canto com o vermelho de baixo ' + Gp.canto + ', com solo do grupo ' + Gp.soloCanto + '; bus A com o fader em B ' + Gp.busB + ', no meio ' + Gp.busMeio + '; grade: ' + JSON.stringify(Gp.grade));
       ok('modos de mistura da camada', Tm.mult[0] < 30 && Tm.mult[1] < 30 && Tm.add[0] > 200 && Tm.add[1] > 200 && Tm.alpha[1] > 200 && Tm.alpha[0] < 40 && Tm.add50[0] > 200 && Tm.add50[1] > 200,
         'verde sobre vermelho: 50 Multiply ' + Tm.mult + ', 50 Add ' + Tm.add + ', Alpha ' + Tm.alpha + ', Add a 50 % ' + Tm.add50);
       const Cp = r.comp;
@@ -353,7 +372,7 @@ module.exports = (win, app, laser) => {
       ok('preparar e reprodutor próprio', Pp && !Pp.erro && Pp.player && Pp.intra && Pp.n >= 70 && Pp.w === 320 && Pp.h === 180 && Pp.thumb.startsWith('data:image') && nz(Pp.px) && Pp.anda[1] > Pp.anda[0] && Pp.re[1] < Pp.re[0] && Pp.re[3] < Pp.re[2] && Pp.re[3] > 1.0 && Pp.pulo[0] === Pp.pulo[1] && Pp.rapido > 1.0,
         Pp && Pp.erro ? Pp.erro : Pp.n + ' quadros todo intra ' + Pp.w + '×' + Pp.h + ' ' + (Pp.dur || 0).toFixed(2) + ' s; toca ' + Pp.anda[0] + '→' + Pp.anda[1] + '; ré ' + Pp.re[0] + '→' + Pp.re[1] + ' (' + Pp.re[2].toFixed(2) + '→' + Pp.re[3].toFixed(2) + ' s); pulo para 0,5 s mostra o quadro ' + Pp.pulo[1] + ' (esperado ' + Pp.pulo[0] + '); 4x andou ' + (Pp.rapido || 0).toFixed(2) + ' s em 0,4');
       const Mn = r.menus;
-      ok('barra de menus e diálogos', Mn.barra.join() === 'Projecionista,Composição,Camada,Coluna,Clipe,Saída,Atalhos,Ver' && Mn.itens.includes('Configurações…') && Mn.itens.includes('Salvar como…') && Mn.fechou && Mn.dialogo && Mn.linhas >= 9 && Mn.dialogoFechou,
+      ok('barra de menus e diálogos', Mn.barra.join() === 'Projecionista,Composição,Deck,Grupo,Camada,Coluna,Clipe,Saída,Atalhos,Ver' && Mn.itens.includes('Configurações…') && Mn.itens.includes('Salvar como…') && Mn.fechou && Mn.dialogo && Mn.linhas >= 9 && Mn.dialogoFechou,
         Mn.barra.length + ' menus; Composição com ' + Mn.itens.length + ' itens; Configurações com ' + Mn.linhas + ' linhas; ' + JSON.stringify([Mn.fechou, Mn.dialogo, Mn.dialogoFechou]));
       ok('configurações da composição', Mn.tam[0] === 1280 && Mn.tam[1] === 720 && Mn.tam[2] >= 1280 && Mn.tam[3] === '1280×720' && Mn.fundo[2] > 80 && Mn.fundo[0] < 60 && Mn.verde[1] > 200 && Mn.slice === 1280 && Mn.volta[0] === 1920 && Mn.volta[1] === 1920,
         '1280×720: motor ' + Mn.tam.join('/') + ', fundo ' + Mn.fundo + ', clipe verde ' + Mn.verde + ', slice recorta ' + Mn.slice + '; de volta a ' + Mn.volta.join('/'));

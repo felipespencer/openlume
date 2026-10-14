@@ -16,7 +16,7 @@ import { Panels } from './panels.js';
 import { Browser } from './browser.js';
 import { Recorder } from './record.js';
 import { mkFx } from './effects.js';
-import { AUTOPILOT, serializeComposition, deserializeComposition, SETTINGS } from './composition.js';
+import { AUTOPILOT, GROUP, XFADE, serializeComposition, deserializeComposition, SETTINGS } from './composition.js';
 import { Menubar, openDialog, askText, confirmBox, installShortcuts, shortcutsDialog } from './menus.js';
 import { initSplitters } from './splitters.js';
 import { paintScan } from './laser-model.js';
@@ -27,13 +27,26 @@ const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) 
 const D = window.projDesktop || null;
 
 let seq = 1;
-const mkLayer = (n) => ({ id: seq++, name: typeof n === 'string' ? n : 'Camada ' + n, opacity: 1, blend: 'normal', bypass: false, on: -1, clips: Array(COLS).fill(null), autopilot: AUTOPILOT(), fx: [], transform: IDENT_TR(), transition: 0, transMode: 'alpha', transOpt: MIXER_OPT(), blendOpt: MIXER_OPT(), prev: null });
-const state = { name: '', layers: [mkLayer(3), mkLayer(2), mkLayer(1)], selLayer: 0, sel: null, master: 1, opacity: 1, speed: 1, compAutopilot: AUTOPILOT(), settings: SETTINGS(), colNames: {} };   // layers[0] = a de cima
+const mkLayer = (n) => ({ id: seq++, name: typeof n === 'string' ? n : 'Camada ' + n, opacity: 1, blend: 'normal', bypass: false, on: -1, clips: Array(COLS).fill(null), autopilot: AUTOPILOT(), fx: [], transform: IDENT_TR(), transition: 0, transMode: 'alpha', transOpt: MIXER_OPT(), blendOpt: MIXER_OPT(), prev: null, group: null, solo: false, bus: null, ghost: null });
+// deck: guarda uma linha de clipes por camada (cells[layer.id]); a camada mostra a linha do deck atual em L.clips
+let dseq = 1, gseq = 1;
+const mkDeck = (name) => ({ id: dseq++, name: name || 'Deck ' + dseq, color: '', closed: false, cells: {} });
+const mkGroup = (name) => Object.assign(GROUP(name || 'Grupo ' + gseq), { id: gseq++ });
+const state = { name: '', layers: [mkLayer(3), mkLayer(2), mkLayer(1)], selLayer: 0, sel: null, master: 1, opacity: 1, speed: 1, compAutopilot: AUTOPILOT(), settings: SETTINGS(), colNames: {}, groups: [], decks: [mkDeck('Deck 1')], deck: 0, xfade: XFADE(), selGroup: null };   // layers[0] = a de cima
 let drag = null;
+// o clipe no ar da camada: o da casa ligada ou, depois de trocar de deck, o que continua tocando (ghost)
+const liveClip = (L) => L.on >= 0 ? L.clips[L.on] : (L.ghost || null);
+const groupOf = (L) => L && L.group != null ? state.groups.find(g => g.id === L.group) || null : null;
+const groupLayers = (g) => state.layers.map((L, i) => L.group === g.id ? i : -1).filter(i => i >= 0);
+const layerSpeed = (L) => state.speed * ((groupOf(L) || {}).speed ?? 1);
+const lockedLayer = (li) => !!(groupOf(state.layers[li]) || {}).lock;
+// as linhas de clipes de uma camada em todos os decks (a atual primeiro)
+const rowsOf = (L) => [L.clips, ...state.decks.filter((d, i) => i !== state.deck).map(d => d.cells[L.id]).filter(Boolean)];
 
 // o motor desenha num canvas escondido; o monitor da composição é um canvas 2D que recebe a cópia
 const engine = new Engine(COMP_W, COMP_H);
 engine.compTransform = IDENT_TR();
+engine.groups = state.groups; engine.xfade = state.xfade;
 const monCanvas = document.createElement('canvas'); monCanvas.width = COMP_W; monCanvas.height = COMP_H;
 $('outScr').appendChild(monCanvas);
 const monCtx = monCanvas.getContext('2d');
@@ -43,6 +56,7 @@ function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add
 
 // ---------- clipes na grade ----------
 function putClip(li, col, clip) {
+  if (lockedLayer(li)) { toast('Grupo travado: destrave no menu Grupo'); return; }
   if (clip && clip.trig === 'normal' && state.settings.trig !== 'normal') clip.trig = state.settings.trig;
   const L = state.layers[li], old = L.clips[col];
   if (old) { if (L.on === col) { C.stopClip(old); L.on = -1; } dropClip(old); }
@@ -99,20 +113,20 @@ function dropInto(li, col, d, files, ctrl) {
 }
 // o quadro do laser segue a grade: o clipe de laser no ar (o mais de cima) é o que vai para o LaserCube
 function syncLaser() {
-  const on = state.layers.find(L => L.on >= 0 && L.clips[L.on] && L.clips[L.on].kind === 'laser' && !L.bypass);
-  const frame = on ? laser.byId(on.clips[on.on].laserId) : null;
+  const on = state.layers.find(L => { const c = liveClip(L); return c && c.kind === 'laser' && !L.bypass; });
+  const frame = on ? laser.byId(liveClip(on).laserId) : null;
   if (frame) { if (laser.active !== frame) laser.setActive(frame); laser.activeFromGrid = true; }
   else if (laser.activeFromGrid) { laser.activeFromGrid = false; laser.setActive(null); }
 }
 // troca de clipe na camada: com duração, o antigo sai pelo modo de transição da camada (ou um ao acaso)
 function swapClip(L, col) {
-  const old = L.on >= 0 ? L.clips[L.on] : null, clip = L.clips[col];
+  const old = liveClip(L), clip = L.clips[col]; L.ghost = null;
   if (L.prev && L.prev.clip !== clip) C.stopClip(L.prev.clip);
   if (old && L.transition > 0 && old.kind !== 'laser' && clip.kind !== 'laser') {
     const mode = L.transMode === 'random' ? randomMixer() : (L.transMode || 'alpha');
     L.prev = { clip: old, t0: engine.time, dur: L.transition, mode, opt: { ...(L.transOpt || MIXER_OPT()) }, seed: Math.random() * 100 };
   } else { C.stopClip(old); L.prev = null; }
-  L.on = col; C.startClip(clip, state.speed);
+  L.on = col; C.startClip(clip, layerSpeed(L));
 }
 function trigger(li, col) {
   const L = state.layers[li], clip = L.clips[col];
@@ -124,12 +138,13 @@ function trigger(li, col) {
   recorder.onTrigger();
   render();
 }
-function eject(li) { const L = state.layers[li]; C.stopClip(L.clips[L.on]); if (L.prev) C.stopClip(L.prev.clip); L.on = -1; L.prev = null; render(); }
-function triggerColumn(col) {
+function eject(li) { const L = state.layers[li]; C.stopClip(liveClip(L)); L.ghost = null; if (L.prev) C.stopClip(L.prev.clip); L.on = -1; L.prev = null; render(); }
+function triggerColumn(col, onlyGroup) {   // onlyGroup: id do grupo, para o disparo de coluna do grupo
   state.layers.forEach((L, li) => {
-    if (L.ignoreColumn || (L.clips[col] && L.clips[col].ignoreColumn)) return;   // a camada ou a casa ignora o disparo de coluna
+    if (onlyGroup != null && L.group !== onlyGroup) return;
+    if (L.ignoreColumn || (onlyGroup == null && (groupOf(L) || {}).ignoreColumn) || (L.clips[col] && L.clips[col].ignoreColumn)) return;   // a camada, o grupo ou a casa ignora o disparo de coluna
     if (L.clips[col]) { if (L.on !== col) swapClip(L, col); L.bypass = false; }
-    else { C.stopClip(L.clips[L.on]); if (L.prev) C.stopClip(L.prev.clip); L.on = -1; L.prev = null; }
+    else { C.stopClip(liveClip(L)); L.ghost = null; if (L.prev) C.stopClip(L.prev.clip); L.on = -1; L.prev = null; }
   });
   recorder.onTrigger();
   render();
@@ -137,6 +152,7 @@ function triggerColumn(col) {
 function clearCell(li, col) {
   const L = state.layers[li], c = L.clips[col];
   if (!c) return;
+  if (lockedLayer(li)) { toast('Grupo travado: destrave no menu Grupo'); return; }
   if (L.on === col) { C.stopClip(c); L.on = -1; }
   dropClip(c); L.clips[col] = null;
   if (state.sel && state.sel.l === li && state.sel.c === col) state.sel = null;
@@ -144,6 +160,7 @@ function clearCell(li, col) {
 }
 function moveClip(fl, fc, tl, tc, copy) {
   if (fl === tl && fc === tc) return;
+  if (lockedLayer(fl) || lockedLayer(tl)) { toast('Grupo travado: destrave no menu Grupo'); return; }
   const A = state.layers[fl], B = state.layers[tl], src = A.clips[fc], dst = B.clips[tc];
   if (!src) return;
   if (copy) {
@@ -162,33 +179,164 @@ function moveClip(fl, fc, tl, tc, copy) {
   render();
 }
 // ---------- menus: camadas, colunas, área de transferência ----------
-function insertLayer(at, name) { state.layers.splice(at, 0, mkLayer(name || state.layers.length + 1)); if (state.sel && state.sel.l >= at) state.sel.l++; state.selLayer = at; render(); }
-function duplicateLayer(li) {
-  const L = state.layers[li], n = mkLayer(L.name + ' cópia');
-  n.opacity = L.opacity; n.blend = L.blend; n.autopilot = { ...L.autopilot }; n.fx = L.fx.map(f => ({ ...f, params: { ...f.params } })); n.transform = { ...L.transform }; n.transition = L.transition; n.transMode = L.transMode; n.transOpt = { ...(L.transOpt || MIXER_OPT()) }; n.blendOpt = { ...(L.blendOpt || MIXER_OPT()) }; n.ignoreColumn = L.ignoreColumn;
+function insertLayer(at, name) {
+  const n = mkLayer(name || state.layers.length + 1);
+  // inserida entre duas camadas do mesmo grupo, a nova entra no grupo
+  const below = state.layers[at], above = state.layers[at - 1];
+  if (below && above && below.group != null && below.group === above.group) n.group = below.group;
+  state.layers.splice(at, 0, n); if (state.sel && state.sel.l >= at) state.sel.l++; state.selLayer = at; render(); return n;
+}
+function cloneLayer(L, name) {
+  const n = mkLayer(name || L.name + ' cópia');
+  n.opacity = L.opacity; n.blend = L.blend; n.autopilot = { ...L.autopilot }; n.fx = L.fx.map(f => ({ ...f, params: { ...f.params } })); n.transform = { ...L.transform }; n.transition = L.transition; n.transMode = L.transMode; n.transOpt = { ...(L.transOpt || MIXER_OPT()) }; n.blendOpt = { ...(L.blendOpt || MIXER_OPT()) }; n.ignoreColumn = L.ignoreColumn; n.group = L.group; n.bus = L.bus;
   n.clips = L.clips.map(c => c ? C.cloneClip(c) : null);
+  return n;
+}
+function duplicateLayer(li) {
+  const n = cloneLayer(state.layers[li]);
   state.layers.splice(li, 0, n); if (state.sel && state.sel.l >= li) state.sel.l++; state.selLayer = li; render();
 }
 function clearLayer(li) { state.layers[li].clips.forEach((c, i) => { if (c) clearCell(li, i); }); }
 function setCols(n) {
   n = Math.max(1, Math.min(64, n | 0));
-  for (const L of state.layers) { while (L.clips.length < n) L.clips.push(null); while (L.clips.length > n) { const c = L.clips.pop(); if (c) { if (L.on === L.clips.length) { C.stopClip(c); L.on = -1; } dropClip(c); } } if (L.on >= n) L.on = -1; }
+  for (const L of state.layers) for (const row of rowsOf(L)) { const cur = row === L.clips; while (row.length < n) row.push(null); while (row.length > n) { const c = row.pop(); if (c) { if (cur && L.on === row.length) { C.stopClip(c); L.on = -1; } dropClip(c); } } if (cur && L.on >= n) L.on = -1; }
   COLS = n; if (state.sel && state.sel.c >= n) state.sel = null; render();
 }
 const shiftNames = (fn) => { const o = {}; for (const k in state.colNames) { const i = fn(+k); if (i >= 0) o[i] = state.colNames[k]; } state.colNames = o; };
 function insertColumn(at) {
-  for (const L of state.layers) { L.clips.splice(at, 0, null); if (L.on >= at) L.on++; }
+  for (const L of state.layers) { for (const row of rowsOf(L)) row.splice(at, 0, null); if (L.on >= at) L.on++; }
   shiftNames(i => i >= at ? i + 1 : i); COLS++; if (state.sel && state.sel.c >= at) state.sel.c++; render();
 }
 function removeColumn(at) {
   if (COLS <= 1) return;
-  for (const L of state.layers) { const c = L.clips[at]; if (c) { if (L.on === at) { C.stopClip(c); L.on = -1; } dropClip(c); } L.clips.splice(at, 1); if (L.on > at) L.on--; }
+  for (const L of state.layers) { for (const row of rowsOf(L)) { const c = row[at]; if (c) { if (row === L.clips && L.on === at) { C.stopClip(c); L.on = -1; } dropClip(c); } row.splice(at, 1); } if (L.on > at) L.on--; }
   shiftNames(i => i === at ? -1 : i > at ? i - 1 : i); COLS--;
   if (state.sel) { if (state.sel.c === at) state.sel = null; else if (state.sel.c > at) state.sel.c--; }
   render();
 }
 function clearColumn(at) { state.layers.forEach((L, li) => clearCell(li, at)); }
 function duplicateColumn(at) { insertColumn(at + 1); for (const L of state.layers) if (L.clips[at]) L.clips[at + 1] = C.cloneClip(L.clips[at]); if (state.colNames[at]) state.colNames[at + 1] = state.colNames[at] + ' cópia'; render(); }
+// ---------- decks ----------
+// trocar de deck: a grade passa a mostrar os clipes do outro deck; o que está no ar continua
+// tocando (ghost) até a camada disparar outro clipe ou sair do ar, como no Resolume
+function switchDeck(i) {
+  if (!state.decks[i] || i === state.deck) return;
+  const cur = state.decks[state.deck];
+  for (const L of state.layers) {
+    cur.cells[L.id] = L.clips;
+    if (L.on >= 0 && L.clips[L.on]) L.ghost = L.clips[L.on];
+    L.on = -1;
+    const row = state.decks[i].cells[L.id] || (state.decks[i].cells[L.id] = Array(COLS).fill(null));
+    while (row.length < COLS) row.push(null);
+    L.clips = row;
+  }
+  state.deck = i; state.sel = null; render();
+}
+function addDeck(at, name) { const d = mkDeck(name); at = Math.max(0, Math.min(state.decks.length, at)); state.decks.splice(at, 0, d); if (at <= state.deck) state.deck++; switchDeck(at); render(); return d; }
+function duplicateDeck(i) {
+  const s = state.decks[i], d = mkDeck(s.name + ' cópia'); d.color = s.color;
+  for (const L of state.layers) { const row = i === state.deck ? L.clips : s.cells[L.id]; if (row) d.cells[L.id] = row.map(c => c ? C.cloneClip(c) : null); }
+  state.decks.splice(i + 1, 0, d); if (i + 1 <= state.deck) state.deck++; switchDeck(i + 1); render();
+}
+function removeDeck(i) {
+  if (state.decks.length <= 1 || !state.decks[i]) return;
+  const d = state.decks[i];
+  if (i === state.deck) switchDeck(i === 0 ? 1 : 0);
+  for (const L of state.layers) { const row = d.cells[L.id]; if (row) for (const c of row) if (c) { if (L.ghost === c) { C.stopClip(c); L.ghost = null; } if (L.prev && L.prev.clip === c) { C.stopClip(c); L.prev = null; } dropClip(c); } }
+  const idx = state.decks.indexOf(d); state.decks.splice(idx, 1); if (state.deck > idx) state.deck--; render();
+}
+function clearDeck(i) {
+  if (i === state.deck) { state.layers.forEach((L, li) => clearLayer(li)); return; }
+  const d = state.decks[i]; for (const L of state.layers) { const row = d.cells[L.id]; if (row) row.forEach((c, k) => { if (c) { dropClip(c); row[k] = null; } }); } render();
+}
+function renderDecks() {
+  const box = $('decks'); box.textContent = '';
+  state.decks.forEach((d, i) => {
+    if (d.closed) return;
+    const b = el('button', i === state.deck ? 'on' : '', d.name); b.type = 'button'; b.title = 'Deck ' + d.name + ': clique para trocar, duplo clique para renomear';
+    if (d.color) b.style.setProperty('--gc', d.color);
+    b.onclick = () => switchDeck(i);
+    b.ondblclick = async () => { const n = await askText('Renomear deck', 'Nome', d.name); if (n) { d.name = n; render(); } };
+    box.appendChild(b);
+  });
+  const add = el('button', 'add', '+'); add.type = 'button'; add.title = 'Deck novo'; add.onclick = () => addDeck(state.decks.length); box.appendChild(add);
+  // crossfader
+  const x = $('xfade'), X = state.xfade; x.textContent = '';
+  const bA = el('button', X.pos <= 0 ? 'act' : '', 'A'); bA.type = 'button'; bA.title = 'Ir para o bus A (corta ou esmaece, conforme o painel Composição)'; bA.onclick = () => fadeTo('A');
+  const bB = el('button', X.pos >= 1 ? 'act' : '', 'B'); bB.type = 'button'; bB.title = 'Ir para o bus B'; bB.onclick = () => fadeTo('B');
+  const r = el('input'); r.type = 'range'; r.min = 0; r.max = 1000; r.value = Math.round(X.pos * 1000); r.title = 'Crossfader: esquerda mostra o bus A, direita o bus B';
+  r.oninput = () => { X.pos = r.value / 1000; X.target = null; if (panels.tab === 'comp') panels.render(); };
+  const nA = state.layers.filter(L => L.bus === 'A').length + state.groups.filter(g => g.bus === 'A').length, nB = state.layers.filter(L => L.bus === 'B').length + state.groups.filter(g => g.bus === 'B').length;
+  x.append(el('span', 'xl', 'Crossfader'), bA, el('span', 'xl', nA ? nA + ' no A' : 'A vazio'), r, el('span', 'xl', nB ? nB + ' no B' : 'B vazio'), bB);
+}
+// "ir para A/B": corta ou esmaece no tempo do painel Composição
+function fadeTo(bus) { const X = state.xfade, to = bus === 'A' ? 0 : 1; if (X.behaviour === 'fade' && X.secs > 0) { X.target = to; X.from = X.pos; X.t0 = performance.now() / 1000; } else { X.pos = to; X.target = null; } renderDecks(); if (panels.tab === 'comp') panels.render(); }
+function tickXfade(now) { const X = state.xfade; if (X.target == null) return; const k = Math.min(1, (now - X.t0) / Math.max(0.01, X.secs)); X.pos = X.from + (X.target - X.from) * k; if (k >= 1) { X.target = null; renderDecks(); } else { const r = $('xfade').querySelector('input'); if (r) r.value = Math.round(X.pos * 1000); } }
+
+// ---------- grupos ----------
+// um grupo são camadas vizinhas que entram na composição como uma só (opacidade, mistura, efeitos)
+function pruneGroups() {
+  const keep = state.groups.filter(g => state.layers.some(L => L.group === g.id));
+  state.groups.length = 0; state.groups.push(...keep);
+  if (state.selGroup != null && !keep.some(g => g.id === state.selGroup)) { state.selGroup = null; if (panels.tab === 'group') panels.tab = 'layer'; }
+}
+function newGroup(li, name) {
+  const L = state.layers[li]; if (!L || L.group != null) { toast('A camada já está num grupo'); return null; }
+  const g = mkGroup(name); state.groups.push(g); L.group = g.id; state.selGroup = g.id; state.selLayer = li; panels.tab = 'group'; render(); return g;
+}
+// põe a camada no grupo (logo acima dos membros, para o grupo continuar vizinho) ou tira dela
+function setLayerGroup(li, gid) {
+  const L = state.layers[li]; if (!L) return; const sel = state.sel && state.layers[state.sel.l];
+  if (gid == null) { L.group = null; pruneGroups(); render(); return; }
+  const g = state.groups.find(x => x.id === gid); if (!g) return;
+  const idx = groupLayers(g);
+  if (idx.length && (li === idx[0] - 1 || li === idx[idx.length - 1] + 1)) { L.group = gid; pruneGroups(); render(); return; }   // já é vizinha: fica onde está
+  state.layers.splice(li, 1); const top = state.layers.findIndex(x => x.group === gid); state.layers.splice(top < 0 ? li : top, 0, L); L.group = gid;
+  state.selLayer = state.layers.indexOf(L); if (sel) state.sel.l = state.layers.indexOf(sel); pruneGroups(); render();
+}
+function addLayerToGroup(g) { const top = Math.max(0, state.layers.findIndex(x => x.group === g.id)); const L = mkLayer(state.layers.length + 1); L.group = g.id; state.layers.splice(top, 0, L); if (state.sel && state.sel.l >= top) state.sel.l++; state.selLayer = top; render(); }
+function removeGroup(g, withLayers) {
+  if (withLayers) for (const i of groupLayers(g).reverse()) if (state.layers.length > 1) removeLayer(i);
+  for (const L of state.layers) if (L.group === g.id) L.group = null;
+  pruneGroups(); render();
+}
+function duplicateGroup(g) {
+  const idx = groupLayers(g); if (!idx.length) return;
+  const n = mkGroup(g.name + ' cópia'); Object.assign(n, { color: g.color, opacity: g.opacity, blend: g.blend, blendOpt: { ...g.blendOpt }, fx: fxCopy(g.fx), transform: { ...g.transform }, ignoreColumn: g.ignoreColumn, firstCol: g.firstCol, lock: g.lock, speed: g.speed, bus: g.bus });
+  state.groups.push(n);
+  const copies = idx.map(i => { const c = cloneLayer(state.layers[i]); c.group = n.id; return c; });
+  state.layers.splice(idx[0], 0, ...copies); if (state.sel && state.sel.l >= idx[0]) state.sel.l += copies.length; state.selGroup = n.id; state.selLayer = idx[0]; render();
+}
+function ejectGroup(g) { for (const i of groupLayers(g)) eject(i); }
+function clearGroupClips(g) { for (const i of groupLayers(g)) clearLayer(i); }
+const selectedGroup = () => (state.selGroup != null && state.groups.find(g => g.id === state.selGroup)) || groupOf(state.layers[state.selLayer]) || null;
+// a linha do grupo na grade: recolher, X, B, S, nome, fader e os disparos de coluna só do grupo
+function renderGroupRow(grid, g, first) {
+  const gh = el('div', 'grp' + (panels.tab === 'group' && state.selGroup === g.id ? ' sel' : '') + (g.bypass ? ' off' : ''));
+  gh.style.setProperty('--gc', g.color || '#8b8d95'); gh.dataset.group = g.id;
+  const bb = el('div', 'b');
+  const mk = (txt, cls, title, fn) => { const b = el('button', cls, txt); b.type = 'button'; b.title = title; b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; };
+  bb.append(
+    mk(g.folded ? '▸' : '▾', '', g.folded ? 'Mostrar as camadas do grupo' : 'Recolher o grupo', () => { g.folded = !g.folded; render(); }),
+    mk('X', '', 'Tirar o grupo inteiro do ar', () => ejectGroup(g)),
+    mk('B', g.bypass ? 'act' : '', 'Desligar ou ligar o grupo inteiro', () => { g.bypass = !g.bypass; render(); }),
+    mk('S', g.solo ? 'act' : '', 'Solo: só este grupo aparece', () => { g.solo = !g.solo; render(); }));
+  const op = el('input'); op.type = 'range'; op.min = 0; op.max = 100; op.value = Math.round(g.opacity * 100); op.title = 'Opacidade do grupo';
+  op.onclick = (e) => e.stopPropagation(); op.oninput = () => { g.opacity = op.value / 100; if (panels.tab === 'group' && state.selGroup === g.id) panels.render(); };
+  gh.append(bb, el('div', 'nm', g.name + (g.folded ? ' · ' + groupLayers(g).length + ' camadas' : '')), op);
+  gh.onclick = () => { state.selGroup = g.id; state.selLayer = first; panels.tab = 'group'; render(); };
+  grid.appendChild(gh);
+  const idx = groupLayers(g);
+  for (let c = 0; c < COLS; c++) {
+    const b = el('button', 'gcol', '▶'); b.type = 'button'; b.title = 'Dispara a coluna só nas camadas deste grupo';
+    const tem = idx.filter(i => state.layers[i].clips[c]);
+    if (tem.length && tem.every(i => state.layers[i].on === c)) b.classList.add('on');
+    b.onclick = () => triggerColumn(c, g.id);
+    grid.appendChild(b);
+  }
+}
+const COLORS = [['', 'Nenhuma'], ['#ff3b30', 'Vermelho'], ['#ff9500', 'Laranja'], ['#ffd60a', 'Amarelo'], ['#39ff14', 'Verde'], ['#6ec1ff', 'Azul'], ['#bf5af2', 'Roxo'], ['#ff2d90', 'Rosa']];
+
 let clipboard = null, fxClipboard = null;
 const fxCopy = (list) => list.map(f => ({ ...f, params: { ...f.params } }));
 function copyClip(cut) { const s = selectedCell(); if (!s) { toast('Selecione um clipe'); return; } clipboard = C.cloneClip(s.clip); if (cut) clearCell(state.layers.indexOf(s.L), s.idx); toast(cut ? 'Clipe recortado' : 'Clipe copiado'); }
@@ -197,7 +345,7 @@ function pasteClip() {
   const l = state.sel ? state.sel.l : state.selLayer, c = state.sel ? state.sel.c : state.layers[l].clips.findIndex(x => !x);
   putClip(l, c < 0 ? 0 : c, C.cloneClip(clipboard)); state.sel = { l, c: c < 0 ? 0 : c }; render();
 }
-function playAll(dir) { for (const L of state.layers) { const c = L.on >= 0 ? L.clips[L.on] : null; if (c && c.kind === 'video') { if (dir === 0) C.pauseClip(c); else C.playClip(c, dir, state.speed); } } render(); }
+function playAll(dir) { for (const L of state.layers) { const c = liveClip(L); if (c && c.kind === 'video') { if (dir === 0) C.pauseClip(c); else C.playClip(c, dir, layerSpeed(L)); } } render(); }
 function stopAll() { state.layers.forEach((_, li) => eject(li)); }
 // instantâneo: PNG da composição (ou do clipe selecionado) na pasta das gravações
 async function snapshot(what) {
@@ -216,10 +364,12 @@ function toggleTestCard() {
 }
 function removeLayer(li) {
   const L = state.layers[li]; if (state.layers.length <= 1) return;
-  L.clips.forEach(c => { if (c) { C.stopClip(c); dropClip(c); } });
-  state.layers.splice(li, 1); if (state.sel) { if (state.sel.l === li) state.sel = null; else if (state.sel.l > li) state.sel.l--; } state.selLayer = Math.min(state.selLayer, state.layers.length - 1); render();
+  if (L.ghost) C.stopClip(L.ghost);
+  for (const row of rowsOf(L)) row.forEach(c => { if (c) { C.stopClip(c); dropClip(c); } });
+  for (const d of state.decks) delete d.cells[L.id];
+  state.layers.splice(li, 1); if (state.sel) { if (state.sel.l === li) state.sel = null; else if (state.sel.l > li) state.sel.l--; } state.selLayer = Math.min(state.selLayer, state.layers.length - 1); pruneGroups(); render();
 }
-function applySpeed() { for (const L of state.layers) for (const c of L.clips) if (c && c.kind === 'video' && c.el) C.setRate(c, state.speed); }
+function applySpeed() { for (const L of state.layers) for (const c of [...L.clips, L.ghost]) if (c && c.kind === 'video' && c.el) C.setRate(c, layerSpeed(L)); }
 // a casa selecionada (clique no nome) ou, sem seleção, o que está no ar na camada selecionada
 function selectedCell() {
   let L = state.sel ? state.layers[state.sel.l] : null, idx = L ? state.sel.c : -1;
@@ -236,7 +386,7 @@ function tickAutopilot(now) {
     // o clipe pode ter o seu próprio destino; senão vale o autopilot da camada
     const cap = clip.ap && clip.ap.mode !== 'layer' ? clip.ap : null;
     const ap = cap ? { dir: cap.mode, dur: cap.dur, secs: cap.secs, loop: true } : L.autopilot;
-    const dur = ap.dur === 'fixed' ? ap.secs : (clip.kind === 'video' && clip.dur ? Math.max(0.05, ((clip.tr.out || clip.dur) - clip.tr.in)) / (clip.speed * state.speed) : ap.secs);
+    const dur = ap.dur === 'fixed' ? ap.secs : (clip.kind === 'video' && clip.dur ? Math.max(0.05, ((clip.tr.out || clip.dur) - clip.tr.in)) / (clip.speed * layerSpeed(L)) : ap.secs);
     const elapsed = now - (clip.startedAt || now);
     if (elapsed < dur && !(clip.kind === 'video' && clip.tr.mode === 'once' && !clip.tr.playing)) { allEnded = false; continue; }
     if (ap.dir === 'off') { if (clip.kind === 'video') allEnded = allEnded && clip.el.ended; continue; }
@@ -270,20 +420,28 @@ function render() {
     b.onclick = () => triggerColumn(c);
     g.appendChild(b);
   }
+  let lastG = null;
   state.layers.forEach((L, li) => {
-    const lh = el('div', 'lh' + (li === state.selLayer ? ' sel' : '') + (L.bypass ? ' off' : ''));
+    const grp = groupOf(L);
+    if (grp && grp !== lastG) renderGroupRow(g, grp, li);
+    lastG = grp;
+    if (grp && grp.folded) return;
+    const lh = el('div', 'lh' + (li === state.selLayer ? ' sel' : '') + (L.bypass ? ' off' : '') + (grp ? ' ing' : ''));
+    if (grp) lh.style.setProperty('--gc', grp.color || '#8b8d95');
     lh.dataset.layer = li;
     const bb = el('div', 'b');
     const bx = el('button', '', 'X'); bx.type = 'button'; bx.title = 'Tirar a camada do ar';
     const bo = el('button', L.bypass ? 'act' : '', 'B'); bo.type = 'button'; bo.title = 'Desligar ou ligar a camada sem perder o clipe';
     bx.onclick = (e) => { e.stopPropagation(); eject(li); };
     bo.onclick = (e) => { e.stopPropagation(); L.bypass = !L.bypass; render(); };
-    bb.append(bx, bo);
+    const bs = el('button', L.solo ? 'act' : '', 'S'); bs.type = 'button'; bs.title = 'Solo: só esta camada aparece';
+    bs.onclick = (e) => { e.stopPropagation(); L.solo = !L.solo; render(); };
+    bb.append(bx, bo, bs);
     const op = el('input'); op.type = 'range'; op.min = 0; op.max = 100; op.value = Math.round(L.opacity * 100); op.title = 'Opacidade da camada';
     op.onclick = (e) => e.stopPropagation();
     op.oninput = () => { L.opacity = op.value / 100; if (li === state.selLayer) panels.render(); };
     lh.append(bb, el('div', 'nm', L.name), op);
-    lh.onclick = () => { state.selLayer = li; panels.tab = 'layer'; render(); };
+    lh.onclick = () => { state.selLayer = li; state.selGroup = L.group; panels.tab = 'layer'; render(); };
     g.appendChild(lh);
     for (let c = 0; c < COLS; c++) {
       const clip = L.clips[c], sel = state.sel && state.sel.l === li && state.sel.c === c;
@@ -311,7 +469,7 @@ function render() {
     }
   });
   wrap.scrollTop = st; wrap.scrollLeft = sl;
-  renderPreview(); panels.render();
+  renderDecks(); renderPreview(); panels.render();
   syncLaser();
 }
 
@@ -440,22 +598,29 @@ const comps = {
   async open(name) { if (!D) return; try { await loadComposition(await D.comps.load(name), name); toast('Composição "' + name + '" aberta'); } catch (e) { toast('Não consegui abrir: ' + e.message); } browser.render(); },
   newComp() { resetComposition(); toast('Composição nova'); browser.render(); },
 };
+function dropAll() { for (const L of state.layers) { if (L.ghost) C.stopClip(L.ghost); for (const row of rowsOf(L)) for (const c of row) if (c) { C.stopClip(c); dropClip(c); } } }
 function resetComposition() {
-  for (const L of state.layers) for (const c of L.clips) if (c) { C.stopClip(c); dropClip(c); }
+  dropAll();
+  state.groups.length = 0; state.decks = [mkDeck('Deck 1')]; state.deck = 0; state.xfade = XFADE(); engine.xfade = state.xfade; state.selGroup = null; if (panels.tab === 'group') panels.tab = 'comp';
   state.layers = [mkLayer(3), mkLayer(2), mkLayer(1)]; state.name = ''; state.sel = null; state.selLayer = 0; state.master = state.opacity = state.speed = 1; engine.master = 1;
   engine.compFx = []; engine.compTransform = IDENT_TR(); state.compAutopilot = AUTOPILOT(); state.colNames = {}; setCols(8); applySettings(SETTINGS()); render(); renderScreens();
 }
 async function loadComposition(json, name) {
   const d = await deserializeComposition(json, { mkLayer, toast, setCols, laserClip: (f) => C.laserClip(f, laser.thumbSvg(f)) });
-  for (const L of state.layers) for (const c of L.clips) if (c) { C.stopClip(c); dropClip(c); }
+  dropAll();
   state.layers = d.layers.length ? d.layers : [mkLayer(1)]; state.name = name || d.name || ''; state.sel = null; state.selLayer = 0;
+  state.groups.length = 0; state.groups.push(...d.groups); for (const g of d.groups) gseq = Math.max(gseq, g.id + 1); state.selGroup = null; if (panels.tab === 'group') panels.tab = 'comp'; pruneGroups();
+  state.xfade = d.xfade; engine.xfade = state.xfade;
+  state.decks = d.decks.length ? d.decks.map(k => { const dk = mkDeck(k.name); dk.color = k.color; dk.closed = k.closed; if (k.rows) k.rows.forEach((row, i) => { if (state.layers[i]) dk.cells[state.layers[i].id] = row; }); return dk; }) : [mkDeck('Deck 1')];
+  state.deck = Math.min(d.deck || 0, state.decks.length - 1); for (const L of state.layers) state.decks[state.deck].cells[L.id] = L.clips;
   state.master = d.master; state.opacity = 1; state.speed = d.speed; engine.master = state.master; engine.compFx = d.compFx; state.compAutopilot = d.compAutopilot; state.colNames = d.colNames; applySettings(d.settings);
-  for (const L of state.layers) if (L.on >= 0 && L.clips[L.on]) C.startClip(L.clips[L.on], state.speed); else L.on = -1;
+  for (const L of state.layers) if (L.on >= 0 && L.clips[L.on]) C.startClip(L.clips[L.on], layerSpeed(L)); else L.on = -1;
   if (d.screens && d.screens.length) setScreens(d.screens);
   if (d.laser) { laser.frames = d.laser.frames; laser.settings = d.laser.settings; laser.active = d.laser.active; laser.sel = laser.frames[0] || null; if (laser.open) laser.refresh(); }
   if (d.missing) toast(d.missing + (d.missing === 1 ? ' clipe não abriu' : ' clipes não abriram') + ' (arquivo faltando)');
   render(); renderScreens();
   if (state.settings.firstCol) triggerColumn(0);
+  else for (const g of state.groups) if (g.firstCol) triggerColumn(0, g.id);
 }
 // ---------- Configurações da composição ----------
 const SIZES = [[1920, 1080, 'Full HD 1920×1080'], [1280, 720, 'HD 1280×720'], [3840, 2160, '4K UHD 3840×2160'], [1080, 1920, 'Em pé 1080×1920'], [1920, 1200, '1920×1200'], [2560, 1440, '2560×1440'], [1024, 768, '1024×768'], [3840, 1080, 'Dois Full HD lado a lado 3840×1080']];
@@ -520,6 +685,7 @@ const panels = new Panels({
   state, engine, laser, toast, renderGrid: render, selectedClip, drag: () => drag, trigger, removeLayer, applySpeed,
   prepare: (fmt) => { const s = selectedCell(); if (s) prepareClip(state.layers.indexOf(s.L), s.idx, fmt); }, preparing: (c) => preparingNow.has(c.path) ? preparingNow.get(c.path) : null,
   openLaser: (f) => { laser.sel = f; laser.show(); },
+  selectedGroup, setLayerGroup, newGroup, removeGroup, addLayerToGroup, fadeTo, renderDecks,
 });
 const recorder = new Recorder({ compCanvas: monCanvas, screens: () => state.screens, screenCanvas, desktop: D, toast, onChange: () => { if (browser.tab === 'rec') browser.render(); }, dir: window.__recDir || '' });
 const browser = new Browser({
@@ -549,6 +715,34 @@ const menuDefs = () => [
     { label: 'Disparo de clipe', sub: () => [['normal', 'Normal'], ['piano', 'Piano'], ['toggle', 'Alternar']].map(([v, t]) => ({ label: t, check: state.settings.trig === v, fn: () => { state.settings.trig = v; for (const L of state.layers) for (const c of L.clips) if (c) c.trig = v; panels.render(); } })) },
     { label: 'Disparar primeira coluna ao abrir', check: state.settings.firstCol, fn: () => { state.settings.firstCol = !state.settings.firstCol; } }, '-',
     { label: 'Configurações…', key: 'Ctrl+Shift+C', fn: settingsDialog }] },
+  { label: 'Deck', items: () => { const di = state.deck, d = state.decks[di]; return [
+    { label: 'Novo (no fim)', fn: () => addDeck(state.decks.length) },
+    { label: 'Inserir antes', fn: () => addDeck(di) },
+    { label: 'Inserir depois', fn: () => addDeck(di + 1) },
+    { label: 'Duplicar', fn: () => duplicateDeck(di) },
+    { label: 'Renomear…', fn: async () => { const n = await askText('Renomear deck', 'Nome', d.name); if (n) { d.name = n; render(); } } },
+    { label: 'Cor', sub: () => COLORS.map(([v, tx]) => ({ label: tx, check: (d.color || '') === v, fn: () => { d.color = v; render(); } })) }, '-',
+    { label: 'Fechar (esconder a aba)', disabled: state.decks.filter(x => !x.closed).length <= 1, fn: () => { d.closed = true; switchDeck(state.decks.findIndex(x => !x.closed)); render(); } },
+    { label: 'Abrir deck fechado', sub: () => state.decks.some(x => x.closed) ? state.decks.map((x, i) => x.closed ? { label: x.name, fn: () => { x.closed = false; switchDeck(i); render(); } } : null).filter(Boolean) : [{ label: 'nenhum fechado', disabled: true }] }, '-',
+    { label: 'Limpar clipes', fn: () => clearDeck(di) },
+    { label: 'Remover', disabled: state.decks.length <= 1, fn: () => removeDeck(di) }]; } },
+  { label: 'Grupo', items: () => { const li = selL(), L = state.layers[li], g = selectedGroup(), gi = g ? groupLayers(g) : []; return [
+    { label: 'Novo (com a camada selecionada)', disabled: L.group != null, fn: () => newGroup(li) },
+    { label: 'Inserir acima', fn: () => { const at = g ? gi[0] : li; insertLayer(at); newGroup(at); } },
+    { label: 'Inserir abaixo', fn: () => { const at = g ? gi[gi.length - 1] + 1 : li + 1; insertLayer(at); newGroup(at); } },
+    { label: 'Duplicar', disabled: !g, fn: () => duplicateGroup(g) },
+    { label: 'Renomear…', disabled: !g, fn: async () => { const n = await askText('Renomear grupo', 'Nome', g.name); if (n) { g.name = n; render(); } } },
+    { label: 'Cor', disabled: !g, sub: () => COLORS.map(([v, tx]) => ({ label: tx, check: (g.color || '') === v, fn: () => { g.color = v; render(); } })) }, '-',
+    { label: 'Copiar efeitos', disabled: !g, fn: () => { fxClipboard = fxCopy(g.fx); toast(fxClipboard.length + ' efeito(s) copiado(s)'); } },
+    { label: 'Colar efeitos', disabled: !g || !fxClipboard, fn: () => { g.fx.push(...fxCopy(fxClipboard)); panels.render(); } }, '-',
+    { label: 'Recolher', disabled: !g, check: !!(g && g.folded), fn: () => { g.folded = !g.folded; render(); } },
+    { label: 'Adicionar camada', disabled: !g, fn: () => addLayerToGroup(g) },
+    { label: 'Ignorar disparo de coluna', disabled: !g, check: !!(g && g.ignoreColumn), fn: () => { g.ignoreColumn = !g.ignoreColumn; } },
+    { label: 'Disparar primeira coluna ao abrir', disabled: !g, check: !!(g && g.firstCol), fn: () => { g.firstCol = !g.firstCol; } },
+    { label: 'Travar conteúdo', disabled: !g, check: !!(g && g.lock), fn: () => { g.lock = !g.lock; } }, '-',
+    { label: 'Limpar clipes', disabled: !g, fn: () => clearGroupClips(g) },
+    { label: 'Remover grupo, manter camadas', disabled: !g, fn: () => removeGroup(g, false) },
+    { label: 'Remover grupo e camadas', disabled: !g, fn: () => removeGroup(g, true) }]; } },
   { label: 'Camada', items: () => { const li = selL(), L = state.layers[li]; return [
     { label: 'Nova (por cima)', fn: () => insertLayer(0) },
     { label: 'Inserir acima', fn: () => insertLayer(li) },
@@ -557,7 +751,10 @@ const menuDefs = () => [
     { label: 'Renomear…', fn: async () => { const n = await askText('Renomear camada', 'Nome', L.name); if (n) { L.name = n; render(); } } }, '-',
     { label: 'Copiar efeitos', fn: () => { fxClipboard = fxCopy(L.fx); toast(fxClipboard.length + ' efeito(s) copiado(s)'); } },
     { label: 'Colar efeitos', disabled: !fxClipboard, fn: () => { L.fx.push(...fxCopy(fxClipboard)); panels.render(); } }, '-',
-    { label: 'Ignorar disparo de coluna', check: !!L.ignoreColumn, fn: () => { L.ignoreColumn = !L.ignoreColumn; } }, '-',
+    { label: 'Ignorar disparo de coluna', check: !!L.ignoreColumn, fn: () => { L.ignoreColumn = !L.ignoreColumn; } },
+    { label: 'Solo', check: !!L.solo, fn: () => { L.solo = !L.solo; render(); } },
+    { label: 'Grupo', sub: () => [{ label: 'Nenhum', check: L.group == null, fn: () => setLayerGroup(li, null) }, ...state.groups.map(g => ({ label: g.name, check: L.group === g.id, fn: () => setLayerGroup(li, g.id) })), '-', { label: 'Novo grupo com esta camada', disabled: L.group != null, fn: () => newGroup(li) }] },
+    { label: 'Bus do crossfader', sub: () => [[null, 'Nenhum'], ['A', 'A'], ['B', 'B']].map(([v, tx]) => ({ label: tx, check: (L.bus || null) === v, fn: () => { L.bus = v; render(); } })) }, '-',
     { label: 'Limpar clipes', fn: () => clearLayer(li) },
     { label: 'Remover', disabled: state.layers.length <= 1, fn: () => removeLayer(li) }]; } },
   { label: 'Coluna', items: () => { const c = selC(); return [
@@ -601,8 +798,11 @@ const menuDefs = () => [
     { label: 'Laser', fn: () => laser.show() },
     { label: 'Saída avançada', fn: () => ao.show() }, '-',
     { label: 'FPS e estatísticas', check: !$('fpsBox').hidden, fn: () => { $('fpsBox').hidden = !$('fpsBox').hidden; } }, '-',
+    { label: 'Crossfader', check: !$('xfade').hidden, fn: () => { $('xfade').hidden = !$('xfade').hidden; } },
+    { label: 'Decks', check: !$('decks').hidden, fn: () => { $('decks').hidden = !$('decks').hidden; } }, '-',
     { label: 'Painel Composição', fn: () => { panels.tab = 'comp'; panels.render(); } },
-    { label: 'Painel Camada', fn: () => { panels.tab = 'layer'; panels.render(); } }, '-',
+    { label: 'Painel Camada', fn: () => { panels.tab = 'layer'; panels.render(); } },
+    { label: 'Painel Grupo', disabled: !state.groups.length, fn: () => { panels.tab = 'group'; panels.render(); } }, '-',
     ...[['files', 'Arquivos'], ['comps', 'Composições'], ['fx', 'Efeitos'], ['src', 'Fontes'], ['rec', 'Gravar']].map(([t, n]) => ({ label: n, check: browser.tab === t, fn: () => browser.setTab(t) }))] },
 ];
 const menubar = new Menubar($('menubar'), menuDefs);
@@ -635,14 +835,15 @@ function loop() {
   const now = performance.now() / 1000, dt = Math.min(0.1, now - (loop.last || now)); loop.last = now;
   for (const L of state.layers) if (L.prev && now - L.prev.t0 >= L.prev.dur) { if (L.clips[L.on] !== L.prev.clip) C.stopClip(L.prev.clip); L.prev = null; }
   // transporte dos vídeos no ar: entrada/saída, modo e direção
-  for (const L of state.layers) { const c = L.on >= 0 ? L.clips[L.on] : null; if (c && c.kind === 'video') { if (C.tickTransport(c, dt, state.speed)) c.endedAt = now; } }
+  for (const L of state.layers) { const c = liveClip(L); if (c && c.kind === 'video') { if (C.tickTransport(c, dt, layerSpeed(L))) c.endedAt = now; } }
+  tickXfade(now);
   panels.tick();
   // taxa de quadros da composição: desenha só quando passou 1/fps
   if (now - (loop.lastDraw || 0) < 1 / state.settings.fps - 0.0015) { tickAutopilot(now); requestAnimationFrame(loop); return; }
   loop.lastDraw = now; loop.frames = (loop.frames || 0) + 1;
   if (now - (loop.fpsAt || 0) >= 1) { if (!$('fpsBox').hidden) $('fpsBox').textContent = loop.frames + ' fps · ' + state.layers.filter(L => L.on >= 0).length + ' no ar · ' + COLS + ' colunas'; loop.frames = 0; loop.fpsAt = now; }
   // espelho do laser: o desenho do LaserCube vai para a projeção
-  { const s = selectedCell(); for (const L of state.layers) { const c = L.on >= 0 ? L.clips[L.on] : null; for (const m of [c, s && s.clip]) if (m && m.kind === 'lasermirror' && m.paintedAt !== now) { m.paintedAt = now; paintScan(m.el.getContext('2d'), 1080, 1080, laser.scanNow(now), false); m.rev++; } } }
+  { const s = selectedCell(); for (const L of state.layers) { const c = liveClip(L); for (const m of [c, s && s.clip]) if (m && m.kind === 'lasermirror' && m.paintedAt !== now) { m.paintedAt = now; paintScan(m.el.getContext('2d'), 1080, 1080, laser.scanNow(now), false); m.rev++; } } }
   engine.render(state.layers, engine.neededLayers(state.screens), now);
   engine.blit(monCtx);
   const pc = selectedCell();
@@ -663,7 +864,7 @@ loop();
 render();
 
 // usado pelo teste automático (tools/selftest-main.js); não é interface de usuário
-window.projecionista = { menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
+window.projecionista = { menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, addDeck, switchDeck, removeDeck, duplicateDeck, newGroup, setLayerGroup, removeGroup, duplicateGroup, addLayerToGroup, fadeTo, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
   probe: (pts) => engine.probe(state.layers, pts),
   probeScreen: (sc, pts) => engine.probeScreen(sc, state.layers, state.screens, pts),
   serialize: () => serializeComposition(state, laser, COLS), load: loadComposition, reset: resetComposition,

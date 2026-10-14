@@ -6,13 +6,20 @@ import { serializeLaser, deserializeLaser } from './laser-model.js';
 import { MIXER_OPT } from './mixers.js';
 
 export const AUTOPILOT = () => ({ dir: 'off', dur: 'clip', secs: 5, loop: true });
+// grupo de camadas: entra na composição como uma camada só (opacidade, mistura, efeitos, transformação)
+export const GROUP = (name) => ({ id: 0, name: name || 'Grupo', color: '', opacity: 1, blend: 'alpha', blendOpt: MIXER_OPT(), bypass: false, solo: false, fx: [], transform: { x: 0, y: 0, scale: 1, rot: 0 }, folded: false, ignoreColumn: false, firstCol: false, lock: false, bus: null, speed: 1 });
+// crossfader: posição 0 = A, 1 = B; curva linear, potência igual ou corte; "ir para A/B" corta ou esmaece
+export const XFADE = () => ({ pos: 0.5, curve: 'linear', behaviour: 'cut', secs: 2 });
 // Configurações da composição (menu Composição → Configurações…)
 export const SETTINGS = () => ({ w: 1920, h: 1080, fps: 60, bg: '#000000', desc: '', trig: 'normal', firstCol: false });
 
 export function serializeComposition(state, laser, cols) {
   return JSON.stringify({
     v: 1, name: state.name || 'Composição', cols, colNames: state.colNames || {}, settings: state.settings, master: state.master, speed: state.speed, compFx: state.compFx, compAutopilot: state.compAutopilot,
-    layers: state.layers.map(L => ({ name: L.name, opacity: L.opacity, blend: L.blend, bypass: L.bypass, autopilot: L.autopilot, fx: L.fx, transform: L.transform, transition: L.transition, transMode: L.transMode, transOpt: L.transOpt, blendOpt: L.blendOpt, on: L.on, clips: L.clips.map(serializeClip) })),
+    layers: state.layers.map(L => ({ name: L.name, opacity: L.opacity, blend: L.blend, bypass: L.bypass, autopilot: L.autopilot, fx: L.fx, transform: L.transform, transition: L.transition, transMode: L.transMode, transOpt: L.transOpt, blendOpt: L.blendOpt, group: L.group ?? null, solo: !!L.solo, bus: L.bus || null, on: L.on, clips: L.clips.map(serializeClip) })),
+    groups: state.groups || [], xfade: state.xfade || XFADE(), deck: state.deck || 0,
+    // os clipes das camadas são os do deck atual; os outros decks guardam as suas linhas (uma por camada)
+    decks: (state.decks || []).map((d, i) => ({ name: d.name, color: d.color || '', closed: !!d.closed, rows: i === (state.deck || 0) ? null : state.layers.map(L => (d.cells[L.id] || []).map(serializeClip)) })),
     screens: JSON.parse(M.serialize(state.screens)),
     laser: JSON.parse(serializeLaser(laser.frames, laser.settings, laser.frames.indexOf(laser.active))),
   });
@@ -28,7 +35,7 @@ export async function deserializeComposition(json, ctx) {
   for (const l of d.layers || []) {
     const L = ctx.mkLayer(l.name || 'Camada');
     L.opacity = l.opacity ?? 1; L.blend = l.blend || 'normal'; L.bypass = !!l.bypass; L.autopilot = Object.assign(AUTOPILOT(), l.autopilot || {});
-    L.fx = (l.fx || []).map(f => ({ ...f, params: { ...f.params } })); L.transform = Object.assign({ x: 0, y: 0, scale: 1, rot: 0 }, l.transform || {}); L.transition = l.transition ?? 0; L.transMode = l.transMode || 'alpha'; L.transOpt = Object.assign(MIXER_OPT(), l.transOpt || {}); L.blendOpt = Object.assign(MIXER_OPT(), l.blendOpt || {});
+    L.fx = (l.fx || []).map(f => ({ ...f, params: { ...f.params } })); L.transform = Object.assign({ x: 0, y: 0, scale: 1, rot: 0 }, l.transform || {}); L.transition = l.transition ?? 0; L.transMode = l.transMode || 'alpha'; L.transOpt = Object.assign(MIXER_OPT(), l.transOpt || {}); L.blendOpt = Object.assign(MIXER_OPT(), l.blendOpt || {}); L.group = l.group ?? null; L.solo = !!l.solo; L.bus = l.bus || null;
     for (let i = 0; i < L.clips.length; i++) {
       const o = (l.clips || [])[i];
       if (o && o.missing) { missing++; continue; }
@@ -38,5 +45,16 @@ export async function deserializeComposition(json, ctx) {
     }
     layers.push(L);
   }
-  return { name: d.name, settings: Object.assign(SETTINGS(), d.settings || {}), colNames: d.colNames || {}, master: d.master ?? 1, speed: d.speed ?? 1, compFx: d.compFx || [], compAutopilot: Object.assign(AUTOPILOT(), d.compAutopilot || {}), layers, screens: d.screens ? M.deserialize({ screens: d.screens.screens || d.screens }) : null, laser: lz, missing };
+  const clipOpts = { toast: ctx.toast, laserClip: (idx) => { const f = lz && lz.frames[idx]; return f ? ctx.laserClip(f) : null; } };
+  const decks = [];
+  for (const k of d.decks || []) {
+    const dk = { name: k.name || 'Deck', color: k.color || '', closed: !!k.closed, rows: null };
+    if (k.rows) {
+      dk.rows = [];
+      for (const row of k.rows) { const out = []; for (const o of row) { if (o && o.missing) { missing++; out.push(null); continue; } const c = await deserializeClip(o, clipOpts); if (o && !c) missing++; out.push(c); } dk.rows.push(out); }
+    }
+    decks.push(dk);
+  }
+  const groups = (d.groups || []).map(g => Object.assign(GROUP(), g, { blendOpt: Object.assign(MIXER_OPT(), g.blendOpt || {}), transform: Object.assign({ x: 0, y: 0, scale: 1, rot: 0 }, g.transform || {}), fx: (g.fx || []).map(f => ({ ...f, params: { ...f.params } })) }));
+  return { groups, decks, deck: d.deck || 0, xfade: Object.assign(XFADE(), d.xfade || {}), name: d.name, settings: Object.assign(SETTINGS(), d.settings || {}), colNames: d.colNames || {}, master: d.master ?? 1, speed: d.speed ?? 1, compFx: d.compFx || [], compAutopilot: Object.assign(AUTOPILOT(), d.compAutopilot || {}), layers, screens: d.screens ? M.deserialize({ screens: d.screens.screens || d.screens }) : null, laser: lz, missing };
 }

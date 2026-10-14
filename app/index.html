@@ -19,7 +19,11 @@
   </div>
 
   <div id="mid">
-    <div id="gridWrap"><div id="grid"></div></div>
+    <div id="gridCol">
+      <div id="gridWrap"><div id="grid"></div></div>
+      <div id="xfade" title="Crossfader: as camadas e grupos no bus A ficam à esquerda, as do bus B à direita"></div>
+      <div id="decks" title="Decks: cada um guarda os seus clipes; as camadas são as mesmas"></div>
+    </div>
     <div class="split v" id="splitMon" title="Arraste para mudar o tamanho; duplo clique volta ao padrão"></div>
     <div id="mons">
       <div class="mon out"><div class="cap"><span>Composição <i id="compInfo"></i></span><span class="acts"><button id="btnAO" type="button" title="Telas, slices, deformação, soft edge e máscaras: como a composição vai para cada projetor">Saída avançada</button></span></div><div class="scr" id="outScr"></div></div>
@@ -30,7 +34,7 @@
 
   <div class="split h" id="splitBot" title="Arraste para mudar o tamanho; duplo clique volta ao padrão"></div>
   <div id="bot">
-    <div class="pan rpan"><div class="ptabs" id="leftTabs"><span data-tab="comp" class="on">Composição</span><span data-tab="layer">Camada</span></div><div class="ptitle" id="leftTitle"></div><div class="pbody rprops" id="leftPan"></div></div>
+    <div class="pan rpan"><div class="ptabs" id="leftTabs"><span data-tab="comp" class="on">Composição</span><span data-tab="layer">Camada</span><span data-tab="group" hidden>Grupo</span></div><div class="ptitle" id="leftTitle"></div><div class="pbody rprops" id="leftPan"></div></div>
     <div class="split v" id="splitL"></div>
     <div class="pan rpan"><div class="ptabs"><span class="on">Clipe</span></div><div class="ptitle" id="clipTitle"></div><div class="pbody rprops" id="clipPan"></div></div>
     <div class="split v" id="splitR"></div>

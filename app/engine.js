@@ -121,6 +121,8 @@ export class Engine {
     this.scratch = [this.fbo(width, height), this.fbo(width, height), this.fbo(width, height)];   // efeitos: entrada e pingue-pongue
     this.mixFbo = [this.fbo(width, height), this.fbo(width, height), this.fbo(width, height), this.fbo(width, height)];   // mistura: clipe antigo, clipe novo, camada pronta, cópia do alvo
     this.compFx = []; this.bg = [0, 0, 0];
+    this.groupFbo = new Map();    // group.id → fbo (as camadas do grupo juntas)
+    this.groups = []; this.xfade = null; this.soloL = false;
   }
   // Configurações da composição: tamanho novo refaz as texturas que dependem dele
   setSize(w, h) {
@@ -129,6 +131,7 @@ export class Engine {
     del(this.comp); this.comp = this.fbo(w, h);
     this.scratch.forEach(del); this.scratch = [this.fbo(w, h), this.fbo(w, h), this.fbo(w, h)];
     this.mixFbo.forEach(del); this.mixFbo = [this.fbo(w, h), this.fbo(w, h), this.fbo(w, h), this.fbo(w, h)];
+    for (const f of this.groupFbo.values()) del(f); this.groupFbo.clear();
     for (const f of this.srcFbo.values()) del(f); this.srcFbo.clear();
     for (const f of this.layerFbo.values()) del(f); this.layerFbo.clear();
     for (const f of this.screenFbo.values()) del(f); this.screenFbo.clear();
@@ -305,12 +308,35 @@ export class Engine {
     gl.enable(gl.BLEND);
     return dst.t;
   }
+  // crossfader: quanto cada bus (A ou B) aparece, pela posição (0 = A, 1 = B) e pela curva
+  busFactor(bus) {
+    const x = this.xfade; if (!bus || !x) return 1;
+    const p = Math.max(0, Math.min(1, x.pos));
+    if (x.curve === 'cut') return bus === 'A' ? (p <= 0.5 ? 1 : 0) : (p >= 0.5 ? 1 : 0);
+    if (x.curve === 'power') return bus === 'A' ? Math.cos(p * Math.PI / 2) : Math.sin(p * Math.PI / 2);
+    return bus === 'A' ? 1 - p : p;
+  }
+  // uma textura pronta (um grupo) entra no alvo com efeitos, transformação, opacidade e modo de mistura
+  compositeInto(target, tex, fx, transform, op, blend, opt, W, H, seed) {
+    const gl = this.gl, F = this.mixFbo, tr = transform || IDENT_TR();
+    let src = this.applyChain(tex, W, H, fx);
+    if (src !== tex || tr.x || tr.y || tr.scale !== 1 || tr.rot) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, F[2].fb); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+      this.drawClipQuad(src, null, tr, 1, W, H, 'normal'); src = F[2].t;
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target.fb); gl.viewport(0, 0, W, H);
+    if (blend === 'alpha') { this.drawClipQuad(src, null, null, op, W, H, 'normal'); return; }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, F[3].fb); this.copyInto(target.t, W, H, false);
+    this.mixInto(target, F[3].t, src, op, blend, 0, opt, W, H, seed);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
   // uma camada = o clipe no ar (e, na transição, o anterior saindo pelo modo escolhido) com os
   // efeitos do clipe e da camada, misturada no alvo pelo modo de mistura da camada. target é um fbo {fb, t}.
   drawLayer(L, W, H, target) {
     const gl = this.gl;
-    if (L.bypass || L.opacity <= 0) return;
-    const clip = L.on >= 0 ? L.clips[L.on] : null;
+    const op = L.opacity * this.busFactor(L.bus);
+    if (L.bypass || op <= 0 || (this.soloL && !L.solo)) return;
+    const clip = L.on >= 0 ? L.clips[L.on] : (L.ghost || null);   // ghost: o clipe de outro deck que continua no ar
     let k = 1;
     if (L.prev && L.prev.clip && this.clipReady(L.prev.clip)) {
       k = Math.min(1, (this.time - L.prev.t0) / Math.max(0.01, L.prev.dur));
@@ -330,8 +356,8 @@ export class Engine {
           this.drawClipQuad(tex, c, c.transform, 1, W, H, 'normal');
           tex = this.applyChain(s.t, W, H, chain);
           gl.bindFramebuffer(gl.FRAMEBUFFER, target.fb); gl.viewport(0, 0, W, H);
-          this.drawClipQuad(tex, null, tr, L.opacity * (c.opacity ?? 1), W, H, 'normal');
-        } else this.drawClipQuad(tex, c, { ...tr }, L.opacity * (c.opacity ?? 1), W, H, 'normal');
+          this.drawClipQuad(tex, null, tr, op * (c.opacity ?? 1), W, H, 'normal');
+        } else this.drawClipQuad(tex, c, { ...tr }, op * (c.opacity ?? 1), W, H, 'normal');
         return;
       }
     }
@@ -346,10 +372,10 @@ export class Engine {
       layerTex = this.mixInto(F[2], a, b, k, L.prev.mode || 'alpha', 1, L.prev.opt, W, H, L.prev.seed || 0);
     } else layerTex = this.clipTexInto(F[2], clip, L, W, H);
     gl.bindFramebuffer(gl.FRAMEBUFFER, target.fb); gl.viewport(0, 0, W, H);
-    if (blend === 'alpha') { this.drawClipQuad(layerTex, null, null, L.opacity, W, H, 'normal'); return; }
+    if (blend === 'alpha') { this.drawClipQuad(layerTex, null, null, op, W, H, 'normal'); return; }
     // modo de mistura: copia o alvo e mistura a camada por cima, com o fader da camada
     gl.bindFramebuffer(gl.FRAMEBUFFER, F[3].fb); this.copyInto(target.t, W, H, false);
-    this.mixInto(target, F[3].t, layerTex, L.opacity, blend, 0, L.blendOpt, W, H, L.id);
+    this.mixInto(target, F[3].t, layerTex, op, blend, 0, L.blendOpt, W, H, L.id);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
@@ -360,7 +386,24 @@ export class Engine {
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.comp.fb);
     gl.viewport(0, 0, W, H);
     gl.clearColor(this.bg[0], this.bg[1], this.bg[2], 1); gl.clear(gl.COLOR_BUFFER_BIT);
-    for (let i = layers.length - 1; i >= 0; i--) this.drawLayer(layers[i], W, H, this.comp);
+    const groups = this.groups || [], gById = (id) => groups.find(g => g.id === id);
+    this.soloL = layers.some(L => L.solo && !L.bypass);
+    const soloG = groups.some(g => g.solo && !g.bypass);
+    for (let i = layers.length - 1; i >= 0; i--) {
+      const L = layers[i], g = L.group != null ? gById(L.group) : null;
+      if (!g) { if (!soloG) this.drawLayer(L, W, H, this.comp); continue; }
+      // o trecho contíguo do grupo, de baixo para cima, numa textura só
+      let j = i; while (j - 1 >= 0 && layers[j - 1].group === L.group) j--;
+      const members = []; for (let k = i; k >= j; k--) members.push(layers[k]);
+      i = j;
+      const gop = g.opacity * this.busFactor(g.bus);
+      if (g.bypass || gop <= 0 || (soloG && !g.solo)) continue;
+      let f = this.groupFbo.get(g.id);
+      if (!f) { f = this.fbo(W, H); this.groupFbo.set(g.id, f); }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, f.fb); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+      for (const m of members) this.drawLayer(m, W, H, f);
+      this.compositeInto(this.comp, f.t, g.fx, g.transform, gop, normMixer(g.blend), g.blendOpt, W, H, 1000 + g.id);
+    }
     for (const L of layers) {
       if (!layerIds.has(L.id)) continue;
       let f = this.layerFbo.get(L.id);
@@ -389,7 +432,7 @@ export class Engine {
     if (!this.prevFbo) this.prevFbo = this.fbo(W, H);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.prevFbo.fb); gl.viewport(0, 0, W, H);
     gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
-    this.drawLayer({ ...L, on: clipIdx, prev: null, bypass: false, opacity: 1 }, W, H, this.prevFbo);
+    this.drawLayer({ ...L, on: clipIdx, prev: null, ghost: null, bypass: false, opacity: 1, solo: true, bus: null }, W, H, this.prevFbo);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     this.copyTo(this.prevFbo.t, W, H);
   }

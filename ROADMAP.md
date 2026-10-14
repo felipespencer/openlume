@@ -104,8 +104,12 @@ casa específica (camada + coluna) ou parar; no fim do clipe ou depois de N segu
      + até 140 pontos de `x y r g b` em u16 little-endian, 0..4095, no máximo 20 pacotes por
      rajada; o laser responde `[0x8a, 0, livre u16]`. Maquete `laser-mockup.html` feita em
      2026-10-14, aguardando o olhar do Felipe. Fonte de traço único (Hershey) para o texto
-7. **Decks**
-8. **Grupos de camadas**, solo, máscara de camada, crossfader A/B
+7. **Decks** — **feito em 2026-10-14**: abas embaixo da grade, cada deck com os seus clipes,
+   o clipe no ar continua depois da troca (como no Resolume), menu Deck completo
+8. **Grupos de camadas**, solo, crossfader A/B — **feito em 2026-10-14**: linha do grupo na grade
+   (recolher, X, B, S, fader, disparo de coluna do grupo), painel Grupo, menu Grupo completo,
+   solo de camada e de grupo, crossfader com bus A/B por camada ou grupo, curva e botões A/B.
+   Fora: máscara de camada (entra com os efeitos de máscara, item 4)
 9. **MIDI**: clicar no controle e mexer na controladora para amarrar; teclado também
    - **Akai APC40 mkII com compatibilidade nativa total** (pedido do Felipe em 2026-10-13): ligar
      o cabo e funcionar, sem amarrar nada. Os 40 pads são a grade (8 colunas × 5 camadas) e

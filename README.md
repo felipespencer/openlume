@@ -26,9 +26,30 @@ npm start
   nele em tela cheia. Numa janela comum, F ou duplo clique alterna a tela cheia.
 - Abrir o programa começa sempre do zero.
 
+### Decks, grupos e crossfader (como no Resolume)
+
+- **Decks** (abas embaixo da grade): cada deck guarda os seus clipes; as camadas são as mesmas.
+  Clique troca de deck, duplo clique renomeia, "+" cria. O clipe que estava no ar continua
+  tocando depois da troca, até a camada disparar outro ou sair do ar. Menu Deck: novo, inserir,
+  duplicar, renomear, cor, fechar (esconde a aba) e abrir de volta, limpar, remover.
+- **Grupos**: camadas vizinhas que entram na composição como uma só. A linha do grupo na grade tem
+  recolher (▸/▾), X (tira o grupo do ar), B (desliga), S (solo), o fader de opacidade e um disparo
+  de coluna só para as camadas do grupo. O painel Grupo (aba ao lado de Camada) tem master,
+  velocidade, mistura (os 60 modos), bus do crossfader, Transform e efeitos do grupo. Menu Grupo:
+  novo com a camada selecionada, inserir acima/abaixo, duplicar, renomear, cor, copiar/colar
+  efeitos, recolher, adicionar camada, ignorar disparo de coluna, disparar a primeira coluna ao
+  abrir, travar conteúdo, limpar, remover mantendo ou levando as camadas. A camada entra e sai de
+  um grupo pelo menu Camada → Grupo ou pelo painel Camada.
+- **Solo** (S) na camada e no grupo: só o que está em solo aparece.
+- **Crossfader** (faixa embaixo da grade): cada camada ou grupo pode ir para o bus A ou B (painel
+  Camada/Grupo ou menu Camada); o fader passa de A para B. No painel Composição: posição, curva
+  (linear, potência igual, corte), comportamento dos botões A e B (corta ou esmaece em N s).
+  Ver → Crossfader e Ver → Decks escondem as faixas.
+
 ### Barra de menus (como no Resolume)
 
 **Projecionista** (Preferências: pasta das gravações, FPS na barra, divisórias; Sobre; Sair) ·
+**Deck** e **Grupo** (ver acima) ·
 **Composição** (Nova, Abrir, Abrir recente, Salvar, Salvar como, Copiar/Colar efeitos,
 Transporte global, Disparo de clipe padrão, Disparar primeira coluna ao abrir,
 **Configurações…**) · **Camada** (nova, inserir acima/abaixo, duplicar, renomear, efeitos,
