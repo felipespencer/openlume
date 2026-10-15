@@ -8,7 +8,7 @@
 
 OpenLume é um software livre e de código aberto pra VJ, performance visual ao vivo e projeção mapeada. A inspiração é o Resolume, com melhorias pensadas por quem faz projeção na rua e em palco.
 
-É um app pra baixar e instalar.
+Vai ter três versões: **web** (abre no navegador), **Windows** e **Android**, todas com o mesmo motor por baixo.
 
 > **Status:** início do desenvolvimento. Ainda não tem versão pra usar.
 
@@ -47,7 +47,7 @@ Felipe Spencer · [Videodifusora](https://github.com/felipespencer)
 
 OpenLume is a free and open source tool for VJing, live visual performance and projection mapping. It's inspired by Resolume, with improvements shaped by people who project on streets and stages.
 
-It's an app you download and install.
+It will ship in three versions: **web** (runs in the browser), **Windows** and **Android**, all sharing the same engine underneath.
 
 > **Status:** early development. There's no usable release yet.
 
