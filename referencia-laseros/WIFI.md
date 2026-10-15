@@ -39,6 +39,7 @@ Tudo abaixo é **observado no código do aparelho de rede**; o que é inferênci
 
 ## Em aberto
 
-- Valores numéricos da estratégia de buffer por tipo de conexão (ler `ldDeviceBufferConfigDelegator::updateBufferingStrategy` em `ldCore.dll`).
+- ~~Valores numéricos da estratégia de buffer por tipo de conexão~~ — lidos em 2026-10-15, ver `QUADROS-E-BUFFER.md`
+  (Wi-Fi Server: alvo de 2000 amostras no cubo, 140 por pacote, 20 pacotes por lote, laço de 4 ms).
 - Modos "WiFi Client" e "LAN": o cubo entrando na rede de casa; só o "WiFi Server" foi testado.
 - Mudar o modo ou a senha do cubo: não é feito por este protocolo (usa o botão do aparelho ou a página web dele).

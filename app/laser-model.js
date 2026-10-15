@@ -11,7 +11,7 @@ export const FONTS = { ...HERSHEY_FONTS, ...EMS_FONTS };
 import { homography, applyHomography, meshFromRect, meshPoint, resampleMesh, cornersFromRect } from './warp.js';
 
 let seq = 1;
-export const LASER_DEFAULTS = () => ({ pps: 30000, bright: 0.6, corner: 3, safe: { w: 0.84, h: 0.76 }, flipX: true, flipY: false, flipCal: 1, colorCal: 1, fps: 30, scanHz: 60, hzCal: 1, fill: 50, style: 'ol', preset: 'standard', onSpeed: 0.0625, offSpeed: 0.0625, startWait: 8, startDwell: 2, curveDwell: 1, corner: 3, endDwell: 2, endWait: 1, curveAngle: 30, snap: 0.001, showPoints: false, map: MAP_DEFAULTS() });
+export const LASER_DEFAULTS = () => ({ pps: 30000, bright: 0.6, corner: 3, safe: { w: 0.84, h: 0.76 }, flipX: true, flipY: false, flipCal: 1, colorCal: 1, fps: 30, scanHz: 45, hzCal: 2, colorShift: 4, fill: 50, style: 'ol', preset: 'standard', onSpeed: 0.0625, offSpeed: 0.0625, startWait: 8, startDwell: 2, curveDwell: 1, corner: 3, endDwell: 2, endWait: 1, curveAngle: 30, snap: 0.001, showPoints: false, map: MAP_DEFAULTS() });
 // mapeamento da saída (como os quatro cantos e a malha da Saída avançada): pontos de ancoragem
 // que levam o quadrado do palco (-1..1) para onde o laser deve desenhar na superfície
 export const MAP_DEFAULTS = () => ({ mode: 'off', corners: cornersFromRect(-1, -1, 2, 2), divX: 2, divY: 2, mesh: meshFromRect(-1, -1, 2, 2, 2, 2) });
@@ -273,15 +273,21 @@ export function renderPoints(frame, settings, time, audio = 0) {
   const paths = frame ? framePaths(frame, time, audio) : [];
   return scanPaths(paths, settings, frame ? frame.color : { mode: 'solid', c1: '#000000' }, time);
 }
-// pontos para o LaserCube: x y r g b em 0..4095, com brilho e espelho da saída
+// pontos para o LaserCube: x y r g b em 0..4095, com brilho, espelho da saída e atraso da cor.
+// Atraso da cor (lido com o REA no ldHardwareFilter do LaserOS, 2026-10-15): o LaserOS manda a cor 4 amostras depois da
+// posição, porque o galvanômetro atrasa em relação ao comando; sem isso o feixe acende antes de o espelho chegar ao começo
+// do traço e apaga antes de ele chegar ao fim (ponta borrada, canto comido). O quadro repete em laço, então o atraso é
+// circular dentro dele: a cor das primeiras amostras vem do fim do quadro.
 export function toU16(scan, settings) {
   scan = mapScan(scan, settings);
-  const out = new Uint16Array(scan.n * 5), b = settings.bright;
-  for (let i = 0; i < scan.n; i++) {
+  const n = scan.n, out = new Uint16Array(n * 5), b = settings.bright;
+  const shift = n ? Math.max(0, Math.min(n - 1, (settings.colorShift ?? 4) | 0)) : 0;
+  for (let i = 0; i < n; i++) {
     let x = scan.xy[i * 2], y = scan.xy[i * 2 + 1];
     if (settings.flipX) x = -x; if (settings.flipY) y = -y;
     out[i * 5] = Math.round((x + 1) / 2 * 4095); out[i * 5 + 1] = Math.round((y + 1) / 2 * 4095);
-    out[i * 5 + 2] = Math.round(scan.rgb[i * 3] * b * 4095); out[i * 5 + 3] = Math.round(scan.rgb[i * 3 + 1] * b * 4095); out[i * 5 + 4] = Math.round(scan.rgb[i * 3 + 2] * b * 4095);
+    const c = (i - shift + n) % n;
+    out[i * 5 + 2] = Math.round(scan.rgb[c * 3] * b * 4095); out[i * 5 + 3] = Math.round(scan.rgb[c * 3 + 1] * b * 4095); out[i * 5 + 4] = Math.round(scan.rgb[c * 3 + 2] * b * 4095);
   }
   return out;
 }
@@ -344,8 +350,13 @@ export function deserializeLaser(json) {
   // o LaserCube de teste (Wi-Fi, 2026-10-14) mostra o desenho espelhado na horizontal: arquivos sem a marca de calibração ganham o espelho horizontal
   if (!(d.settings && d.settings.flipCal)) { settings.flipX = true; settings.flipCal = 1; }
   // quadros salvos antes de a cor fixa virar o padrão: o arco-íris (a cor antiga padrão) vira verde fixo, uma vez só
-  // atualização: o padrão subiu para 60 Hz (a 50 o olho ainda via piscar); arquivos antigos com 50 sobem uma vez
+  // atualização: 50 → 60 em 2026-10-14 (a 50 o olho ainda via piscar). Em 2026-10-15 o REA mostrou que o LaserOS repassa o
+  // desenho 45 vezes por segundo (quadro = pontos/s ÷ 45, 25 % mais pontos por traço que a 60): arquivos com o 60 imposto
+  // antes voltam a 45, uma vez; quem escolheu outro valor fica com ele
   if (!(d.settings && d.settings.hzCal)) { if (!settings.scanHz || settings.scanHz <= 50) settings.scanHz = 60; settings.hzCal = 1; }
+  if (settings.hzCal < 2) { if (settings.scanHz === 60) settings.scanHz = 45; settings.hzCal = 2; }
+  // atraso da cor (REA no ldHardwareFilter do LaserOS, 2026-10-15): arquivos antigos ganham o valor do LaserOS
+  if (settings.colorShift == null) settings.colorShift = 4;
   if (!(d.settings && d.settings.colorCal)) { for (const f of frames) if (f.color.mode === 'rainbow') { f.color.mode = 'solid'; f.color.c1 = '#00ff00'; } settings.colorCal = 1; }
   settings.map = Object.assign(MAP_DEFAULTS(), d.settings && d.settings.map || {}); if (settings.map.mesh.length !== (3 * settings.map.divX + 1) * (3 * settings.map.divY + 1)) settings.map.mesh = meshFromRect(-1, -1, 2, 2, settings.map.divX, settings.map.divY);
   return { frames, settings, active: d.active != null ? frames[d.frames.findIndex((_, i) => i === d.active)] : null };

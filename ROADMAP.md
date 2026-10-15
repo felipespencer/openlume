@@ -20,8 +20,13 @@ de trabalhar.
 - **Laser** (2026-10-14): módulo do LaserCube por Wi-Fi, igual à maquete `laser-mockup.html`:
   quadros de texto (fontes Hershey, horizontal/vertical/pilha, rolagem), desenho à mão, SVG e
   formas; cor, distorção e posição; zona segura; clipe de laser na grade; aba do aparelho com
-  busca na rede. Protocolo testado contra um LaserCube falso no teste automático; **falta a
-  prova com o aparelho de verdade** (direção dos eixos, brilho, taxa de pontos)
+  busca na rede. Protocolo testado contra um LaserCube falso no teste automático e no cubo real
+  (2026-10-14: descoberta, conexão, quadrado e letra aceso; espelho horizontal virou padrão).
+  **Pendência: o Felipe ainda vê piscar e letras borradas**, pior que no LaserOS. Em 2026-10-15 o
+  REA leu `ldCore.dll`, `openlase.dll` e `laserdocklib.dll` (`referencia-laseros/QUADROS-E-BUFFER.md`):
+  o LaserOS atrasa a cor 4 amostras em relação à posição e repassa o desenho 45 vezes por segundo
+  (quadro = pontos/s ÷ 45). Os dois entraram ("Atraso da cor" e Atualização 45 por padrão); falta
+  o Felipe conferir no cubo
 
 **Regra dada em 2026-10-14: "adiciona tudo que tiver no Resolume, depois eu vou tirando o que
 não quero".** Ou seja: na dúvida, o recurso entra; a poda é dele, depois.
