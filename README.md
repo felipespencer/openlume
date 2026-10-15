@@ -33,6 +33,10 @@ A interface começa em português. A tradução pra inglês e outros idiomas vem
 
 O projeto ainda está tomando forma. Ideias, relatos de uso e bugs são bem-vindos nas [issues](https://github.com/felipespencer/openlume/issues).
 
+### Licença
+
+GPL-3.0. Você pode usar, estudar, modificar e distribuir o OpenLume, mas quem distribuir uma versão modificada tem que liberar o código dela com a mesma licença. Texto completo em [LICENSE](LICENSE).
+
 ### Autor
 
 Felipe Spencer · [Videodifusora](https://github.com/felipespencer)
@@ -67,6 +71,10 @@ The interface starts in Portuguese. English and other languages will come later.
 ### Contributing
 
 The project is still taking shape. Ideas, usage reports and bug reports are welcome in the [issues](https://github.com/felipespencer/openlume/issues).
+
+### License
+
+GPL-3.0. You're free to use, study, change and share OpenLume, but if you distribute a modified version you have to release its source under the same license. Full text in [LICENSE](LICENSE).
 
 ### Author
 
