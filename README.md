@@ -10,7 +10,7 @@ OpenLume é um software livre e de código aberto pra VJ, performance visual ao 
 
 Vai ter três versões: **web** (abre no navegador), **Windows** e **Android**, todas com o mesmo motor por baixo.
 
-> **Status:** início do desenvolvimento. Ainda não tem versão pra usar.
+> **Status:** a versão **Windows** já funciona (0.1.0, instalador MSI e zip, gerados com `npx electron-builder --win msi zip --x64`). Web e Android vêm em seguida, do mesmo código.
 
 ### O que vai ter
 
@@ -60,7 +60,7 @@ OpenLume is a free and open source tool for VJing, live visual performance and p
 
 It will ship in three versions: **web** (runs in the browser), **Windows** and **Android**, all sharing the same engine underneath.
 
-> **Status:** early development. There's no usable release yet.
+> **Status:** the **Windows** version already works (0.1.0, MSI installer and zip, built with `npx electron-builder --win msi zip --x64`). Web and Android come next, from the same code.
 
 ### Planned features
 
