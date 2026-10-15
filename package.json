@@ -1,9 +1,9 @@
 {
-  "name": "projecionista",
-  "productName": "Projecionista",
+  "name": "openlume",
+  "productName": "OpenLume",
   "version": "0.1.0",
-  "description": "Projecionista: grade de clipes, mistura de camadas e saída para projetor",
-  "license": "MIT",
+  "description": "OpenLume: software livre de VJ e projeção mapeada, no jeito do Resolume",
+  "license": "GPL-3.0",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -13,7 +13,7 @@
   "author": "Felipe Spencer",
   "build": {
     "appId": "br.com.projecionista",
-    "productName": "Projecionista",
+    "productName": "OpenLume",
     "directories": { "output": "dist" },
     "files": ["main.js", "lasercube.js", "app/**/*", "package.json"],
     "extraResources": [{ "from": "tools/ffmpeg", "to": "ffmpeg", "filter": ["ffmpeg.exe"] }],
