@@ -29,7 +29,11 @@ O OpenLume nasce da experiência do [projecionista.app](https://projecionista.ap
 
 A interface começa em português. A tradução pra inglês e outros idiomas vem depois.
 
-### Rodar (versão Windows, hoje)
+### Baixar
+
+Instalador do Windows (MSI) e versão sem instalar (zip) na página de [releases](https://github.com/felipespencer/openlume/releases).
+
+### Rodar do código (versão Windows, hoje)
 
 ```sh
 npm install
@@ -79,7 +83,11 @@ OpenLume grows out of [projecionista.app](https://projecionista.app), a projecti
 
 The interface starts in Portuguese. English and other languages will come later.
 
-### Run (Windows version, for now)
+### Download
+
+Windows installer (MSI) and portable zip on the [releases](https://github.com/felipespencer/openlume/releases) page.
+
+### Run from source (Windows version, for now)
 
 ```sh
 npm install
