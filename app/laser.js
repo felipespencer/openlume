@@ -23,7 +23,7 @@ export class LaserModule {
     Object.assign(this, propsKit(this));
     this.build();
     // três quadros de exemplo para a pessoa ver o que dá para fazer
-    const t = L.mkFrame('Texto', 'text'); t.text.content = 'PROJECIONISTA'; t.text.size = 0.11;
+    const t = L.mkFrame('Texto', 'text'); t.text.content = 'OPENLUME'; t.text.size = 0.11;
     const c = L.mkFrame('Círculo', 'shape'); c.paths = L.shapePaths('circle'); c.color.mode = 'cycle'; c.distort.pulse = 0.5;
     const w = L.mkFrame('Onda', 'shape'); w.paths = L.shapePaths('wave'); w.color.mode = 'two'; w.distort.mirror = 'y';
     this.frames.push(t, c, w); this.sel = t;

@@ -12,15 +12,15 @@
   },
   "author": "Felipe Spencer",
   "build": {
-    "appId": "br.com.projecionista",
+    "appId": "app.openlume",
     "productName": "OpenLume",
     "directories": { "output": "dist" },
     "files": ["main.js", "lasercube.js", "app/**/*", "package.json"],
     "extraResources": [{ "from": "tools/ffmpeg", "to": "ffmpeg", "filter": ["ffmpeg.exe"] }],
     "asar": false,
     "win": { "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "zip", "arch": ["x64"] }], "signAndEditExecutable": false },
-    "msi": { "oneClick": false, "perMachine": false, "runAfterFinish": true, "createDesktopShortcut": true, "shortcutName": "Projecionista", "additionalLightArgs": ["-sval"] },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "Projecionista", "language": "1046" }
+    "msi": { "oneClick": false, "perMachine": false, "runAfterFinish": true, "createDesktopShortcut": true, "shortcutName": "OpenLume", "additionalLightArgs": ["-sval"] },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "OpenLume", "language": "1046" }
   },
   "devDependencies": {
     "electron": "^33.4.11",

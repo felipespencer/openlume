@@ -1,4 +1,4 @@
-// Projecionista — processo principal (Electron).
+// OpenLume — processo principal (Electron).
 // Serve a pasta app/ por um esquema próprio (app://projecionista/), abre a janela de controle
 // e põe cada janela de saída no monitor que a tela pede.
 const { app, crashReporter, BrowserWindow, Menu, protocol, net, session, screen, ipcMain, shell } = require('electron');
@@ -10,10 +10,10 @@ const { pathToFileURL } = require('node:url');
 const { LaserCube } = require('./lasercube.js');
 
 // ---------- registro de travamentos ----------
-// Tudo que derruba o programa vai para projecionista.log na pasta de dados (menu Projecionista →
+// Tudo que derruba o programa vai para openlume.log na pasta de dados (menu OpenLume →
 // Abrir o registro): erros do processo principal, janela que caiu (com o motivo do Chromium),
 // processo de GPU que caiu, e os erros que a própria janela manda. Os minidumps ficam em crashDumps.
-const LOG_FILE = () => path.join(app.getPath('userData'), 'projecionista.log');
+const LOG_FILE = () => path.join(app.getPath('userData'), 'openlume.log');
 let lastCrash = '';
 function logLine(kind, msg) {
   try { const f = LOG_FILE(); try { if (fs.statSync(f).size > 2e6) fs.renameSync(f, f + '.old'); } catch { } fs.appendFileSync(f, new Date().toISOString() + ' [' + kind + '] ' + String(msg).replace(/\r?\n/g, ' | ').slice(0, 4000) + '\n'); } catch { }
@@ -101,7 +101,7 @@ function prepareMedia(src, fmt, onProgress) {
 }
 const PREFS_FILE = () => path.join(app.getPath('userData'), 'prefs.json');
 const COMP_DIR = () => path.join(app.getPath('userData'), 'composicoes');
-const REC_DIR = (dir) => dir || path.join(app.getPath('videos'), 'Projecionista');
+const REC_DIR = (dir) => dir || path.join(app.getPath('videos'), 'OpenLume');
 const safeName = (name) => { const s = String(name).replace(/[\\/:*?"<>|]/g, '').trim(); if (!s) throw new Error('nome vazio'); return s; };
 const ORIGIN = 'app://projecionista';
 const ALLOWED = /^\/[\w./-]+\.(html|css|js|mjs|png|svg|ico|wasm|onnx|txt)$/;
@@ -138,7 +138,7 @@ const presetFile = (name) => {
 function createMain() {
   const win = new BrowserWindow({
     width: 1600, height: 900, minWidth: 1100, minHeight: 680,
-    backgroundColor: '#1b1c1f', title: 'Projecionista', autoHideMenuBar: true,
+    backgroundColor: '#1b1c1f', title: 'OpenLume', autoHideMenuBar: true,
     webPreferences: { ...PREFS, preload: path.join(APP_DIR, 'preload.js') },
   });
   win.webContents.on('render-process-gone', (_e, d) => {
@@ -157,7 +157,7 @@ function createMain() {
     let ext = null;
     if (want === 'auto') ext = screen.getAllDisplays().find(d => d.id !== main.id && !taken.has(d.id)) || null;
     else if (want !== 'window') ext = screen.getAllDisplays().find(d => String(d.id) === want) || null;
-    const base = { backgroundColor: '#000000', title: 'Projecionista — saída', autoHideMenuBar: true, webPreferences: PREFS };
+    const base = { backgroundColor: '#000000', title: 'OpenLume — saída', autoHideMenuBar: true, webPreferences: PREFS };
     const opts = ext
       ? { ...base, x: ext.bounds.x, y: ext.bounds.y, width: ext.bounds.width, height: ext.bounds.height, fullscreen: true, frame: false }
       : { ...base, width: 960, height: 540 };
@@ -203,7 +203,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('log:path', () => LOG_FILE());
   ipcMain.handle('env:test', () => !!process.env.PROJ_TEST);
   ipcMain.handle('app:relaunch', () => { try { fs.writeFileSync(RECOVER_FILE(), 'a placa de vídeo não voltou'); } catch { } app.relaunch(); app.exit(0); });
-  logLine('abriu', 'Projecionista ' + app.getVersion() + ' · Electron ' + process.versions.electron + ' · ' + process.platform + ' ' + process.arch + (app.isPackaged ? ' · instalado' : ' · desenvolvimento'));
+  logLine('abriu', 'OpenLume ' + app.getVersion() + ' · Electron ' + process.versions.electron + ' · ' + process.platform + ' ' + process.arch + (app.isPackaged ? ' · instalado' : ' · desenvolvimento'));
   // diagnóstico: onde cada janela está de verdade (bounds em DIP, tela cheia, monitor que a contém)
   ipcMain.handle('windows', () => BrowserWindow.getAllWindows().map(w => ({ title: w.getTitle(), bounds: w.getBounds(), content: w.getContentBounds(), full: w.isFullScreen(), display: String(screen.getDisplayMatching(w.getBounds()).id) })));
   ipcMain.handle('presets:list', () => {

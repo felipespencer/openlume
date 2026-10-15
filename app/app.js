@@ -1,4 +1,4 @@
-// Projecionista — janela de controle.
+// OpenLume — janela de controle.
 // Estado: uma composição com camadas; cada camada tem uma casa por coluna e mostra um clipe
 // por vez. Regras de uso (definidas pelo usuário em 2026-10-13):
 //   - clicar na miniatura ou no nome (rodapé) dispara o clipe do começo, sempre (mudado em 2026-10-14; antes o rodapé só mostrava a prévia);
@@ -34,7 +34,7 @@ const D = window.projDesktop || null;
 // vídeos preparados decodificam por software, salvo preferência: na placa, abrir as saídas derrubava o processo de GPU
 window.__projSoftDecode = true;
 if (D) D.prefs.get().then(p => { window.__projSoftDecode = !p.hwDecode; }).catch(() => { });
-// registro: tudo que dá errado na janela vai para o processo principal (projecionista.log)
+// registro: tudo que dá errado na janela vai para o processo principal (openlume.log)
 const logW = (kind, msg) => { try { if (D && D.log) D.log.write(kind, msg); } catch { } };
 addEventListener('error', (e) => logW('erro', (e.message || '') + ' @ ' + (e.filename || '') + ':' + (e.lineno || 0) + (e.error && e.error.stack ? ' | ' + e.error.stack : '')));
 addEventListener('unhandledrejection', (e) => logW('promise', (e.reason && (e.reason.stack || e.reason.message)) || String(e.reason)));
@@ -86,7 +86,7 @@ addEventListener('beforeunload', () => { try { if (sessionStorage.getItem('projR
   let crash = ''; try { crash = await D.log.lastCrash(); } catch { }
   if (!why && !crash) return;
   try { const j = await D.comps.load('_automatica'); await loadComposition(j, state.name); toast('O programa reabriu depois de travar (' + (crash || 'placa de vídeo') + ') e recuperou a composição automática. Registro: Projecionista → Abrir o registro.'); }
-  catch { toast('O programa reabriu depois de travar' + (crash ? ': ' + crash : '') + '. Veja Projecionista → Abrir o registro.'); }
+  catch { toast('O programa reabriu depois de travar' + (crash ? ': ' + crash : '') + '. Veja OpenLume → Abrir o registro.'); }
 })();
 // a cada minuto: memória da janela e o que está no ar, para achar vazamentos
 setInterval(() => { const m = performance.memory; logW('memoria', (m ? Math.round(m.usedJSHeapSize / 1048576) + ' MB de JS' : '?') + ' · ' + state.layers.filter(L => L.on >= 0).length + ' no ar · ' + state.layers.reduce((a, L) => a + L.clips.filter(Boolean).length, 0) + ' clipes · ' + state.decks.length + ' decks · fps ' + state.settings.fps); }, 60000);
@@ -916,7 +916,7 @@ function preferencesDialog() {
     title: 'Preferências', width: 520,
     build: (body, K) => {
       body.appendChild(K.phead('Gravações e instantâneos'));
-      body.appendChild(K.ptext('Pasta', 'Pasta|Onde ficam as gravações e os instantâneos. Vazio = Vídeos\\Projecionista.', p.recDir, v => { p.recDir = v; }));
+      body.appendChild(K.ptext('Pasta', 'Pasta|Onde ficam as gravações e os instantâneos. Vazio = Vídeos\\OpenLume.', p.recDir, v => { p.recDir = v; }));
       body.appendChild(K.phead('BPM'));
       body.appendChild(K.pnum('Nudge', 'Nudge do BPM|Quantos por cento o BPM sobe ou desce enquanto você segura ◁| ou |▷.', p.nudgePct, { min: 1, max: 50, step: 1, unit: ' %', bar: true, reset: 5 }, v => { p.nudgePct = v; }));
       body.appendChild(K.phead('Vídeos preparados'));
@@ -930,7 +930,7 @@ function preferencesDialog() {
 }
 function aboutDialog() {
   const ua = /Chrome\/([\d.]+)/.exec(navigator.userAgent), ev = /Electron\/([\d.]+)/.exec(navigator.userAgent);
-  openDialog({ title: 'Sobre o Projecionista', width: 420, build: (body) => { body.appendChild(el('p', 'dtext', 'Projecionista — projeção e laser ao vivo, no jeito de trabalhar do Resolume. Projeto de Felipe Spencer, 2026.')); body.appendChild(el('p', 'dtext', 'Electron ' + (ev ? ev[1] : '?') + ' · Chromium ' + (ua ? ua[1] : '?') + ' · WebGL2 · WebCodecs')); }, buttons: [{ label: 'Fechar', primary: true }] });
+  openDialog({ title: 'Sobre o OpenLume', width: 420, build: (body) => { body.appendChild(el('p', 'dtext', 'OpenLume — projeção e laser ao vivo, no jeito de trabalhar do Resolume. Software livre (GPL-3.0) de Felipe Spencer, 2026. github.com/felipespencer/openlume')); body.appendChild(el('p', 'dtext', 'Electron ' + (ev ? ev[1] : '?') + ' · Chromium ' + (ua ? ua[1] : '?') + ' · WebGL2 · WebCodecs')); }, buttons: [{ label: 'Fechar', primary: true }] });
 }
 
 // ---------- painéis e navegador ----------
@@ -991,7 +991,7 @@ const selL = () => state.layers[state.selLayer] ? state.selLayer : 0;
 const selC = () => state.sel ? state.sel.c : 0;
 const withClip = (fn) => () => { const s = selectedCell(); if (!s) { toast('Selecione um clipe'); return; } fn(s.clip, state.layers.indexOf(s.L), s.idx); };
 const menuDefs = () => [
-  { label: 'Projecionista', items: () => [
+  { label: 'OpenLume', items: () => [
     { label: 'Preferências…', key: 'Ctrl+,', fn: preferencesDialog }, '-',
     { label: 'Abrir o registro de travamentos', disabled: !D, fn: () => D.log.show() }, '-',
     { label: 'Sobre', fn: aboutDialog }, '-',

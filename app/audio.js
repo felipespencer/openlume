@@ -1,4 +1,4 @@
-// Áudio do Projecionista, no jeito do Resolume: cada clipe de vídeo com som passa por
+// Áudio do OpenLume, no jeito do Resolume: cada clipe de vídeo com som passa por
 //   fonte → efeitos de áudio do clipe (Bitcrusher, Distortion, EQ-3, Flanger, HighPass, LowPass)
 //   → volume → pan → master → saída,
 // e o master passa por um analisador (FFT) que dá os níveis de graves, médios-graves, médios e
