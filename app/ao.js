@@ -1,4 +1,4 @@
-// Editor da Saída avançada, no visual do Advanced Output do Resolume Arena 7 (capturas reais
+// Editor da Saída avançada, (capturas reais
 // de 2026-10-14): Presets e a árvore de telas à esquerda, com a caixa de ajuda embaixo; abas
 // "Seleção de entrada" e "Transformação de saída" no meio, com a barra de ferramentas (zoom,
 // desfazer, refazer, mão, ímã, grade; Editar pontos / Transformar); propriedades à direita em
@@ -242,7 +242,7 @@ export class AdvancedOutput {
     }
     svg.querySelectorAll('text').forEach(t => t.setAttribute('font-size', 13 * k));
   }
-  // alças do Transformar, como no Resolume: círculo com quadrado nos cantos, quadrado no meio dos lados
+  // alças do Transformar: círculo com quadrado nos cantos, quadrado no meio dos lados
   drawHandles(r, item) {
     const k = 1 / this.scale, H = [[0, 0], [0.5, 0], [1, 0], [0, 0.5], [1, 0.5], [0, 1], [0.5, 1], [1, 1]];
     H.forEach(([fx, fy], i) => {
@@ -425,7 +425,7 @@ export class AdvancedOutput {
     span.replaceWith(i); i.focus(); i.select();
   }
 
-  // ---------- propriedades (linhas no formato do Resolume, kit em panel.js) ----------
+  // ---------- propriedades (kit em panel.js) ----------
   colorRows(P, c) {
     P.appendChild(this.pnum('Brilho', 'Brilho|Compensa projetores diferentes entre si.', Math.round((c.bright - 1) * 100), { min: -100, max: 100, step: 1, bar: true, reset: 0 }, v => { c.bright = 1 + v / 100; }));
     P.appendChild(this.pnum('Contraste', 'Contraste|Compensa projetores diferentes entre si.', Math.round((c.contrast - 1) * 100), { min: -100, max: 100, step: 1, bar: true, reset: 0 }, v => { c.contrast = 1 + v / 100; }));
@@ -434,7 +434,7 @@ export class AdvancedOutput {
     P.appendChild(this.pnum('Azul', 'Azul|Soma ou tira azul.', Math.round(c.b * 100), { min: -100, max: 100, step: 1, bar: true, reset: 0 }, v => { c.b = v / 100; }));
   }
   rectRows(P, r, apply, help) {
-    // X e Y são o centro; Esquerda e Topo as bordas, como no Resolume
+    // X e Y são o centro; Esquerda e Topo as bordas
     P.appendChild(this.pnum('X', help + ' X|Posição do centro na horizontal, em pixels.', r.x + r.w / 2, { min: -99999, max: 99999, step: 1 }, v => apply({ ...r, x: v - r.w / 2 })));
     P.appendChild(this.pnum('Y', help + ' Y|Posição do centro na vertical, em pixels.', r.y + r.h / 2, { min: -99999, max: 99999, step: 1 }, v => apply({ ...r, y: v - r.h / 2 })));
     P.appendChild(this.pnum('Esquerda', help + ' esquerda|Posição da borda esquerda, em pixels.', r.x, { min: -99999, max: 99999, step: 1 }, v => apply({ ...r, x: v })));

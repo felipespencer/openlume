@@ -1,6 +1,6 @@
-// Misturas e transições, do jeito do Resolume: a mesma lista serve para misturar a camada com o
+// Misturas e transições: a mesma lista serve para misturar a camada com o
 // que está embaixo (fader de opacidade) e para a transição entre dois clipes da mesma camada
-// (o fader corre de 0 a 100 % na duração). Comportamento copiado do que se vê no Resolume:
+// (o fader corre de 0 a 100 % na duração). Comportamento:
 //   - de 0 a 50 % a camada entra misturando (Add, Multiply, Screen…); de 50 a 100 % a mistura
 //     vai virando "camada normal por cima" ou, numa transição, só o clipe novo;
 //   - as versões "50" misturam no fader inteiro e nunca viram "normal por cima";
@@ -8,7 +8,7 @@
 // A entrada A é o que está embaixo (ou o clipe antigo), B a camada (ou o clipe novo); as duas
 // vêm premultiplicadas, e a saída também. O código GLSL é nosso.
 export const MIXERS = [
-  // id, nome (como no Resolume), grupo: ps = família Photoshop (duas metades), ps50 = mistura pura, geo = geométrica/especial
+  // id, nome, grupo: ps = família Photoshop (duas metades), ps50 = mistura pura, geo = geométrica/especial
   { id: 'alpha', name: 'Alpha' },
   { id: 'add', name: 'Add' }, { id: 'add50', name: '50 Add' },
   { id: 'subtract', name: 'Subtract' }, { id: 'subtract50', name: '50 Subtract' },

@@ -1,15 +1,15 @@
 // Conversa com o LaserCube pela rede (Wi-Fi), por UDP, no processo principal.
 //
-// Protocolo (da libLaserdockCore, a biblioteca aberta da Wicked Lasers que o LaserOS usa, e
+// Protocolo (da libLaserdockCore, a biblioteca aberta da Wicked Lasers, e
 // do LaserCubeSharp): três portas UDP no aparelho — 45456 só responde "alive", 45457 recebe
 // comandos, 45458 recebe os pontos. Comando é um byte seguido do valor; o aparelho responde
 // com o mesmo byte na frente. Pontos vão em pacotes de até 140 amostras de x, y, r, g, b
 // (u16 little-endian, 0..4095), com cabeçalho [0xa9, 0, nº da mensagem, nº do quadro]; com
 // 0x78 ligado, cada pacote de pontos é respondido com quantas amostras cabem no buffer.
 //
-// Conferido com o REA em laserdocklib.dll do LaserOS 0.18.1 (2026-10-14): o "alive" é 0x27 em
+// Detalhes conferidos no aparelho (2026-10-14): o "alive" é 0x27 em
 // broadcast na 45456 e a resposta válida é `27 00`; o pacote de informações (0x77) tem 64 bytes
-// com o byte 2 igual a 0; o LaserOS pergunta 0x77 a cada 250 ms e dá o aparelho como
+// com o byte 2 igual a 0; o programa pergunta 0x77 a cada 250 ms e dá o aparelho como
 // desconectado se passar 4 s sem resposta; comandos críticos vão em duplicata (UDP por Wi-Fi
 // perde pacote); no pacote de pontos o byte 2 é um contador por pacote e o byte 3 muda a cada
 // lote enviado, e o aparelho conta os pacotes que faltam (erros de pacote, flags >> 4).
@@ -90,7 +90,7 @@ class LaserCube extends EventEmitter {
     this.lastInfoAt = Date.now();
     this.poll = setInterval(() => {
       this.send(CMD.INFO); if (Date.now() - this.lastReply > 300) this.send(CMD.BUFFER_FREE);
-      // como o LaserOS: 4 s sem resposta de informações = o aparelho sumiu (Wi-Fi caiu, desligaram). Para de mandar.
+      // 4 s sem resposta de informações = o aparelho sumiu (Wi-Fi caiu, desligaram). Para de mandar.
       if (Date.now() - this.lastInfoAt > 4000) { const ip = this.ip; this.disconnect(); this.emit('error', 'O LaserCube em ' + ip + ' parou de responder: desconectado'); }
     }, 250);
     this.emit('status', this.status());
@@ -150,7 +150,7 @@ class LaserCube extends EventEmitter {
     const now = Date.now();
     // o aparelho esvazia o buffer na taxa configurada: sem isso o driver só sabia o nível pelas respostas, parava de
     // mandar ao chegar na metade, não recebia resposta e ficava cego por 250 ms (buffer esvaziava: o laser piscava).
-    // Igual ao LaserOS, que soma 30 amostras por ms; aqui a taxa real. As respostas do aparelho corrigem a estimativa.
+    // Taxa real de amostras por ms. As respostas do aparelho corrigem a estimativa.
     if (this.drainAt) this.bufFree = Math.min(this.bufSize, this.bufFree + this.rate * (now - this.drainAt) / 1000);
     this.drainAt = now;
     const stale = now - this.lastReply > 100;

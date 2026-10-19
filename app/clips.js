@@ -183,7 +183,7 @@ export function tickTransport(c, dt, speedMul = 1) {
   const inP = Math.max(0, Math.min(t.in, c.dur)), outP = Math.max(inP + 0.05, Math.min(t.out || c.dur, c.dur));
   if (!t.playing) return false;
   if (t.sync === 'bpm' && clock && t.dir > 0) {
-    // BPM Sync: a faixa entre entrada e saída dura N batidas, presa à batida geral (o "hard sync" do Resolume)
+    // BPM Sync: a faixa entre entrada e saída dura N batidas, presa à batida geral
     if (!clock.running) { if (!el.paused) el.pause(); return false; }
     const beats = t.beats || 8, cycle = beats * 60 / (clock.bpm * (1 + (clock.nudge || 0) / 100)), range = outP - inP;
     const rate = Math.max(0.0625, Math.min(16, range / cycle));

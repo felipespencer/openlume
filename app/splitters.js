@@ -1,4 +1,4 @@
-// Divisórias arrastáveis entre as caixas da janela, como no Resolume. Cada divisória muda uma
+// Divisórias arrastáveis entre as caixas da janela. Cada divisória muda uma
 // variável CSS da página; os tamanhos são lembrados nas preferências.
 const VARS = {
   splitMon: { v: '--monW', axis: 'x', from: 'right', min: 220, max: 900 },     // grade | monitores

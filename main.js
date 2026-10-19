@@ -74,7 +74,7 @@ function listDir(dir) {
   const col = (a, b) => a.name.localeCompare(b.name, 'pt-BR', { numeric: true });
   return { dir, dirs: dirs.sort(col), files: files.sort(col) };
 }
-// ---------- preparar vídeo: H.264 "todo intra" (cada quadro é chave), como o DXV do Resolume ----------
+// ---------- preparar vídeo: H.264 "todo intra" (cada quadro é chave) ----------
 function findFfmpeg() {
   const cands = [path.join(__dirname, 'tools', 'ffmpeg', 'ffmpeg.exe'), path.join(process.resourcesPath || '', 'ffmpeg', 'ffmpeg.exe')];
   for (const c of cands) { try { if (fs.existsSync(c)) return c; } catch { } }

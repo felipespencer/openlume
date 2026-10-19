@@ -1,4 +1,4 @@
-// Reprodutor próprio de vídeo, como o do Resolume: lê o MP4/MOV (mp4box.js), decodifica os
+// Reprodutor próprio de vídeo: lê o MP4/MOV (mp4box.js), decodifica os
 // quadros com WebCodecs (placa de vídeo) e guarda os últimos num cache. Tocar para a frente,
 // para trás, pular, esfregar e mudar a velocidade viram só "qual quadro mostrar agora".
 // Usado nos arquivos preparados (.proj.mp4: H.264 todo intra, cada quadro é chave). Em

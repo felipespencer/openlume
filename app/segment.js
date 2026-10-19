@@ -1,7 +1,6 @@
 // Tirar o fundo da webcam (ou de qualquer clipe): segmentação de pessoa com um modelo público em
 // ONNX, o PP-HumanSeg (PaddleSeg, Apache 2.0, em vendor/pphumanseg), rodando no onnxruntime-web
-// por WebAssembly. É o mesmo modelo que o Resolume traz no Background Removal (ai-models/
-// human-segmentation/onnx/human_segmentation_pphumanseg.onnx). O quadro do clipe vai para
+// por WebAssembly. O quadro do clipe vai para
 // 192×192, o modelo devolve fundo/pessoa, e a máscara entra no efeito "Background Removal"
 // como textura (no slot uPrev). Roda em paralelo ao desenho, a até ~15 vezes por segundo.
 export class Segmenter {

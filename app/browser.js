@@ -1,4 +1,4 @@
-// O painel de navegação da direita, como no Resolume: Arquivos · Composições · Efeitos ·
+// O painel de navegação da direita: Arquivos · Composições · Efeitos ·
 // Fontes · Gravar, com a caixa de ajuda embaixo.
 import { el, ICON } from './panel.js';
 import { EFFECTS } from './effects.js';
@@ -66,7 +66,7 @@ export class Browser {
       r.append(ic, el('span', '', f.name), el('small', '', f.size > 1e6 ? (f.size / 1e6).toFixed(1) + ' MB' : Math.round(f.size / 1e3) + ' kB'));
       if (isVideoName(f.name) && !isPrepared(f.name) && this.c.prepareFile) {   // H.264 todo intra ao lado do original
         const prog = this.c.preparingFile(f.path);
-        const b = el('button', 'ib prep', prog != null ? Math.round(prog * 100) + ' %' : '⚙'); b.title = 'Preparar'; b.dataset.help = 'Preparar|Converte para H.264 com todos os quadros chave (como o DXV do Resolume): ré, pulo e esfregar lisos. Cria ' + f.name.replace(/\.[^.]+$/, '') + '.proj.mp4 nesta pasta.';
+        const b = el('button', 'ib prep', prog != null ? Math.round(prog * 100) + ' %' : '⚙'); b.title = 'Preparar'; b.dataset.help = 'Preparar|Converte para H.264 com todos os quadros chave: ré, pulo e esfregar lisos. Cria ' + f.name.replace(/\.[^.]+$/, '') + '.proj.mp4 nesta pasta.';
         b.onclick = (e) => { e.stopPropagation(); if (prog == null) this.c.prepareFile(f.path); }; b.draggable = false; r.appendChild(b);
       }
       r.ondragstart = (e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', f.path); this.c.setDrag({ path: f.path, name: f.name }); };

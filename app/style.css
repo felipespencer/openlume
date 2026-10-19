@@ -18,7 +18,7 @@ input[type=range]{ accent-color:var(--accent); height:14px; margin:0; }
 #top .sp{ flex:1; }
 #top .st{ color:var(--ghost); } #top .st.on{ color:var(--accent); }
 #top button{ height:22px; padding:0 10px; }
-/* barra de menus e menus (formato do Resolume) */
+/* barra de menus e menus */
 #menubar{ display:flex; height:100%; } #menubar .mb{ height:28px; padding:0 10px; border:0; background:none; color:#d4d4d4; font:inherit; font-size:12px; cursor:default; border-radius:0; } #menubar .mb:hover, #menubar .mb.on{ background:#3a3b41; color:#fff; } #menubar .mb.on{ background:#3b7ddd; }
 .menuLayer{ position:fixed; inset:0; z-index:900; }
 .menu{ position:absolute; min-width:200px; background:#2a2b30; border:1px solid #5a5c66; box-shadow:0 8px 24px rgba(0,0,0,.7); padding:4px 0; font-size:12px; color:#f0f1f4; }
@@ -35,7 +35,7 @@ input[type=range]{ accent-color:var(--accent); height:14px; margin:0; }
 
 #mid{ display:grid; grid-template-columns:minmax(0,1fr) 5px var(--monW); min-height:0; }
 #gridCol{ display:grid; grid-template-rows:minmax(0,1fr) auto auto auto; min-height:0; border-right:1px solid var(--line); }
-/* relógio de BPM (como a barra de transporte do Resolume) */
+/* relógio de BPM */
 #bpmBar{ display:flex; align-items:center; gap:5px; padding:3px 10px; background:#141518; border-top:1px solid var(--line); font-size:11px; overflow:hidden; white-space:nowrap; }
 #bpmBar button{ height:20px; padding:0 7px; font-size:11px; font-weight:700; } #bpmBar button.act{ background:var(--warn); border-color:var(--warn); color:#0b0b0d; }
 #bpmBar .bv{ width:58px; height:20px; text-align:center; font:inherit; font-weight:700; color:var(--txt); background:var(--bg3); border:1px solid var(--line); border-radius:3px; }
@@ -48,7 +48,7 @@ input[type=range]{ accent-color:var(--accent); height:14px; margin:0; }
 .anb{ margin-left:4px; width:18px; height:18px; padding:0; font-size:11px; flex:none; } .anb.on{ color:#0b0b0d; background:var(--accent); border-color:var(--accent); }
 .cell.wait .th{ border-color:var(--warn); animation:blink .5s steps(2, start) infinite; } @keyframes blink{ to{ border-color:transparent; } }
 #gridWrap{ overflow:auto; }
-/* crossfader e decks, embaixo da grade (como no Resolume) */
+/* crossfader e decks, embaixo da grade */
 #xfade{ display:flex; align-items:center; gap:8px; padding:3px 10px; background:#141518; border-top:1px solid var(--line); }
 #xfade input[type=range]{ flex:1; }
 #xfade button{ height:18px; padding:0 8px; font-size:11px; font-weight:700; } #xfade button.act{ background:var(--warn); border-color:var(--warn); color:#0b0b0d; }
@@ -140,7 +140,7 @@ button.gh:hover{ color:var(--txt); background:var(--bg3); }
 .mon .cap .acts button{ height:18px; padding:0 8px; font-size:11px; }
 .mon .cap i{ font-style:normal; color:var(--ghost); letter-spacing:0; margin-left:6px; }
 
-/* ---------- Saída avançada, no visual do Advanced Output do Resolume ---------- */
+/* ---------- Saída avançada ---------- */
 #ao{ --rb:#1b1b1b; --rp:#2b2b2b; --rh:#3a3a3a; --rl:#1f1f1f; --rt:#d4d4d4; --rd:#8a8a8a; --teal:#6fe6c6; --tealDark:#0f2a24; --rstage:#333;
   position:fixed; inset:0; z-index:20; background:var(--rb); color:var(--rt); font:12px/1.3 "Segoe UI",system-ui,sans-serif; display:grid; grid-template-rows:38px minmax(0,1fr); user-select:none; }
 #ao[hidden], #ao [hidden]{ display:none !important; }
@@ -313,7 +313,7 @@ button.gh:hover{ color:var(--txt); background:var(--bg3); }
 /* clipe de laser na grade */
 .cell.laser .th{ background:#000 center / 60% no-repeat; outline:1px solid #2b5; }
 
-/* ---------- rodapé no formato do Resolume: Composição | Camada · Clipe · navegador ---------- */
+/* ---------- rodapé: Composição | Camada · Clipe · navegador ---------- */
 :root{ --monW:340px; --botH:300px; --leftW:380px; --rightW:380px; }
 body{ grid-template-rows:30px minmax(0,1fr) 5px var(--botH); }
 .split{ background:#141518; position:relative; z-index:3; } .split.v{ cursor:col-resize; width:5px; } .split.h{ cursor:row-resize; height:5px; }

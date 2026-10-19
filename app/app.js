@@ -279,7 +279,7 @@ function clearColumn(at) { state.layers.forEach((L, li) => clearCell(li, at)); }
 function duplicateColumn(at) { insertColumn(at + 1); for (const L of state.layers) if (L.clips[at]) L.clips[at + 1] = C.cloneClip(L.clips[at]); if (state.colNames[at]) state.colNames[at + 1] = state.colNames[at] + ' cópia'; render(); }
 // ---------- decks ----------
 // trocar de deck: a grade passa a mostrar os clipes do outro deck; o que está no ar continua
-// tocando (ghost) até a camada disparar outro clipe ou sair do ar, como no Resolume
+// tocando (ghost) até a camada disparar outro clipe ou sair do ar
 function switchDeck(i) {
   if (!state.decks[i] || i === state.deck) return;
   const cur = state.decks[state.deck];
@@ -930,7 +930,7 @@ function preferencesDialog() {
 }
 function aboutDialog() {
   const ua = /Chrome\/([\d.]+)/.exec(navigator.userAgent), ev = /Electron\/([\d.]+)/.exec(navigator.userAgent);
-  openDialog({ title: 'Sobre o OpenLume', width: 420, build: (body) => { body.appendChild(el('p', 'dtext', 'OpenLume — projeção e laser ao vivo, no jeito de trabalhar do Resolume. Software livre (GPL-3.0) de Felipe Spencer, 2026. github.com/felipespencer/openlume')); body.appendChild(el('p', 'dtext', 'Electron ' + (ev ? ev[1] : '?') + ' · Chromium ' + (ua ? ua[1] : '?') + ' · WebGL2 · WebCodecs')); }, buttons: [{ label: 'Fechar', primary: true }] });
+  openDialog({ title: 'Sobre o OpenLume', width: 420, build: (body) => { body.appendChild(el('p', 'dtext', 'OpenLume: projeção e laser ao vivo. Software livre (GPL-3.0) de Felipe Spencer, 2026. github.com/felipespencer/openlume')); body.appendChild(el('p', 'dtext', 'Electron ' + (ev ? ev[1] : '?') + ' · Chromium ' + (ua ? ua[1] : '?') + ' · WebGL2 · WebCodecs')); }, buttons: [{ label: 'Fechar', primary: true }] });
 }
 
 // ---------- painéis e navegador ----------
@@ -979,14 +979,14 @@ function midiDialog() {
       body.appendChild(K.pcheck('Usar', 'Usar a APC40|Desligado, o programa ignora a controladora e apaga os LEDs.', apc.enabled, v => apc.setEnabled(v), apc.enabled ? 'a APC40 controla o Projecionista' : 'ignorada'));
       body.appendChild(K.prow('Entradas MIDI', '', el('span', 'pinfo', apc.inputs.join(', ') || 'nenhuma')));
       body.appendChild(K.prow('Saídas MIDI', '', el('span', 'pinfo', apc.outputs.join(', ') || 'nenhuma')));
-      body.appendChild(K.phead('O que cada controle faz (o mesmo mapa do Resolume, estendido)'));
+      body.appendChild(K.phead('O que cada controle faz'));
       for (const [a, b] of [['Pads, 4 linhas de baixo', 'as casas das camadas 1 a 4 (de baixo para cima), colunas 1 a 8; a cor mostra vazia, guardada, no ar, no ar e selecionada'], ['Pads, linha de cima', 'dispara a coluna'], ['Botões de pista (por coluna = camada de baixo)', 'desligar (B), solo (S), clipe anterior, limpar (X), próximo clipe'], ['Faders', 'opacidade das camadas 1 a 8; o da direita é o master'], ['Crossfader', 'o crossfader (bus A e B)'], ['Knobs da direita', 'os 8 primeiros parâmetros do clipe selecionado (fonte e efeitos)'], ['Knobs de pista', 'o primeiro parâmetro do primeiro efeito da camada'], ['Cue Level', 'posição do clipe selecionado'], ['Scene Launch 1–5', 'seleciona a camada 5…1; Master seleciona a composição; Stop All Clips tira tudo do ar'], ['◀ ▶', 'coluna anterior e próxima; com Shift, muda a janela de 8 colunas'], ['▲ ▼', 'muda a janela de 4 camadas'], ['Tap Tempo, Nudge −/+', 'BPM'], ['Metronome', 'RESYNC; com Shift, liga o metrônomo'], ['Play / Record', 'toca todos / grava'], ['Device ◀ ▶', 'deck anterior e próximo']])
         body.appendChild(K.prow(a, '', el('span', 'pinfo', b)));
     },
     buttons: [{ label: 'Fechar', primary: true }],
   });
 }
-// ---------- barra de menus (no formato do Resolume) ----------
+// ---------- barra de menus ----------
 const selL = () => state.layers[state.selLayer] ? state.selLayer : 0;
 const selC = () => state.sel ? state.sel.c : 0;
 const withClip = (fn) => () => { const s = selectedCell(); if (!s) { toast('Selecione um clipe'); return; } fn(s.clip, state.layers.indexOf(s.L), s.idx); };

@@ -1,4 +1,4 @@
-// Barra de menus no formato do Resolume (Arena · Composition · Layer · Column · Clip · Output ·
+// Barra de menus (Arena · Composition · Layer · Column · Clip · Output ·
 // Shortcuts · View), janelas de diálogo no estilo dos painéis e os atalhos de teclado.
 // Cada item chama uma ação de verdade em app.js; o que ainda não existe (Deck, Grupo, MIDI)
 // não entra na barra.

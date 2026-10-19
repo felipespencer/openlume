@@ -1,4 +1,4 @@
-// Painéis de propriedades do rodapé, no formato do Resolume: Composição | Camada (esquerda),
+// Painéis de propriedades do rodapé: Composição | Camada (esquerda),
 // Clipe (meio). Autopilot, master, mistura, transição, transformação e a cadeia de efeitos.
 import { el, ICON, propsKit, fmtN } from './panel.js';
 import { FITS } from './engine.js';
@@ -56,7 +56,7 @@ export class Panels {
     P.appendChild(this.pnum('Giro', 'Giro|Ângulo em graus.', tr.rot, { min: -180, max: 180, step: 1, unit: ' °', bar: true, reset: 0 }, v => { tr.rot = v; }));
   }
   // um parâmetro de efeito ou de fonte: a linha do valor e o botão ♪, que o anima na batida
-  // (forma dos presets do Resolume, ciclo em batidas, mínimo e máximo)
+  // (forma, ciclo em batidas, mínimo e máximo)
   paramRows(P, holder, p, help) {
     const a = holder.panim && holder.panim[p.key];
     const o = { min: p.min, max: p.max, step: p.step, dec: p.step < 1 ? 2 : 0, unit: p.unit, bar: true };
@@ -65,7 +65,7 @@ export class Panels {
     b.onclick = (e) => { e.stopPropagation(); holder.panim = holder.panim || {}; if (a) delete holder.panim[p.key]; else holder.panim[p.key] = ANIM(p); this.render(); };
     row.querySelector('.pv').appendChild(b); P.appendChild(row);
     if (!a) return;
-    P.appendChild(this.pselect('· Forma', 'Forma|Como o valor anda a cada ciclo: as formas dos presets de animação do Resolume.', SHAPES, a.shape, v => { a.shape = v; }));
+    P.appendChild(this.pselect('· Forma', 'Forma|Como o valor anda a cada ciclo: uma das formas prontas.', SHAPES, a.shape, v => { a.shape = v; }));
     if (a.shape === 'fft') P.appendChild(this.pselect('· Faixa', 'Faixa|Qual parte do som move o parâmetro.', BANDS, a.band || 'bass', v => { a.band = v; }));
     else P.appendChild(this.pselect('· Batidas', 'Batidas|Quantas batidas dura um ciclo da forma.', BEATS.map(x => [String(x), x < 1 ? '1/' + Math.round(1 / x) : String(x)]), String(a.beats), v => { a.beats = +v; }));
     P.appendChild(this.pnum('· Mín', 'Mínimo|O valor no ponto mais baixo da forma.', a.min, { ...o, reset: p.min }, v => { a.min = v; }));
@@ -134,16 +134,16 @@ export class Panels {
     P.appendChild(this.phead('Camada', 'Camada|Controles da camada.'));
     P.appendChild(this.pnum('Master', 'Master|Opacidade da camada; o fader da grade é o mesmo.', Math.round(L.opacity * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v => { L.opacity = v / 100; this.ctx.renderGrid(); }));
     P.appendChild(this.phead('Vídeo', 'Vídeo|Como a camada entra na composição.'));
-    P.appendChild(this.pselect('Mistura', 'Mistura|Como a camada entra sobre o que está embaixo, com os modos do Resolume. Até 50 % do fader a camada mistura; de 50 a 100 % vai ficando normal por cima. Os modos "50" misturam no fader inteiro.', MIXER_OPTS, L.blend === 'normal' ? 'alpha' : L.blend, v => { L.blend = v; }));
+    P.appendChild(this.pselect('Mistura', 'Mistura|Como a camada entra sobre o que está embaixo. Até 50 % do fader a camada mistura; de 50 a 100 % vai ficando normal por cima. Os modos "50" misturam no fader inteiro.', MIXER_OPTS, L.blend === 'normal' ? 'alpha' : L.blend, v => { L.blend = v; }));
     P.appendChild(this.pseg('Rápidos', 'Rápidos|Cinco modos de mistura a um clique; a lista acima tem todos os outros.', [['alpha', 'Alpha'], ['add', 'Add'], ['multiply', 'Mult'], ['screen', 'Screen'], ['overlay', 'Over']], L.blend === 'normal' ? 'alpha' : L.blend, v => { L.blend = v; }));
     this.mixerOptRows(P, L.blend, L.blendOpt || (L.blendOpt = MIXER_OPT()), 'da mistura');
     P.appendChild(this.pselect('Bus', 'Bus do crossfader|A ou B: o crossfader embaixo da grade esmaece entre os dois lados. Nenhum: a camada não entra no crossfader.', [['', 'Nenhum'], ['A', 'A'], ['B', 'B']], L.bus || '', v => { L.bus = v || null; }));
     P.appendChild(this.pselect('Grupo', 'Grupo|Em que grupo a camada está. Grupos juntam camadas vizinhas numa só, com opacidade, mistura e efeitos próprios.', [['', 'Nenhum'], ...S.groups.map(g => [String(g.id), g.name])], L.group != null ? String(L.group) : '', v => this.ctx.setLayerGroup(S.selLayer, v ? +v : null)));
     P.appendChild(this.prow('Largura', '', el('span', 'pinfo', String(this.ctx.engine.W))));
     P.appendChild(this.prow('Altura', '', el('span', 'pinfo', String(this.ctx.engine.H))));
-    P.appendChild(this.phead('Transição', 'Transição|Ao disparar outro clipe nesta camada, o anterior sai e o novo entra pelo modo escolhido, durante a duração. Como no Resolume: a transição é um modo de mistura rodado no tempo.'));
+    P.appendChild(this.phead('Transição', 'Transição|Ao disparar outro clipe nesta camada, o anterior sai e o novo entra pelo modo escolhido, durante a duração. A transição é um modo de mistura rodado no tempo.'));
     P.appendChild(this.pselect('Modo', 'Modo da transição|Escolha da lista ou "Ao acaso", que sorteia um modo a cada disparo.', [['random', 'Ao acaso'], ...MIXER_OPTS], L.transMode || 'alpha', v => { L.transMode = v; }));
-    P.appendChild(this.pnum('Duração', 'Duração da transição|0 corta seco. Até 10 s, como no Resolume.', L.transition || 0, { min: 0, max: 10, step: 0.1, dec: 1, unit: ' s', bar: true, reset: 0 }, v => { L.transition = v; }));
+    P.appendChild(this.pnum('Duração', 'Duração da transição|0 corta seco. Até 10 s.', L.transition || 0, { min: 0, max: 10, step: 0.1, dec: 1, unit: ' s', bar: true, reset: 0 }, v => { L.transition = v; }));
     if (L.transMode !== 'random') this.mixerOptRows(P, L.transMode, L.transOpt || (L.transOpt = MIXER_OPT()), 'da transição');
     this.transformRows(P, L.transform || (L.transform = { x: 0, y: 0, scale: 1, rot: 0 }), ' da camada');
     this.fxRows(P, L, 'da camada');
@@ -194,7 +194,7 @@ export class Panels {
       btn('−1q', 'Um quadro para trás|', false, () => { pauseClip(clip); seekClip(clip, v.currentTime - 1 / 30); }),
       btn('+1q', 'Um quadro para a frente|', false, () => { pauseClip(clip); seekClip(clip, v.currentTime + 1 / 30); }));
     P.appendChild(this.prow('Tocar', '', tr));
-    P.appendChild(this.pseg('Sincronia', 'Sincronia|Linha do tempo: a velocidade é a sua. BPM Sync: a faixa entre a entrada e a saída dura N batidas, presa ao relógio de BPM (como no Resolume).', [['timeline', 'Linha do tempo'], ['bpm', 'BPM Sync']], t.sync || 'timeline', v2 => { t.sync = v2; if (v2 !== 'bpm') setRate(clip, S.speed); }));
+    P.appendChild(this.pseg('Sincronia', 'Sincronia|Linha do tempo: a velocidade é a sua. BPM Sync: a faixa entre a entrada e a saída dura N batidas, presa ao relógio de BPM.', [['timeline', 'Linha do tempo'], ['bpm', 'BPM Sync']], t.sync || 'timeline', v2 => { t.sync = v2; if (v2 !== 'bpm') setRate(clip, S.speed); }));
     if (t.sync === 'bpm') P.appendChild(this.pselect('Batidas', 'Batidas|Quantas batidas a faixa do clipe dura.', BEATS.filter(x => x >= 1).map(x => [String(x), String(x)]), String(t.beats || 8), v2 => { t.beats = +v2; }));
     P.appendChild(this.pseg('Modo', 'Modo|Loop repete; vai e volta inverte nas pontas; uma vez para na saída; aleatório pula pelo clipe.', [['loop', 'Loop'], ['bounce', 'Vai e volta'], ['once', 'Uma vez'], ['random', 'Aleatório']], t.mode, v2 => { t.mode = v2; }));
     P.appendChild(this.pnum('Velocidade', 'Velocidade|1x é a do arquivo; até 10x.', clip.speed, { min: 0.05, max: 10, step: 0.05, dec: 2, unit: 'x', bar: true, reset: 1 }, v2 => { clip.speed = v2; setRate(clip, S.speed); }));
@@ -206,7 +206,7 @@ export class Panels {
     if (clip.anim) P.appendChild(this.prow('Arquivo', 'Animação|GIF (ou WebP/AVIF) animado, quadro a quadro: ré, pulo e velocidade funcionam como num vídeo preparado.', el('span', 'pinfo ok', 'animação · ' + clip.player.frames + ' quadros · ' + clip.player.fps.toFixed(0) + ' fps')));
     else if (clip.player) P.appendChild(this.prow('Arquivo', 'Preparado|Cada quadro é chave e o OpenLume decodifica por conta própria: ré, pulo e esfregar sem travar.', el('span', 'pinfo ok', 'preparado · ' + (clip.player.allIntra ? 'todo intra' : clip.player.codec) + ' · ' + clip.player.fps.toFixed(0) + ' fps')));
     else if (prog != null) P.appendChild(this.prow('Preparando', '', el('span', 'pinfo', Math.round(prog * 100) + ' %')));
-    else if (clip.path && !isPrepared(clip.name)) { P.appendChild(this.pbutton('Preparar (H.264 todo intra)', 'Preparar|Converte para H.264 com todos os quadros chave, como o DXV do Resolume: ré, pulo e esfregar ficam lisos. Cria nome.proj.mp4 ao lado do original.', () => this.ctx.prepare('h264'))); }
+    else if (clip.path && !isPrepared(clip.name)) { P.appendChild(this.pbutton('Preparar (H.264 todo intra)', 'Preparar|Converte para H.264 com todos os quadros chave: ré, pulo e esfregar ficam lisos. Cria nome.proj.mp4 ao lado do original.', () => this.ctx.prepare('h264'))); }
     else P.appendChild(this.prow('Arquivo', '', el('span', 'pinfo', 'solto na janela sem caminho; abra pelo painel Arquivos para poder preparar')));
     const a = clip.audio;
     P.appendChild(this.phead('Áudio', 'Áudio|O som do arquivo.'));
@@ -215,7 +215,7 @@ export class Panels {
     P.appendChild(this.pcheck('Mudo', 'Mudo|', a.mute, v2 => { a.mute = v2; applyAudio(clip); }, a.mute ? 'sem som' : 'com som'));
     this.audioFxRows(P, clip);
   }
-  // cadeia de efeitos de áudio do clipe (os seis do Resolume), com os parâmetros
+  // cadeia de efeitos de áudio do clipe (seis efeitos), com os parâmetros
   audioFxRows(P, clip) {
     const list = clip.afx || (clip.afx = []);
     P.appendChild(this.phead('Efeitos de áudio', 'Efeitos de áudio|Arraste um efeito de áudio do painel Efeitos para cá. A ordem é de cima para baixo.'));
@@ -279,7 +279,7 @@ export class Panels {
       P.appendChild(this.pselect('Quando', 'Quando|No fim do clipe (vídeo) ou depois de um tempo fixo.', [['clip', 'No fim do clipe'], ['fixed', 'Tempo fixo']], ap.dur, v => { ap.dur = v; }));
       if (ap.dur === 'fixed') P.appendChild(this.pnum('Segundos', '', ap.secs, { min: 0.2, max: 600, step: 0.5, dec: 1, unit: ' s', bar: true, reset: 5 }, v => { ap.secs = v; }));
     }
-    // vídeo e disparo, como no Resolume
+    // vídeo e disparo
     P.appendChild(this.phead('Vídeo', 'Vídeo|Opacidade e mistura só deste clipe.'));
     P.appendChild(this.pnum('Opacidade', 'Opacidade do clipe|Multiplica a da camada.', Math.round((clip.opacity ?? 1) * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v => { clip.opacity = v / 100; }));
     P.appendChild(this.pselect('Mistura', 'Mistura do clipe|Vazio usa a da camada.', [['', 'Como a camada'], ...MIXER_OPTS], clip.blend === 'normal' ? 'alpha' : (clip.blend || ''), v => { clip.blend = v; }));

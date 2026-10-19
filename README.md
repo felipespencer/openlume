@@ -6,7 +6,7 @@
 
 ## Português
 
-OpenLume é um software livre e de código aberto pra VJ, performance visual ao vivo e projeção mapeada. A inspiração é o Resolume, com melhorias pensadas por quem faz projeção na rua e em palco.
+OpenLume é um software livre e de código aberto pra VJ, performance visual ao vivo e projeção mapeada. É pensado por quem faz projeção na rua e em palco.
 
 Vai ter três versões: **web** (abre no navegador), **Windows** e **Android**, todas com o mesmo motor por baixo.
 
@@ -41,7 +41,7 @@ npm start
 ```
 
 O código vem do projecionista-pc (Electron): grade de clipes por camada, mistura em WebGL, saída avançada
-no formato do Resolume, laser (LaserCube por Wi-Fi), APC40, gravação. Como usar: [COMO-USAR.md](COMO-USAR.md).
+com várias telas e deformação, laser (LaserCube por Wi-Fi), APC40, gravação. Como usar: [COMO-USAR.md](COMO-USAR.md).
 Rumo e pendências: [ROADMAP.md](ROADMAP.md).
 
 ### Contribuir
@@ -60,7 +60,7 @@ Felipe Spencer · [Videodifusora](https://github.com/felipespencer)
 
 ## English
 
-OpenLume is a free and open source tool for VJing, live visual performance and projection mapping. It's inspired by Resolume, with improvements shaped by people who project on streets and stages.
+OpenLume is a free and open source tool for VJing, live visual performance and projection mapping. It's shaped by people who project on streets and stages.
 
 It will ship in three versions: **web** (runs in the browser), **Windows** and **Android**, all sharing the same engine underneath.
 
@@ -94,8 +94,8 @@ npm install
 npm start
 ```
 
-The code comes from projecionista-pc (Electron): clip grid per layer, WebGL mixing, advanced output in the
-Resolume format, laser (LaserCube over Wi-Fi), APC40, recording. Usage (Portuguese): [COMO-USAR.md](COMO-USAR.md).
+The code comes from projecionista-pc (Electron): clip grid per layer, WebGL mixing, advanced output with
+multiple screens and warping, laser (LaserCube over Wi-Fi), APC40, recording. Usage (Portuguese): [COMO-USAR.md](COMO-USAR.md).
 Roadmap (Portuguese): [ROADMAP.md](ROADMAP.md).
 
 ### Contributing

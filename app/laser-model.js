@@ -149,7 +149,7 @@ export function scanPaths(paths, settings, color, time) {
   return (settings.style || 'ol') === 'ol' ? scanPathsOL(paths, settings, color, time) : scanPathsAdaptive(paths, settings, color, time);
 }
 
-// Predefinições de renderização do LaserOS (lidas no ldCore.dll com o REA, 2026-10-14): os parâmetros do OpenLase.
+// Predefinições de renderização, nos parâmetros do OpenLase.
 // on/off = quanto o feixe anda por ponto (fração do meio palco, distância de Chebyshev); esperas em pontos.
 export const OL_PRESETS = {
   standard: { label: 'Padrão', onSpeed: 0.0625, offSpeed: 0.0625, startWait: 8, startDwell: 2, curveDwell: 1, corner: 3, endDwell: 2, endWait: 1, curveAngle: 30, snap: 0.001 },
@@ -158,7 +158,7 @@ export const OL_PRESETS = {
 };
 export function applyOlPreset(settings, id) { const p = OL_PRESETS[id]; if (!p) return; settings.preset = id; for (const k of Object.keys(p)) if (k !== 'label') settings[k] = p[k]; }
 
-// Gerador de pontos com o comportamento do OpenLase, o renderizador que o LaserOS usa (libol.c, LGPL; lido para
+// Gerador de pontos com o comportamento do OpenLase, renderizador aberto (libol.c, LGPL; lido para
 // entender o método, reescrito aqui): distância de Chebyshev; cada traço começa com o primeiro ponto e `startDwell`
 // repetições dele, segue a `onSpeed` por ponto, demora `corner` pontos nos cantos (ângulo maior que `curveAngle`) e
 // `curveDwell` nas curvas, e termina com `endDwell` repetições do último ponto; a viagem apagada entre traços tem
@@ -274,7 +274,7 @@ export function renderPoints(frame, settings, time, audio = 0) {
   return scanPaths(paths, settings, frame ? frame.color : { mode: 'solid', c1: '#000000' }, time);
 }
 // pontos para o LaserCube: x y r g b em 0..4095, com brilho, espelho da saída e atraso da cor.
-// Atraso da cor (lido com o REA no ldHardwareFilter do LaserOS, 2026-10-15): o LaserOS manda a cor 4 amostras depois da
+// Atraso da cor: a cor sai 4 amostras depois da
 // posição, porque o galvanômetro atrasa em relação ao comando; sem isso o feixe acende antes de o espelho chegar ao começo
 // do traço e apaga antes de ele chegar ao fim (ponta borrada, canto comido). O quadro repete em laço, então o atraso é
 // circular dentro dele: a cor das primeiras amostras vem do fim do quadro.
@@ -350,12 +350,12 @@ export function deserializeLaser(json) {
   // o LaserCube de teste (Wi-Fi, 2026-10-14) mostra o desenho espelhado na horizontal: arquivos sem a marca de calibração ganham o espelho horizontal
   if (!(d.settings && d.settings.flipCal)) { settings.flipX = true; settings.flipCal = 1; }
   // quadros salvos antes de a cor fixa virar o padrão: o arco-íris (a cor antiga padrão) vira verde fixo, uma vez só
-  // atualização: 50 → 60 em 2026-10-14 (a 50 o olho ainda via piscar). Em 2026-10-15 o REA mostrou que o LaserOS repassa o
-  // desenho 45 vezes por segundo (quadro = pontos/s ÷ 45, 25 % mais pontos por traço que a 60): arquivos com o 60 imposto
+  // atualização: 50 → 60 em 2026-10-14 (a 50 o olho ainda via piscar). Em 2026-10-15 o padrão passou a
+  // repassar o desenho 45 vezes por segundo (quadro = pontos/s ÷ 45, 25 % mais pontos por traço que a 60): arquivos com o 60 imposto
   // antes voltam a 45, uma vez; quem escolheu outro valor fica com ele
   if (!(d.settings && d.settings.hzCal)) { if (!settings.scanHz || settings.scanHz <= 50) settings.scanHz = 60; settings.hzCal = 1; }
   if (settings.hzCal < 2) { if (settings.scanHz === 60) settings.scanHz = 45; settings.hzCal = 2; }
-  // atraso da cor (REA no ldHardwareFilter do LaserOS, 2026-10-15): arquivos antigos ganham o valor do LaserOS
+  // atraso da cor (2026-10-15): arquivos antigos ganham o valor padrão
   if (settings.colorShift == null) settings.colorShift = 4;
   if (!(d.settings && d.settings.colorCal)) { for (const f of frames) if (f.color.mode === 'rainbow') { f.color.mode = 'solid'; f.color.c1 = '#00ff00'; } settings.colorCal = 1; }
   settings.map = Object.assign(MAP_DEFAULTS(), d.settings && d.settings.map || {}); if (settings.map.mesh.length !== (3 * settings.map.divX + 1) * (3 * settings.map.divY + 1)) settings.map.mesh = meshFromRect(-1, -1, 2, 2, settings.map.divX, settings.map.divY);

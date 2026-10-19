@@ -1,4 +1,4 @@
-// Peças de interface no formato do Resolume, compartilhadas pela Saída avançada e pelo Laser:
+// Peças de interface compartilhadas pela Saída avançada e pelo Laser:
 // ícones em SVG e o kit de linhas de propriedade ("rótulo | valor − + barra").
 export const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 export const fmtN = (x, d = 0) => (Math.round(x * 10 ** d) / 10 ** d).toFixed(d).replace('.', ',');

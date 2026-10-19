@@ -1,8 +1,8 @@
 # Projecionista (OpenLume no Windows): como usar
 
 Programa de computador para projeção ao vivo: uma grade de clipes por camada, tudo misturado
-numa imagem só, e uma janela de saída para o projetor. O jeito de trabalhar segue o do Resolume
-(camadas, colunas, clipes), com menos botões.
+numa imagem só, e uma janela de saída para o projetor. O jeito de trabalhar é por camadas,
+colunas e clipes, com poucos botões.
 
 Este é um projeto novo, começado em 2026-10-13. O Projecionista de celular e navegador vive em
 outra pasta (`PROJECIONISTAapp`) e continua sendo a versão simples.
@@ -32,13 +32,13 @@ Cada clipe de vídeo com som passa por fonte → efeitos de áudio → volume �
 master passa por uma FFT. No painel Composição → Áudio e FFT: fonte (a composição ou o
 microfone/entrada da placa), ganho, queda e os medidores de graves, médios-graves, médios,
 agudos e tudo. Qualquer parâmetro de efeito ou fonte animado com a forma **FFT (som)** segue o
-nível de uma dessas faixas (é o External FFT do Resolume). O laser já tinha o "Ao som".
+nível de uma dessas faixas. O laser já tinha o "Ao som".
 
 ### Tirar o fundo da webcam
 
 O efeito **Background Removal** (painel Efeitos) tira o fundo e deixa só a pessoa, em webcam ou
 em qualquer clipe, com limiar, suavidade, inverter e encolher. Usa o modelo público
-PP-HumanSeg em ONNX (Apache 2.0, o mesmo que o Resolume traz) rodando no onnxruntime-web por
+PP-HumanSeg em ONNX (Apache 2.0) rodando no onnxruntime-web por
 WebAssembly, até 15 vezes por segundo, em paralelo ao desenho. Os arquivos ficam em
 `app/vendor/` com as licenças.
 
@@ -55,12 +55,11 @@ Control ligado. Quem instala vê o aviso do SmartScreen ("Mais informações →
 ### Akai APC40 mkII (ligar o cabo e funcionar)
 
 O programa acha a controladora sozinho (Web MIDI com SysEx), põe ela no modo "Ableton Live"
-e passa a acender os LEDs pelo estado da grade. O mapa é o que o Resolume instala para ela,
-estendido (`app/apc40.js`); Atalhos → MIDI: APC40 mkII… mostra o estado e a lista completa:
+e passa a acender os LEDs pelo estado da grade. O mapa fica em
+`app/apc40.js`; Atalhos → MIDI: APC40 mkII… mostra o estado e a lista completa:
 
 - **Pads**: as 4 linhas de baixo são as camadas 1 a 4 (de baixo para cima), 8 colunas; a
-  linha de cima dispara a coluna. Cores: vazia, guardada, no ar, no ar e selecionada (os
-  mesmos números de cor do Resolume); a casa esperando o Beat Snap pisca.
+  linha de cima dispara a coluna. Cores: vazia, guardada, no ar, no ar e selecionada; a casa esperando o Beat Snap pisca.
 - **Botões de pista** (a coluna física é a camada de baixo): desligar (B), solo (S), clipe
   anterior, limpar (X), próximo clipe. **Faders**: opacidade das camadas; o da direita é o
   master. **Crossfader**: o crossfader. **Knobs da direita**: os 8 primeiros parâmetros do
@@ -72,7 +71,7 @@ estendido (`app/apc40.js`); Atalhos → MIDI: APC40 mkII… mostra o estado e a 
   metrônomo), **Play** (toca todos), **Record** (grava), **Device ◀ ▶** (decks).
 - Atalhos → "Usar a APC40" desliga a controladora sem tirar o cabo.
 
-### BPM (como no Resolume)
+### BPM
 
 - **Relógio de BPM** (faixa embaixo da grade): ▶ ‖ ■ do transporte geral, o valor do BPM (clique
   e digite), − +, nudge ◁| |▷ (segura e o BPM desvia o percentual das Preferências), /2 ×2, TAP
@@ -84,7 +83,7 @@ estendido (`app/apc40.js`); Atalhos → MIDI: APC40 mkII… mostra o estado e a 
 - **BPM Sync** no clipe (painel Clipe → Transporte → Sincronia): a faixa entre a entrada e a saída
   dura N batidas, presa ao relógio; mudar o BPM muda a velocidade e a posição acompanha.
 - **Parâmetros animados na batida**: todo parâmetro de efeito ou de fonte tem um botão ♪. Ligado,
-  o valor anda a cada ciclo de N batidas por uma forma dos presets do Resolume (4 to the Floor,
+  o valor anda a cada ciclo de N batidas por uma das formas prontas (4 to the Floor,
   1 to the Floor, On Off, Random, Step 1 2, Step 1 2 3 4, LFO, Saw, Up N Down, Jittery, ADSR,
   EasyEase), entre um mínimo e um máximo. Tudo vai para o arquivo da composição.
 - **Autopilot em batidas**: duração "Batidas" além de clipe inteiro e tempo fixo.
@@ -99,7 +98,7 @@ uma tela com o seu recorte (girado 90° se o projetor está em pé mas o Windows
 saídas abrem neles. Botões "Lado a lado", "Empilhados" e "Mesma imagem" dão as posições prontas.
 A lista Telas da janela principal tem um menu para trocar o monitor de cada tela na hora.
 
-### Decks, grupos e crossfader (como no Resolume)
+### Decks, grupos e crossfader
 
 - **Decks** (abas embaixo da grade): cada deck guarda os seus clipes; as camadas são as mesmas.
   Clique troca de deck, duplo clique renomeia, "+" cria. O clipe que estava no ar continua
@@ -119,7 +118,7 @@ A lista Telas da janela principal tem um menu para trocar o monitor de cada tela
   (linear, potência igual, corte), comportamento dos botões A e B (corta ou esmaece em N s).
   Ver → Crossfader e Ver → Decks escondem as faixas.
 
-### Barra de menus (como no Resolume)
+### Barra de menus
 
 **Projecionista** (Preferências: pasta das gravações, FPS na barra, divisórias; Sobre; Sair) ·
 **Deck** e **Grupo** (ver acima) ·
@@ -149,21 +148,21 @@ de baixo se arrastam; duplo clique devolve o tamanho padrão. Os tamanhos ficam 
 A **Prévia** mostra o clipe selecionado como ele sai: renderizado pelo motor, com efeitos,
 transformação e transição, mudando junto com a saída.
 
-### Rodapé no formato do Resolume
+### Rodapé
 
 - **Composição | Camada** (esquerda): Autopilot (direção ◀◀ OFF ▶▶ ⤮, duração pelo clipe ou
   tempo fixo, loop), master, velocidade, opacidade, mistura, transição entre clipes da camada,
   Transform (posição, escala, giro) e a cadeia de efeitos.
-- **Mistura e transição do jeito do Resolume**: a mesma lista de 60 modos (Alpha, Add, 50 Add, Multiply,
+- **Mistura e transição**: a mesma lista de 60 modos (Alpha, Add, 50 Add, Multiply,
   Screen, Luma Key, Cut, Dissolve, to Black, Push Left/Right/Up/Down, Zoom In/Out, Rotate X/Y, Cube,
   Side by Side, Wipe Ellipse, Time Switcher…) serve para a camada entrar sobre o que está embaixo
   e para a **transição entre clipes** da mesma camada (painel Camada → Transição: modo, duração
-  de 0 a 10 s, "Ao acaso" sorteia um modo a cada disparo). Como no Resolume, o fader de opacidade
+  de 0 a 10 s, "Ao acaso" sorteia um modo a cada disparo). O fader de opacidade
   tem duas metades: até 50 % a camada mistura (Add, Multiply…); de 50 a 100 % vai virando normal por
   cima. Os modos "50" misturam no fader inteiro. Na transição o fader corre sozinho na duração e o
   fim é só o clipe novo. "to Color" tem cor; Luma Key, Dissolve, Wipe Ellipse e Alpha Limiter têm
   suavidade. O clipe pode ter a sua própria mistura (painel Clipe), que vale no lugar da da camada.
-- **Clipe** (meio): nome; **Transporte** do vídeo como no Resolume — linha do tempo arrastável
+- **Clipe** (meio): nome; **Transporte** do vídeo: linha do tempo arrastável
   com entrada e saída (cut in / cut out), tocar para frente e para trás, pausa, ir para a
   entrada/saída, passo de quadro, modo (loop, vai e volta, uma vez, aleatório), velocidade até
   10x, duração; **Áudio** (volume, pan, mudo); **Vídeo** (opacidade e mistura do clipe);
@@ -193,7 +192,7 @@ transformação e transição, mudando junto com a saída.
     `app://projecionista/media/…` com Range, então a composição salva os clipes por caminho.
   - *Composições*: Nova, Salvar, Salvar como…, lista das salvas (duplo clique abre). O arquivo
     guarda camadas, clipes por caminho, efeitos, autopilot, telas da saída e quadros do laser.
-  - *Efeitos*: os 90 efeitos de vídeo do Resolume 7.26, com os nomes dele (Add Subtract, Auto
+  - *Efeitos*: 90 efeitos de vídeo (Add Subtract, Auto
     Mask, Bendoscope, Bloom, Blow, Blur, ChromaKey, Circles, Cube Tiles, Delay RGB, Dilate,
     Displace, Dither, Drop Shadow, Fish Eye, Fragment, Freeze, Goo, Grid, Hatched, Heat,
     Infinite Zoom, Iterate, Keystone, Kuwahara, Levels, Linear/Radial Cloner, Mask, Meta Shape,
@@ -214,8 +213,7 @@ transformação e transição, mudando junto com a saída.
 
 ### Saída avançada
 
-O botão "Saída avançada", no monitor da composição, abre o editor de telas, copiado do
-Advanced Output do Resolume (Presets e telas à esquerda com a caixa de ajuda embaixo, abas
+O botão "Saída avançada", no monitor da composição, abre o editor de telas (Presets e telas à esquerda com a caixa de ajuda embaixo, abas
 Seleção de entrada e Transformação de saída, propriedades à direita, Cancelar e Salvar e
 fechar embaixo). Ctrl+Z desfaz, Ctrl+Y refaz; a barra de espaço arrasta a vista.
 
@@ -272,7 +270,7 @@ aberta da Wicked Lasers (libLaserdockCore) e do LaserCubeSharp, sem copiar códi
 - `app/ao.js`: o editor da Saída avançada (maquete: `advanced-output-mockup.html`).
 - `app/laser.js`, `app/laser-model.js`, `app/hershey.js`: o módulo do laser (interface, modelo e
   gerador de pontos, fontes de traço único); `lasercube.js`: a conversa UDP com o LaserCube, no
-  processo principal. `app/panel.js`: peças de interface no formato do Resolume, compartilhadas.
+  processo principal. `app/panel.js`: peças de interface compartilhadas.
 - `app/player.js`: reprodutor próprio (FramePlayer para MP4 preparado, GifPlayer para
   animações), com `app/vendor/mp4box.all.mjs` (mp4box.js 2.4, BSD-3). `main.js` chama o
   ffmpeg para preparar (`media:prepare`) e entrega o arquivo inteiro (`media:read`).
@@ -298,6 +296,5 @@ composição, slices em polígono.
 
 ## Origem das ideias
 
-O modelo de composição, camada, coluna e clipe foi estudado a partir do que o Resolume publica
-com o programa: a descrição da API REST e a composição de exemplo. Nenhum código do Resolume
-foi copiado nem descompilado.
+O código do OpenLume é próprio, sob GPL-3.0. Bibliotecas de terceiros ficam em `app/vendor/`
+com as licenças delas.

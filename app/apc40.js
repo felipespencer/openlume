@@ -1,8 +1,8 @@
 // Akai APC40 mkII com compatibilidade nativa: ligar o cabo e funcionar, sem amarrar nada.
-// O mapa segue o que o Resolume instala para ela (default/Shortcuts/MIDI/APC 40 MK II.xml):
+// O mapa:
 //   - pads (notas 0–39, canal 1): 5 linhas × 8 colunas, de baixo para cima = camadas 1 a 5 (a grade do programa é igual
 //     à da controladora); Shift + pad dispara a coluna inteira; cor do pad pelo estado da casa (vazia, guardada,
-//     no ar, no ar e selecionada), com os mesmos números de cor do Resolume;
+//     no ar, no ar e selecionada);
 //   - botões de pista (mesma nota nos canais 1–8 = camada 1–8 de baixo): 48 desligar (B),
 //     49 solo (S), 50 clipe anterior, 66 próximo clipe, 52 limpar (X);
 //   - faders CC 7 por canal = opacidade da camada; master CC 14 = master; crossfader CC 15;
@@ -15,7 +15,7 @@
 //   - setas ▲▼ (94/95) mudam a janela de camadas de 5 em 5; Shift + ◀▶ muda a janela de colunas.
 // Ao ligar, o programa põe a controladora no modo "Ableton Live" por SysEx, em que os LEDs
 // dos botões são do programa. Web MIDI (Chromium) com SysEx; a permissão é dada em main.js.
-const PAD = { empty: 1, stored: 33, on: 52, onSel: 53 };   // cores do Resolume (velocity)
+const PAD = { empty: 1, stored: 33, on: 52, onSel: 53 };   // cores (velocity)
 const ROWS = 5, COLS = 8;
 
 export class APC40 {

@@ -1,7 +1,7 @@
-// Relógio de BPM do jeito do Resolume: as batidas correm o tempo todo (4 por compasso); TAP,
+// Relógio de BPM: as batidas correm o tempo todo (4 por compasso); TAP,
 // nudge, /2 ×2, RESYNC, metrônomo e pausa; Beat Snap segura os disparos até a próxima batida;
-// qualquer parâmetro de efeito ou fonte pode animar na batida com as formas dos presets do
-// Resolume (4 to the Floor, On Off, Random, Step, LFO, Saw…). O código é nosso.
+// qualquer parâmetro de efeito ou fonte pode animar na batida com formas prontas
+// (4 to the Floor, On Off, Random, Step, LFO, Saw…). O código é nosso.
 export const BPM = () => ({ bpm: 120, running: true, beat: 0, nudge: 0, nudgePct: 5, metronome: false, snap: 0 });
 export const SNAPS = [[0, 'Desligado'], [0.25, '1/4 de batida'], [0.5, '1/2 batida'], [1, '1 batida'], [2, '2 batidas'], [4, '1 compasso (4)'], [8, '2 compassos (8)'], [16, '4 compassos (16)']];
 export const BEATS = [0.25, 0.5, 1, 2, 4, 8, 16, 32, 64];

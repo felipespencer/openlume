@@ -1,4 +1,4 @@
-// Fontes geradas, com os nomes do Resolume. Cada uma é um trecho de GLSL ES 3.0 com a função
+// Fontes geradas. Cada uma é um trecho de GLSL ES 3.0 com a função
 // `vec4 src(vec2 uv)` (uRes, uTime e os parâmetros como uniforms); o motor desenha numa textura
 // do tamanho da composição. Texto e câmera não são shaders: ver clips.js.
 const P = (key, label, def, min, max, step = 0.01, unit = '') => ({ key, label, def, min, max, step, unit });

@@ -1,12 +1,11 @@
-// A segunda leva de efeitos de vídeo, com os nomes do Resolume 7.26 (catálogo em
-// referencia-resolume/CATALOGO.md). Mesmo formato de effects.js: `vec4 fx(vec2 uv)` em GLSL ES 3.0,
+// A segunda leva de efeitos de vídeo. Mesmo formato de effects.js: `vec4 fx(vec2 uv)` em GLSL ES 3.0,
 // lendo uTex (premultiplicado), uRes, uTime e os parâmetros como uniforms float. Os que têm
 // `feedback: true` recebem também uPrev: a própria saída no quadro anterior (Trails, Freeze,
 // Delay RGB, Infinite Zoom, Radar, Stop Motion). As contas são nossas.
 const P = (key, label, def, min, max, step = 0.01, unit = '') => ({ key, label, def, min, max, step, unit });
 const HUE = (key, label, def) => P(key, label, def, 0, 1);
 export const MORE = [
-  { id: 'backgroundremoval', name: 'Background Removal', desc: 'Tira o fundo e deixa só a pessoa (modelo PP-HumanSeg, o mesmo do Resolume), para webcam ou qualquer clipe.', mask: true, params: [P('threshold', 'Limiar', 0.5, 0, 1), P('soft', 'Suavidade', 0.15, 0, 0.5), P('invert', 'Inverter', 0, 0, 1, 1), P('shrink', 'Encolher', 0, -0.3, 0.3, 0.01)],
+  { id: 'backgroundremoval', name: 'Background Removal', desc: 'Tira o fundo e deixa só a pessoa (modelo público PP-HumanSeg), para webcam ou qualquer clipe.', mask: true, params: [P('threshold', 'Limiar', 0.5, 0, 1), P('soft', 'Suavidade', 0.15, 0, 0.5), P('invert', 'Inverter', 0, 0, 1, 1), P('shrink', 'Encolher', 0, -0.3, 0.3, 0.01)],
     glsl: `vec4 fx(vec2 uv){ vec4 c = tex(uv); float m = texture(uPrev, clamp(uv, 0.0, 1.0)).r; m = smoothstep(threshold + shrink - soft, threshold + shrink + soft, m); if (invert > 0.5) m = 1.0 - m; return c * m; }` },
   { id: 'addsubtract', name: 'Add Subtract', desc: 'Soma ou tira um tanto de cada canal de cor.', params: [P('r', 'Vermelho', 0, -1, 1), P('g', 'Verde', 0, -1, 1), P('b', 'Azul', 0, -1, 1)],
     glsl: `vec4 fx(vec2 uv){ vec4 c = tex(uv); return pre(un(c) + vec3(r, g, b), c.a); }` },

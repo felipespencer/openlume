@@ -1,5 +1,5 @@
 // Gravação da composição (ou de uma tela) em WebM, com o MediaRecorder do navegador, no
-// formato do painel Gravar do Resolume: fonte, mídia, preset, início e parada.
+// painel Gravar: fonte, mídia, preset, início e parada.
 export class Recorder {
   // ctx: { compCanvas, screens(), screenCanvas(sc), desktop, toast, onChange(), dir (pasta de destino opcional) }
   constructor(ctx) {

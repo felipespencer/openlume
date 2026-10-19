@@ -153,12 +153,12 @@ module.exports = (win, app, laser) => {
         P.eject(0); P.putText(2,5,'MMMMMMM'); P.trigger(2,5); await S(150); const grade9=P.probe([0.3,0.4,0.5,0.6,0.7].flatMap(x=>[0.45,0.5,0.55].map(y=>[x,y]))); const texto=grade9.reduce((a,b)=>b[0]+b[1]+b[2]>a[0]+a[1]+a[2]?b:a,[0,0,0]); P.eject(2);
         // transição: dispara o vermelho e logo depois o Test Card na mesma camada, com 1 s de transição; no meio há mistura
         L[0].transition=1; P.putSource(0,2,'solidcolor'); L[0].clips[2].params.hue=0.33; P.trigger(0,3); await S(100); P.trigger(0,2); await S(400); const meio=P.probe(mid)[0]; await S(800); const fim=P.probe(mid)[0]; L[0].transition=0; P.eject(0);
-        // modos de transição do Resolume: Cut (antes de 50 % só o antigo, depois só o novo), Push Left (o novo entra pela direita e empurra o antigo para a esquerda: no meio, esquerda antigo, direita novo), to Black (no meio, preto)
+        // modos de transição: Cut (antes de 50 % só o antigo, depois só o novo), Push Left (o novo entra pela direita e empurra o antigo para a esquerda: no meio, esquerda antigo, direita novo), to Black (no meio, preto)
         const probeT = async (mode, wait) => { L[0].transMode = mode; L[0].transition = 1; P.trigger(0,3); await S(150); P.trigger(0,2); await S(wait); return P.probe([[0.25,0.5],[0.75,0.5]]); };
         const trans = {}; trans.cutAntes = await probeT('cut', 250); await S(500); trans.cutDepois = P.probe(mid)[0];
         trans.push = await probeT('pushleft', 500); trans.preto = await probeT('toblack', 500);
         L[0].transition = 0; L[0].transMode = 'alpha'; await S(600); P.eject(0);
-        // mistura da camada: verde (camada de cima) sobre vermelho; 50 Multiply → preto, 50 Add → amarelo, Alpha → verde, Add a 50 % do fader → amarelo (Add a 100 % seria verde: vira normal por cima, como no Resolume)
+        // mistura da camada: verde (camada de cima) sobre vermelho; 50 Multiply → preto, 50 Add → amarelo, Alpha → verde, Add a 50 % do fader → amarelo (Add a 100 % seria verde: vira normal por cima)
         P.putSource(1,5,'solidcolor'); L[1].clips[5].params.hue = 0; P.trigger(1,5); P.trigger(0,2); await S(150);
         L[0].blend = 'multiply50'; trans.mult = P.probe(mid)[0]; L[0].blend = 'add50'; trans.add = P.probe(mid)[0]; L[0].blend = 'alpha'; trans.alpha = P.probe(mid)[0];
         L[0].opacity = 0.5; L[0].blend = 'add'; trans.add50 = P.probe(mid)[0]; L[0].opacity = 1; L[0].blend = 'normal'; P.eject(0); P.eject(1);
@@ -385,7 +385,7 @@ module.exports = (win, app, laser) => {
       ok('transição entre clipes', X.meio[0] > 40 && X.meio[1] > 40 && X.fim[1] > 200 && X.fim[0] < 40, 'no meio ' + X.meio + ' (vermelho e verde misturados), no fim ' + X.fim);
       ok('autopilot', X.ap[0] === 2 && X.ap[1] === 3 && X.ap[2] === 2, 'casa ' + X.ap.join(' → '));
       const Tm = r.trans;
-      ok('transições do Resolume', Tm.cutAntes[0][0] > 200 && Tm.cutAntes[0][1] < 40 && Tm.cutDepois[1] > 200 && Tm.cutDepois[0] < 40 && Tm.push[0][0] > 200 && Tm.push[0][1] < 40 && Tm.push[1][1] > 200 && Tm.push[1][0] < 40 && Tm.preto[0][0] < 70 && Tm.preto[0][1] < 70,
+      ok('modos de transição', Tm.cutAntes[0][0] > 200 && Tm.cutAntes[0][1] < 40 && Tm.cutDepois[1] > 200 && Tm.cutDepois[0] < 40 && Tm.push[0][0] > 200 && Tm.push[0][1] < 40 && Tm.push[1][1] > 200 && Tm.push[1][0] < 40 && Tm.preto[0][0] < 70 && Tm.preto[0][1] < 70,
         'Cut: antes ' + Tm.cutAntes[0] + ', depois ' + Tm.cutDepois + '; Push Left no meio: esquerda ' + Tm.push[0] + ', direita ' + Tm.push[1] + '; to Black no meio ' + Tm.preto[0]);
       const Dk = r.decks, Gp = r.grupos;
       ok('decks', Dk.vazio && Dk.decks === 2 && Dk.atual === 1 && Dk.ghost && Dk.px[1] > 200 && Dk.novo[2] > 200 && Dk.novo[1] < 60 && Dk.semGhost && Dk.volta[0] >= 2 && Dk.volta[1] === -1 && Dk.volta[2] && Dk.fim === 1 && Dk.semClipe0,
@@ -403,7 +403,7 @@ module.exports = (win, app, laser) => {
       ok('áudio: grafo, efeitos de áudio e FFT', Au.ligado && Au.nos === 2 && Au.freq === 500 && Au.fft === 1 && Au.bandas === 5,
         'clipe no grafo ' + Au.ligado + '; EQ-3 + LowPass = ' + Au.nos + ' nós, LowPass em ' + Au.freq + ' Hz; forma FFT com médios a 0,5 → ' + Au.fft + '; contexto ' + Au.ctx);
       const Fx = r.fxAll;
-      ok('os 90 efeitos do Resolume', Fx.total >= 88 && Fx.n === Fx.total && Fx.erros.length === 0 && Fx.trails[0][0] > 200 && Fx.trails[1][0] > 100,
+      ok('os 90 efeitos de vídeo', Fx.total >= 88 && Fx.n === Fx.total && Fx.erros.length === 0 && Fx.trails[0][0] > 200 && Fx.trails[1][0] > 100,
         Fx.n + ' de ' + Fx.total + ' efeitos desenharam' + (Fx.erros.length ? '; erros: ' + Fx.erros.join(' | ') : '') + '; Trails: com o clipe ' + Fx.trails[0] + ', clipe apagado ' + Fx.trails[1]);
       const Ap = r.apc;
       ok('APC40 mkII', Ap.pad.join() === '1,-1' && Ap.coluna.join() === '3,-1,-1,-1,-1' && Math.abs(Ap.fader - 64 / 127) < 0.01 && Ap.master === 1 && Ap.bypass === true && Ap.leds[0] === 53 && Ap.leds[1] === 1 && Ap.leds[2] === 52 && Ap.leds[3] === 127 && Ap.limpar === -1,

@@ -1,9 +1,8 @@
-// Áudio do OpenLume, no jeito do Resolume: cada clipe de vídeo com som passa por
+// Áudio do OpenLume: cada clipe de vídeo com som passa por
 //   fonte → efeitos de áudio do clipe (Bitcrusher, Distortion, EQ-3, Flanger, HighPass, LowPass)
 //   → volume → pan → master → saída,
 // e o master passa por um analisador (FFT) que dá os níveis de graves, médios-graves, médios e
-// agudos para a reação ao som (parâmetros animados com a forma "FFT", como o External FFT do
-// Resolume: faixa, ganho e queda). A fonte da FFT pode ser a composição ou o microfone/placa.
+// agudos para a reação ao som (parâmetros animados com a forma "FFT": faixa, ganho e queda). A fonte da FFT pode ser a composição ou o microfone/placa.
 // Tudo em WebAudio; o código é nosso.
 const AP = (key, label, def, min, max, step = 0.01, unit = '') => ({ key, label, def, min, max, step, unit });
 export const AUDIO_FX = [

@@ -1,4 +1,4 @@
-// Efeitos de vídeo, com os nomes do Resolume. Cada um é um trecho de GLSL ES 3.0 com a função
+// Efeitos de vídeo. Cada um é um trecho de GLSL ES 3.0 com a função
 // `vec4 fx(vec2 uv)`, lendo a entrada em uTex (premultiplicada), uRes (largura, altura), uTime e
 // os parâmetros como uniforms float. O motor monta o programa (ver engine.js, applyChain).
 // Um efeito pode ir num clipe, numa camada ou na composição.
@@ -51,7 +51,7 @@ const BASE = [
   { id: 'slide', name: 'Slide', desc: 'Desliza a imagem continuamente.', params: [P('x', 'Horizontal', 0.2, -2, 2, 0.05), P('y', 'Vertical', 0, -2, 2, 0.05)], glsl: `vec4 fx(vec2 uv){ return tex(fract(uv + vec2(x, y) * uTime * 0.2)); }` },
   { id: 'transform', name: 'Transform', desc: 'Move, redimensiona e gira.', params: [P('x', 'Posição X', 0, -1, 1), P('y', 'Posição Y', 0, -1, 1), P('scale', 'Escala', 1, 0.05, 4, 0.01), P('rot', 'Giro', 0, -180, 180, 1, '°')], glsl: `vec4 fx(vec2 uv){ vec2 p = uv - 0.5 - vec2(x, -y) * 0.5; p.x *= uRes.x / uRes.y; float a = -rot * 3.14159265 / 180.0; p = vec2(cos(a) * p.x - sin(a) * p.y, sin(a) * p.x + cos(a) * p.y) / scale; p.x /= uRes.x / uRes.y; return texIn(p + 0.5); }` },
 ];
-// as duas levas, em ordem alfabética como no painel Efeitos do Resolume
+// as duas levas, em ordem alfabética
 export const EFFECTS = [...BASE, ...MORE].sort((a, b) => a.name.localeCompare(b.name));
 export const EFFECT_HELPERS = HELPERS;
 export const effectById = (id) => EFFECTS.find(e => e.id === id);
