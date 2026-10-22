@@ -165,7 +165,7 @@ export class Browser {
     P.appendChild(el('div', 'grp', 'AJUSTES'));
     const grid = el('div', 'rgrid');
     grid.appendChild(row('Fonte', sel([['comp', 'Composição'], ...R.screens().map(s => ['screen:' + s.id, s.name])], o.source, v => { o.source = v; }), 'Fonte|O que vai para o arquivo: a composição inteira ou uma tela.'));
-    grid.appendChild(row('Depois de gravar', sel([['nothing', 'Nada'], ['show', 'Mostrar na pasta']], o.after, v => { o.after = v; }), 'Depois de gravar|O que fazer quando a gravação termina.'));
+    grid.appendChild(row('Depois de gravar', sel([['clip', 'Virar clipe na grade'], ['show', 'Mostrar na pasta'], ['nothing', 'Nada']], o.after, v => { o.after = v; }), 'Depois de gravar|O que fazer quando a gravação termina. "Virar clipe": a gravação entra na primeira casa vazia da camada selecionada, como no Resolume.'));
     grid.appendChild(row('Mídia', sel([['video', 'Só vídeo'], ['video+mic', 'Vídeo e microfone']], o.media, v => { o.media = v; }), 'Mídia|Com ou sem o som do microfone.'));
     grid.appendChild(row('Preset', sel([['high', 'WebM alta qualidade'], ['normal', 'WebM normal'], ['low', 'WebM leve']], o.preset, v => { o.preset = v; }), 'Preset|Taxa de bits do vídeo.'));
     grid.appendChild(row('Início', sel([['now', 'Imediato'], ['trigger', 'No próximo disparo'], ['after', 'Depois de N s']], o.start, v => { o.start = v; }), 'Início|Quando começa a gravar depois de apertar Record.'));

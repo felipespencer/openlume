@@ -940,7 +940,21 @@ const panels = new Panels({
   openLaser: (f) => { laser.sel = f; laser.show(); },
   selectedGroup, setLayerGroup, newGroup, removeGroup, addLayerToGroup, fadeTo, renderDecks, audio,
 });
-const recorder = new Recorder({ compCanvas: monCanvas, screens: () => state.screens, screenCanvas, desktop: D, toast, onChange: () => { if (browser.tab === 'rec') browser.render(); }, dir: window.__recDir || '' });
+// Depois de gravar: a gravação vira um clipe na primeira casa vazia da camada selecionada, como no Resolume
+async function recordingToClip(path, name, file) {
+  const li = Math.min(Math.max(state.selLayer || 0, 0), state.layers.length - 1), L = state.layers[li];
+  let col = L.clips.findIndex(c => !c); if (col < 0) { insertColumn(COLS); col = COLS - 1; }
+  const ok = file ? await putFiles(li, col, [file]) : await putPath(li, col, path, name);
+  if (ok) toast('A gravação virou o clipe "' + name.replace(/\.webm$/, '') + '" na camada ' + (li + 1) + ', coluna ' + (col + 1));
+  return ok;
+}
+function renderRecBtn() {
+  const b = $('btnRec'); if (!b) return; const st = recorder.state;
+  b.className = st === 'recording' ? 'on' : st === 'armed' ? 'armed' : '';
+  b.textContent = st === 'recording' ? '■ ' + recorder.elapsed() : st === 'armed' ? '● ARMADO' : '● REC';
+}
+const recorder = new Recorder({ compCanvas: monCanvas, screens: () => state.screens, screenCanvas, desktop: D, toast, onChange: () => { if (browser.tab === 'rec') browser.render(); renderRecBtn(); }, dir: window.__recDir || '', toClip: recordingToClip });
+$('btnRec').onclick = () => { if (recorder.state === 'idle') recorder.start(); else recorder.stop(); };
 const browser = new Browser({
   desktop: D, toast, setDrag: (d) => { drag = d; }, preview: previewFile, recorder, comps, prepareFile, preparingFile: (p) => preparingNow.has(p) ? preparingNow.get(p) : null,
   putInSelection: (d) => { const s = state.sel || { l: state.selLayer, c: 0 }; const col = state.sel ? s.c : state.layers[s.l].clips.findIndex(c => !c); dropInto(s.l, col < 0 ? 0 : col, d, null, false); },
@@ -1141,6 +1155,7 @@ function loop() {
   // taxa de quadros da composição: desenha só quando passou 1/fps
   if (now - (loop.lastDraw || 0) < 1 / state.settings.fps - 0.0015) { tickAutopilot(now); requestAnimationFrame(loop); return; }
   loop.lastDraw = now; loop.frames = (loop.frames || 0) + 1;
+  loop.total = (loop.total || 0) + 1;
   if (now - (loop.fpsAt || 0) >= 1) { if (!$('fpsBox').hidden) $('fpsBox').textContent = loop.frames + ' fps · ' + state.layers.filter(L => L.on >= 0).length + ' no ar · ' + COLS + ' colunas'; loop.frames = 0; loop.fpsAt = now; }
   // espelho do laser: o desenho do LaserCube vai para a projeção
   { const s = selectedCell(); for (const L of state.layers) { const c = liveClip(L); for (const m of [c, s && s.clip]) if (m && m.kind === 'lasermirror' && m.paintedAt !== now) { m.paintedAt = now; paintScan(m.el.getContext('2d'), 1080, 1080, laser.scanNow(now), false); m.rev++; } } }
@@ -1167,7 +1182,7 @@ loop();
 render();
 
 // usado pelo teste automático (tools/selftest-main.js); não é interface de usuário
-window.projecionista = { menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, addDeck, switchDeck, removeDeck, duplicateDeck, newGroup, setLayerGroup, removeGroup, duplicateGroup, addLayerToGroup, fadeTo, bpm: state.bpm, tapBpm: (t) => tap(state.bpm, t), pending: () => pending.length, apc, stepClip, EFFECTS, audio, mkAudioFx, seg, applyProjectors, projectorWizard, autosave, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
+window.projecionista = { frames: () => loop.total || 0, recordingToClip, menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, addDeck, switchDeck, removeDeck, duplicateDeck, newGroup, setLayerGroup, removeGroup, duplicateGroup, addLayerToGroup, fadeTo, bpm: state.bpm, tapBpm: (t) => tap(state.bpm, t), pending: () => pending.length, apc, stepClip, EFFECTS, audio, mkAudioFx, seg, applyProjectors, projectorWizard, autosave, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
   probe: (pts) => engine.probe(state.layers, pts),
   probeScreen: (sc, pts) => engine.probeScreen(sc, state.layers, state.screens, pts),
   serialize: () => serializeComposition(state, laser, COLS), load: loadComposition, reset: resetComposition,

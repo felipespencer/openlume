@@ -487,6 +487,23 @@ module.exports = (win, app, laser) => {
       }
       ok('janela de saída', r2.saida === 1 && ov && ov.w === r2.tela.w && ov.h === r2.tela.h && ov.anda && ov.adotado && ov.brilho > 8 && ov.sid === String(r2.tela.id), ov ? ov.w + '×' + ov.h + ', tela ' + ov.sid + ', canvas adotado=' + ov.adotado + ', recebendo quadros=' + ov.anda + ', captura ' + ov.captura + ' brilho médio ' + ov.brilho + ', no ar ' + r2.noAr.join('/') : 'não abriu');
       await shot(win, 'pc-grade.png');
+      // REC: grava 2,5 s da composição; a gravação vira um clipe na primeira casa vazia da camada selecionada, e gravar não pode pesar
+      const r4 = await win.webContents.executeJavaScript(`(async()=>{
+        const P=window.projecionista, S=(ms)=>new Promise(r=>setTimeout(r,ms)), R=P.recorder;
+        R.opts.after='clip'; R.opts.preset='normal'; R.opts.source='comp'; R.opts.start='now'; R.opts.stop='manual';
+        const li=P.state.selLayer||0, L=P.state.layers[li], colLivre=L.clips.findIndex(c=>!c), antes=R.files.length;
+        const fpsEm=async()=>{ const f0=P.frames(); await S(1500); return (P.frames()-f0)/1.5; };
+        const fps0=await fpsEm();
+        document.getElementById('btnRec').click(); await S(300);
+        const gravando=R.state==='recording', btn=document.getElementById('btnRec').className;
+        const fps1=await fpsEm(); await S(700);
+        document.getElementById('btnRec').click();
+        let t=0; while(t<12000 && !(R.state==='idle' && R.files.length>antes && L.clips[colLivre])){ await S(200); t+=200; }
+        const c=L.clips[colLivre]; await S(600);
+        return { gravando, btn, fps0:+fps0.toFixed(1), fps1:+fps1.toFixed(1), salvou:R.files.length>antes, arquivo:R.files[R.files.length-1]&&R.files[R.files.length-1].name, clipe:c&&{kind:c.kind,name:c.name,path:(c.path||'').slice(-5),w:c.w,h:c.h}, col:colLivre, li, btnDepois:document.getElementById('btnRec').textContent };
+      })()`, true);
+      ok('REC grava e a gravação vira clipe na casa vazia', r4.gravando && r4.btn === 'on' && r4.salvou && r4.clipe && r4.clipe.kind === 'video' && r4.clipe.path === '.webm' && r4.clipe.w > 0 && r4.btnDepois === '● REC', JSON.stringify(r4));
+      ok('gravar não pesa (fps durante ≥ 60 % de antes)', r4.fps0 > 0 && r4.fps1 >= r4.fps0 * 0.6, 'antes ' + r4.fps0 + ' fps, gravando ' + r4.fps1 + ' fps');
     } catch (e) { ok('execução', false, e.message); }
     const f = out.filter(x => !x.pass);
     console.log(f.length ? 'REPROVADO: ' + f.map(x => x.name).join(', ') : 'APROVADO: ' + out.length + ' verificações');

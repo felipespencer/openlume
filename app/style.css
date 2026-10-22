@@ -18,6 +18,9 @@ input[type=range]{ accent-color:var(--accent); height:14px; margin:0; }
 #top .sp{ flex:1; }
 #top .st{ color:var(--ghost); } #top .st.on{ color:var(--accent); }
 #top button{ height:22px; padding:0 10px; }
+#btnRec{ color:#ff6b6b; border-color:#6a2d2d; font-weight:700; letter-spacing:.04em; min-width:74px; font-variant-numeric:tabular-nums; }
+#btnRec.on{ background:#d32f2f; border-color:#d32f2f; color:#fff; animation:recblink 1s steps(2,start) infinite; } #btnRec.armed{ background:var(--warn); border-color:var(--warn); color:#111; }
+@keyframes recblink{ 50%{ background:#7f1d1d; border-color:#7f1d1d; } }
 /* barra de menus e menus (formato do Resolume) */
 #menubar{ display:flex; height:100%; } #menubar .mb{ height:28px; padding:0 10px; border:0; background:none; color:#d4d4d4; font:inherit; font-size:12px; cursor:default; border-radius:0; } #menubar .mb:hover, #menubar .mb.on{ background:#3a3b41; color:#fff; } #menubar .mb.on{ background:#3b7ddd; }
 .menuLayer{ position:fixed; inset:0; z-index:900; }

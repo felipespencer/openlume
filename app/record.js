@@ -4,7 +4,8 @@ export class Recorder {
   // ctx: { compCanvas, screens(), screenCanvas(sc), desktop, toast, onChange(), dir (pasta de destino opcional) }
   constructor(ctx) {
     this.c = ctx; this.state = 'idle'; this.files = []; this.rec = null; this.chunks = []; this.t0 = 0; this.timer = null;
-    this.opts = { source: 'comp', after: 'nothing', media: 'video', preset: 'normal', start: 'now', startSecs: 3, stop: 'manual', stopSecs: 10 };
+    // after: 'clip' = a gravação vira um clipe na grade (como o Resolume), 'show' = abre a pasta, 'nothing'
+    this.opts = { source: 'comp', after: 'clip', media: 'video', preset: 'normal', start: 'now', startSecs: 3, stop: 'manual', stopSecs: 10 };
     if (ctx.desktop) ctx.desktop.rec.list(ctx.dir).then(l => { this.files = l; ctx.onChange(); }).catch(() => { });
   }
   screens() { return this.c.screens(); }
@@ -27,7 +28,8 @@ export class Recorder {
     const stream = canvas.captureStream(30);
     if (o.media === 'video+mic') { try { const mic = await navigator.mediaDevices.getUserMedia({ audio: true }); for (const t of mic.getAudioTracks()) stream.addTrack(t); } catch (e) { this.c.toast('Sem microfone: ' + e.message); } }
     const bps = { high: 20e6, normal: 8e6, low: 3e6 }[o.preset] || 8e6;
-    const mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+    // VP8 primeiro: codifica mais leve que o VP9 e não rouba quadros da composição enquanto grava
+    const mime = ['video/webm;codecs=vp8', 'video/webm;codecs=vp9', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
     this.chunks = [];
     try { this.rec = new MediaRecorder(stream, { mimeType: mime || undefined, videoBitsPerSecond: bps }); } catch (e) { this.c.toast('Não consegui gravar: ' + e.message); this.state = 'idle'; this.c.onChange(); return; }
     this.rec.ondataavailable = (e) => { if (e.data && e.data.size) this.chunks.push(e.data); };
@@ -56,7 +58,10 @@ export class Recorder {
         const info = await this.c.desktop.rec.save(name, bytes, this.c.dir);
         this.files.push(info); this.c.toast('Gravado: ' + info.name + ' (' + (info.size / 1e6).toFixed(1) + ' MB)');
         if (this.opts.after === 'show') this.c.desktop.rec.show(info.path);
+        if (this.opts.after === 'clip' && this.c.toClip) await this.c.toClip(info.path, info.name, null);
       } catch (e) { this.c.toast('Não consegui salvar: ' + e.message); }
+    } else if (this.opts.after === 'clip' && this.c.toClip) {
+      await this.c.toClip('', name, new File([blob], name, { type: 'video/webm' }));
     } else {
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
     }
