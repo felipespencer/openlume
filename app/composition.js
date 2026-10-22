@@ -28,12 +28,15 @@ export function serializeComposition(state, laser, cols) {
   });
 }
 // devolve { layers, screens, laser, missing } — os clipes de arquivo que não abriram ficam vazios
+// ctx.reuse(o) (opcional, usado pelo desfazer) devolve um clipe já aberto para aquele registro, em vez de abrir o arquivo de novo
 export async function deserializeComposition(json, ctx) {
   const d = typeof json === 'string' ? JSON.parse(json) : json;
   const lz = d.laser ? deserializeLaser(d.laser) : null;
-  const laserById = (id) => lz && d.laser.frames ? lz.frames[d.laser.frames.findIndex((f, i) => i === id)] : null;
   let missing = 0;
   if (ctx.setCols && d.cols) ctx.setCols(d.cols);
+  // o quadro do laser é referenciado pela posição na lista
+  const clipOpts = { toast: ctx.toast, laserClip: (idx) => { const f = lz && lz.frames[idx]; return f ? ctx.laserClip(f) : null; } };
+  const openClip = async (o) => (ctx.reuse && o && !o.missing && ctx.reuse(o)) || deserializeClip(o, clipOpts);
   const layers = [];
   for (const l of d.layers || []) {
     const L = ctx.mkLayer(l.name || 'Camada');
@@ -42,19 +45,17 @@ export async function deserializeComposition(json, ctx) {
     for (let i = 0; i < L.clips.length; i++) {
       const o = (l.clips || [])[i];
       if (o && o.missing) { missing++; continue; }
-      // o quadro do laser é referenciado pela posição na lista
-      L.clips[i] = await deserializeClip(o, { toast: ctx.toast, laserClip: (idx) => { const f = lz && lz.frames[idx]; return f ? ctx.laserClip(f) : null; } });
+      L.clips[i] = await openClip(o);
       if (o && !L.clips[i]) missing++;
     }
     layers.push(L);
   }
-  const clipOpts = { toast: ctx.toast, laserClip: (idx) => { const f = lz && lz.frames[idx]; return f ? ctx.laserClip(f) : null; } };
   const decks = [];
   for (const k of d.decks || []) {
     const dk = { name: k.name || 'Deck', color: k.color || '', closed: !!k.closed, rows: null };
     if (k.rows) {
       dk.rows = [];
-      for (const row of k.rows) { const out = []; for (const o of row) { if (o && o.missing) { missing++; out.push(null); continue; } const c = await deserializeClip(o, clipOpts); if (o && !c) missing++; out.push(c); } dk.rows.push(out); }
+      for (const row of k.rows) { const out = []; for (const o of row) { if (o && o.missing) { missing++; out.push(null); continue; } const c = await openClip(o); if (o && !c) missing++; out.push(c); } dk.rows.push(out); }
     }
     decks.push(dk);
   }

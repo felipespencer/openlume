@@ -527,6 +527,28 @@ module.exports = (win, app, laser) => {
       ok('Automape: menu, assistente e malha na saída', r5.menu && r5.aberto && r5.malha.every(Boolean) && r5.passo3 && r5.exemplos, JSON.stringify({ menu: r5.menu, aberto: r5.aberto, malha: r5.malha, passo3: r5.passo3, exemplos: r5.exemplos }));
       ok('Automape: sala com contornos curvos e editor', r5.sala.n >= 8 && r5.sala.contorno >= 5 && r5.sala.curvos >= 1 && /sofá/.test(r5.sala.resumo) && r5.sala.pontos >= 8 && r5.sala.popup && r5.edicao.bolinhas >= 5 && r5.edicao.alcas >= 6 && r5.edicao.barra && r5.linhas >= 5 && r5.prev >= 8, JSON.stringify({ sala: r5.sala, edicao: r5.edicao, linhas: r5.linhas, prev: r5.prev }));
       ok('Automape: cria máscaras e slices com contorno na tela 1', r5.criou.depois === r5.criou.antes + r5.criou.nM + r5.criou.nS && r5.criou.masks >= r5.criou.nM && r5.criou.comContorno >= 1 && r5.criou.aoAberto && r5.criou.dlgFechou && r5.criou.malhaDesligou, JSON.stringify(r5.criou) + ' ' + r5.criarTxt);
+      // Desfazer geral: retrato no começo de cada gesto; Ctrl+Z volta a opacidade sem tirar do ar o que toca, traz de volta a casa limpa; Ctrl+Y refaz
+      const r6 = await win.webContents.executeJavaScript(`(async()=>{
+        const P=window.projecionista, st=P.state, S=(ms)=>new Promise(r=>setTimeout(r,ms)), R={};
+        const gesto=()=>document.body.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));
+        const tecla=(k)=>window.dispatchEvent(new KeyboardEvent('keydown',{key:k,ctrlKey:true,bubbles:true}));
+        let li=st.layers.findIndex(L=>L.on>=0 && L.clips[L.on] && L.clips[L.on].kind==='video'); if (li<0) li=st.layers.findIndex(L=>L.on>=0);
+        const L0=st.layers[li], noAr=L0.clips[L0.on], op0=L0.opacity;
+        gesto(); L0.opacity=0.37; P.render();
+        gesto(); await P.undo(); await S(150);
+        const L1=st.layers[li];
+        R.opac={antes:op0, depois:L1.opacity, voltou:Math.abs(L1.opacity-op0)<1e-9, noAr:L1.on===L0.on && L1.clips[L1.on]===noAr, tipo:noAr.kind, tocando:noAr.kind!=='video'||!!noAr.player||!!(noAr.el&&!noAr.el.paused)};
+        await P.redo(); await S(150); R.refez=Math.abs(st.layers[li].opacity-0.37)<1e-9;
+        await P.undo(); await S(150);
+        let cli=-1, cl=-1; for (let i=0;i<st.layers.length&&cl<0;i++) for (let c=0;c<st.layers[i].clips.length;c++) { const k=st.layers[i].clips[c]; if (k&&k.kind==='video'&&k.path&&st.layers[i].on!==c) { cli=i; cl=c; break; } }
+        const caminho=st.layers[cli].clips[cl].path; gesto(); P.clearCell(cli, cl); const limpou=!st.layers[cli].clips[cl];
+        tecla('z'); await S(1200); const k2=st.layers[cli].clips[cl]; R.limpar={limpou, voltou:!!k2&&k2.path===caminho&&k2.w>0};
+        tecla('y'); await S(500); R.refezLimpar=!st.layers[cli].clips[cl];
+        tecla('z'); await S(1200); R.voltouDeNovo=!!st.layers[cli].clips[cl];
+        P.menubar.show(1); await S(50); const it=[...document.querySelectorAll('.menu .mi .lb')].map(e=>e.textContent); P.menubar.close(); R.menu=it.includes('Desfazer')&&it.includes('Refazer');
+        return R; })()`, true);
+      ok('Desfazer: Ctrl+Z volta a opacidade, não tira do ar o que toca; Ctrl+Y refaz', r6.opac.voltou && r6.opac.noAr && r6.opac.tocando && r6.refez, JSON.stringify(r6.opac) + ' refez=' + r6.refez);
+      ok('Desfazer: a casa limpa volta com o clipe, refazer limpa de novo; menu Composição tem Desfazer/Refazer', r6.limpar.limpou && r6.limpar.voltou && r6.refezLimpar && r6.voltouDeNovo && r6.menu, JSON.stringify({ limpar: r6.limpar, refezLimpar: r6.refezLimpar, voltouDeNovo: r6.voltouDeNovo, menu: r6.menu }));
     } catch (e) { ok('execução', false, e.message); }
     const f = out.filter(x => !x.pass);
     console.log(f.length ? 'REPROVADO: ' + f.map(x => x.name).join(', ') : 'APROVADO: ' + out.length + ' verificações');

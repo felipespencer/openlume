@@ -899,6 +899,79 @@ async function loadComposition(json, name) {
   if (state.settings.firstCol) triggerColumn(0);
   else for (const g of state.groups) if (g.firstCol) triggerColumn(0, g.id);
 }
+// ---------- desfazer / refazer (Ctrl+Z, Ctrl+Y) ----------
+// No começo de cada gesto (clique, tecla, soltar arquivo) tira um retrato da composição e guarda, se mudou desde o último.
+// Desfazer volta ao retrato anterior reaproveitando os clipes abertos (os arquivos não reabrem) e sem mexer no que está
+// no ar: qual casa toca em cada camada não entra no retrato. Saída avançada, Laser e Automape têm o desfazer deles enquanto abertos.
+const hist = { undo: [], redo: [], busy: false, max: 40 };
+const snapComp = () => serializeComposition(state, laser, COLS).replace(/"on":-?\d+/g, '"on":-1').replace(/"active":-?\d+/g, '"active":-1');
+const undoBlocked = () => hist.busy || ao.open || laser.open || !!document.querySelector('.dlgOver');
+function markUndo() {
+  if (undoBlocked()) return;
+  let cur; try { cur = snapComp(); } catch { return; }
+  if (hist.undo[hist.undo.length - 1] === cur) return;
+  hist.undo.push(cur); hist.redo.length = 0; if (hist.undo.length > hist.max) hist.undo.shift();
+}
+addEventListener('pointerdown', markUndo, true);
+addEventListener('keydown', (e) => { if (!e.repeat && !['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) markUndo(); }, true);
+addEventListener('drop', markUndo, true);
+const canUndo = () => { const cur = snapComp(); return hist.undo.some(s => s !== cur); };
+// depois de voltar, o retrato guardado é o da composição como ficou (abrir um retrato completa valores padrão e pode mudar o texto);
+// um retrato que não muda nada visível é pulado
+async function undoComp() {
+  if (undoBlocked()) return;
+  let cur = snapComp(); while (hist.undo.length && hist.undo[hist.undo.length - 1] === cur) hist.undo.pop();
+  if (!hist.undo.length) { toast('Nada para desfazer'); return; }
+  const redoTo = cur;
+  while (hist.undo.length) {
+    await restoreComp(hist.undo.pop()); const now = snapComp();
+    if (now !== cur) { hist.redo.push(redoTo); hist.undo.push(now); toast('Desfeito'); return; }
+    cur = now;
+  }
+  toast('Nada para desfazer');
+}
+async function redoComp() {
+  if (undoBlocked()) return;
+  const cur = snapComp(), next = hist.redo.pop(); if (!next) { toast('Nada para refazer'); return; }
+  if (hist.undo[hist.undo.length - 1] !== cur) hist.undo.push(cur);
+  await restoreComp(next); hist.undo.push(snapComp()); toast('Refeito');
+}
+const clipKey = (c) => c.kind + ':' + (c.kind === 'video' || c.kind === 'image' ? c.path : c.kind === 'source' ? c.source : c.kind === 'laser' ? c.laserId : c.kind === 'camera' ? (c.deviceId || '') : '');
+// volta a composição a um retrato: clipes do mesmo arquivo/fonte são reaproveitados; o que estava no ar continua, se o clipe ficou na mesma casa
+async function restoreComp(json) {
+  hist.busy = true;
+  try {
+    const T = JSON.parse(json), N = JSON.parse(snapComp());
+    const laserSame = JSON.stringify(T.laser) === JSON.stringify(N.laser), screensSame = JSON.stringify(T.screens) === JSON.stringify(N.screens);
+    const pool = new Map(), all = [];
+    for (const L of state.layers) for (const row of rowsOf(L)) for (const c of row) if (c) { all.push(c); const k = clipKey(c); if (!pool.has(k)) pool.set(k, []); pool.get(k).push(c); }
+    const reuse = (o) => { if (o.kind === 'laser' && !laserSame) return null; const l = pool.get(clipKey(o)), c = l && l.shift(); return c ? C.applyClipProps(c, o) : null; };
+    const d = await deserializeComposition(T, { mkLayer, toast, setCols: (n) => { COLS = Math.max(1, Math.min(64, n | 0)); }, laserClip: (f) => C.laserClip(f, laser.thumbSvg(f)), reuse });
+    const used = new Set(); for (const L of d.layers) for (const c of L.clips) if (c) used.add(c); for (const k of d.decks) if (k.rows) for (const row of k.rows) for (const c of row) if (c) used.add(c);
+    const old = state.layers;
+    for (const L of d.layers) { L.on = -1; for (const O of old) if (O.on >= 0 && O.clips[O.on] && L.clips[O.on] === O.clips[O.on]) L.on = O.on; }
+    for (const O of old) { const c = O.on >= 0 ? O.clips[O.on] : null; if (c && !d.layers.some(L => L.on === O.on && L.clips[O.on] === c)) C.stopClip(c); if (O.ghost) C.stopClip(O.ghost); if (O.prev) C.stopClip(O.prev.clip); }
+    for (const c of all) if (!used.has(c)) dropClip(c);
+    state.layers = d.layers.length ? d.layers : [mkLayer(1)];
+    state.groups.length = 0; state.groups.push(...d.groups); for (const g of d.groups) gseq = Math.max(gseq, g.id + 1); pruneGroups();
+    state.xfade = d.xfade; engine.xfade = state.xfade;
+    if (d.bpm) Object.assign(state.bpm, { bpm: d.bpm.bpm || 120, snap: d.bpm.snap || 0, metronome: !!d.bpm.metronome, nudgePct: d.bpm.nudgePct || 5 }); state.colSnap = d.colSnap || {}; syncBpm(); Object.assign(audio.settings, d.audio);
+    state.decks = d.decks.length ? d.decks.map(k => { const dk = mkDeck(k.name); dk.color = k.color; dk.closed = k.closed; if (k.rows) k.rows.forEach((row, i) => { if (state.layers[i]) dk.cells[state.layers[i].id] = row; }); return dk; }) : [mkDeck('Deck 1')];
+    state.deck = Math.min(d.deck || 0, state.decks.length - 1); for (const L of state.layers) state.decks[state.deck].cells[L.id] = L.clips;
+    state.master = d.master; state.speed = d.speed; engine.master = state.master; engine.compFx = d.compFx; engine.compTransform = d.compTransform; state.compAutopilot = d.compAutopilot; state.colNames = d.colNames; applySettings(d.settings);
+    state.selLayer = Math.max(0, Math.min(state.selLayer, state.layers.length - 1)); if (state.sel && (state.sel.l >= state.layers.length || state.sel.c >= COLS)) state.sel = null;
+    if (!screensSame && d.screens && d.screens.length) swapScreens(d.screens);
+    if (!laserSame && d.laser) { laser.frames = d.laser.frames; laser.settings = d.laser.settings; laser.active = null; laser.sel = laser.frames[0] || null; if (laser.open) laser.refresh(); }
+    render(); renderScreens(); panels.render(); browser.render();
+  } finally { hist.busy = false; }
+}
+// troca as telas sem fechar as janelas de saída: a janela e o canvas passam para a tela de mesma posição
+function swapScreens(list) {
+  const old = state.screens;
+  list.forEach((sc, i) => { const o = old[i]; if (!o) return; sc.id = o.id; sc.win = o.win; sc.cv = o.cv; sc.ctx = o.ctx; });
+  for (let i = list.length; i < old.length; i++) { const o = old[i]; if (o.win && !o.win.closed) o.win.close(); }
+  state.screens = list; renderScreens(); if (ao.open) ao.layout();
+}
 // ---------- Configurações da composição ----------
 const SIZES = [[1920, 1080, 'Full HD 1920×1080'], [1280, 720, 'HD 1280×720'], [3840, 2160, '4K UHD 3840×2160'], [1080, 1920, 'Em pé 1080×1920'], [1920, 1200, '1920×1200'], [2560, 1440, '2560×1440'], [1024, 768, '1024×768'], [3840, 1080, 'Dois Full HD lado a lado 3840×1080']];
 function applySettings(s) {
@@ -1039,6 +1112,8 @@ const menuDefs = () => [
     { label: 'Sobre', fn: aboutDialog }, '-',
     { label: 'Sair', key: 'Ctrl+Q', fn: () => window.close() }] },
   { label: 'Composição', items: () => [
+    { label: 'Desfazer', key: 'Ctrl+Z', disabled: !canUndo(), fn: undoComp },
+    { label: 'Refazer', key: 'Ctrl+Y', disabled: !hist.redo.length, fn: redoComp }, '-',
     { label: 'Nova', key: 'Ctrl+N', fn: () => comps.newComp() },
     { label: 'Abrir…', key: 'Ctrl+O', fn: () => { browser.setTab('comps'); toast('Duplo clique numa composição da lista para abrir'); } },
     { label: 'Abrir recente', sub: () => (browser.compList || []).length ? browser.compList.map(n => ({ label: n, fn: () => comps.open(n) })) : [{ label: 'nenhuma salva', disabled: true }] },
@@ -1147,6 +1222,9 @@ const menuDefs = () => [
 ];
 const menubar = new Menubar($('menubar'), menuDefs);
 const SHORTCUTS = [
+  { combo: 'Ctrl+Z', keys: 'Ctrl+Z', what: 'Desfazer (a composição toda; Saída avançada, Laser e Automape desfazem o deles)', when: () => !ao.open && !laser.open, fn: undoComp },
+  { combo: 'Ctrl+Y', keys: 'Ctrl+Y', what: 'Refazer', when: () => !ao.open && !laser.open, fn: redoComp },
+  { combo: 'Ctrl+Shift+Z', keys: 'Ctrl+Shift+Z', what: 'Refazer', when: () => !ao.open && !laser.open, fn: redoComp },
   { combo: 'Ctrl+N', keys: 'Ctrl+N', what: 'Composição nova', fn: () => comps.newComp() },
   { combo: 'Ctrl+O', keys: 'Ctrl+O', what: 'Abrir composição (aba Composições)', fn: () => browser.setTab('comps') },
   { combo: 'Ctrl+S', keys: 'Ctrl+S', what: 'Salvar composição', fn: () => state.name ? comps.save(state.name) : (browser.setTab('comps'), browser.saveAs()) },
@@ -1211,7 +1289,7 @@ loop();
 render();
 
 // usado pelo teste automático (tools/selftest-main.js); não é interface de usuário
-window.projecionista = { frames: () => loop.total || 0, recordingToClip, automape, setAutomapeGrid, automapeGridOn, menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, addDeck, switchDeck, removeDeck, duplicateDeck, newGroup, setLayerGroup, removeGroup, duplicateGroup, addLayerToGroup, fadeTo, bpm: state.bpm, tapBpm: (t) => tap(state.bpm, t), pending: () => pending.length, apc, stepClip, EFFECTS, audio, mkAudioFx, seg, applyProjectors, projectorWizard, autosave, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
+window.projecionista = { frames: () => loop.total || 0, undo: undoComp, redo: redoComp, markUndo, hist, recordingToClip, automape, setAutomapeGrid, automapeGridOn, menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, addDeck, switchDeck, removeDeck, duplicateDeck, newGroup, setLayerGroup, removeGroup, duplicateGroup, addLayerToGroup, fadeTo, bpm: state.bpm, tapBpm: (t) => tap(state.bpm, t), pending: () => pending.length, apc, stepClip, EFFECTS, audio, mkAudioFx, seg, applyProjectors, projectorWizard, autosave, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
   probe: (pts) => engine.probe(state.layers, pts),
   probeScreen: (sc, pts) => engine.probeScreen(sc, state.layers, state.screens, pts),
   serialize: () => serializeComposition(state, laser, COLS), load: loadComposition, reset: resetComposition,

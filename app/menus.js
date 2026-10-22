@@ -101,7 +101,8 @@ export function confirmBox(title, text) {
 // lista: [{ keys, what, fn }]; o diálogo "Atalhos → Teclado…" mostra a mesma lista que funciona
 export function installShortcuts(list) {
   addEventListener('keydown', (e) => {
-    const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    // campos de texto ficam com as teclas; um controle deslizante ou caixa de marcar com foco não rouba os atalhos
+    const t = e.target; if (t && ((t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'color'].includes(t.type)) || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
     if (document.querySelector('.dlgOver')) return;
     const combo = (e.ctrlKey ? 'Ctrl+' : '') + (e.shiftKey ? 'Shift+' : '') + (e.altKey ? 'Alt+' : '') + (e.key.length === 1 ? e.key.toUpperCase() : e.key);
     const s = list.find(x => x.combo === combo && (!x.when || x.when()));

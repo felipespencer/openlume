@@ -226,13 +226,19 @@ export async function deserializeClip(o, ctx) {
   let c = null;
   try {
     if (o.kind === 'video' || o.kind === 'image') { if (!o.path) return null; c = await clipFromPath(o.path, o.name); }
-    else if (o.kind === 'source') { c = sourceClip(o.source); if (c) Object.assign(c.params, o.params || {}); }
-    else if (o.kind === 'text') { c = textClip(o.text && o.text.content); Object.assign(c.text, o.text || {}); renderText(c); }
+    else if (o.kind === 'source') c = sourceClip(o.source);
+    else if (o.kind === 'text') c = textClip(o.text && o.text.content);
     else if (o.kind === 'camera') { c = await cameraClip(o.deviceId, o.name); }
     else if (o.kind === 'laser' && ctx && ctx.laserClip) { c = ctx.laserClip(o.laserId); }
     else if (o.kind === 'lasermirror') c = laserMirrorClip();
   } catch (e) { if (ctx && ctx.toast) ctx.toast('Não abriu ' + o.name + ': ' + e.message); return null; }
   if (!c) return null;
+  return applyClipProps(c, o);
+}
+// põe num clipe vivo o que foi salvo dele (nome, ajuste, efeitos, transporte, parâmetros…): ao abrir a composição e ao desfazer
+export function applyClipProps(c, o) {
+  if (o.kind === 'source' && c.params) Object.assign(c.params, o.params || {});
+  if (o.kind === 'text' && c.text) { Object.assign(c.text, o.text || {}); renderText(c); }
   c.name = o.name || c.name; c.fit = o.fit || c.fit; c.speed = o.speed || 1; c.panim = JSON.parse(JSON.stringify(o.panim || {})); c.afx = (o.afx || []).map(f => ({ ...f, params: { ...f.params } })); c.fx = (o.fx || []).map(f => cloneFx(f)); c.transform = Object.assign(IDENT_TR(), o.transform || {}); c.ap = Object.assign({ mode: 'layer', l: 0, c: 0, dur: 'clip', secs: 5 }, o.ap || {});
   if (o.tr) Object.assign(c.tr, o.tr, { playing: true }); if (!c.tr.out) c.tr.out = c.dur; Object.assign(c.audio, o.audio || {}); c.blend = o.blend || ''; c.opacity = o.opacity ?? 1; c.trig = o.trig || 'normal'; c.ignoreColumn = !!o.ignoreColumn;
   return c;
