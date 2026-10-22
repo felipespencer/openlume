@@ -12,3 +12,45 @@ action = "apply"
 phase = 1
 plan = "01-01"
 at = "2026-10-21T21:10:00-03:00"
+
+[[entry]]
+action = "unify"
+phase = 1
+plan = "01-01"
+at = "2026-10-22T00:30:00-03:00"
+
+[[entry]]
+action = "plan"
+phase = 1
+plan = "01-02"
+at = "2026-10-22T00:40:00-03:00"
+
+[[entry]]
+action = "apply"
+phase = 1
+plan = "01-02"
+at = "2026-10-22T01:10:00-03:00"
+
+[[entry]]
+action = "unify"
+phase = 1
+plan = "01-02"
+at = "2026-10-22T01:15:00-03:00"
+
+[[entry]]
+action = "plan"
+phase = 1
+plan = "01-03"
+at = "2026-10-22T01:20:00-03:00"
+
+[[entry]]
+action = "apply"
+phase = 1
+plan = "01-03"
+at = "2026-10-22T03:10:00-03:00"
+
+[[entry]]
+action = "unify"
+phase = 1
+plan = "01-03"
+at = "2026-10-22T03:20:00-03:00"

@@ -27,7 +27,7 @@ Phases: 0 of 4 complete
 
 | Phase | Name | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
-| 1 | Automape | 4 | In progress | - |
+| 1 | Automape | 5 | In progress (3/5) | - |
 | 2 | Provas no equipamento (laser e APC40) | TBD | Not started | - |
 | 3 | Versão web | TBD | Not started | - |
 | 4 | Versão Android | TBD | Not started | - |
@@ -50,10 +50,10 @@ sem biblioteca pesada vs. modelo ONNX; como alinhar a foto ao quadro do projetor
 - Teste automático e verificação por CDP
 
 **Plans:**
-- [ ] 01-01: maquete `automape-mockup.html` com o fatiamento da foto funcionando; aprovação do Felipe
-- [ ] 01-02: `app/automape.js` + item "Automape…" no menu Saída + botão na Saída avançada + os três diálogos no programa
-- [ ] 01-03: criar os slices de verdade na Saída avançada, teste automático (PROJ_TEST) e verificação por CDP
-- [ ] 01-04: MCP do OpenLume (servidor MCP exposto pelo programa: ler foto, criar slices/máscaras, mexer na composição) para o Claude e outros agentes operarem o programa; o Automape vira uma ferramenta dele (pedido de 2026-10-21, a confirmar)
+- [x] 01-01: maquete `automape-mockup.html` com o fatiamento da foto funcionando; aprovação do Felipe
+- [x] 01-02: REC vira clipe (botão REC na barra; a gravação entra na grade) — pedido de 2026-10-22, feito antes do Automape no programa
+- [x] 01-03: `app/automape.js` + Saída › Automape… + botão na Saída avançada + malha projetada + editor + máscaras e slices de verdade; selftest e verificação por CDP
+- [ ] 01-04: IA em fotos novas (SAM local em ONNX ou Claude) e MCP do OpenLume (servidor MCP exposto pelo programa: ler foto, criar slices/máscaras, mexer na composição) para o Claude e outros agentes operarem o programa; o Automape vira uma ferramenta dele (pedido de 2026-10-21, a confirmar)
 - [ ] 01-05: IA de profundidade na foto (modelo monocular em ONNX, como o "tirar o fundo"): separar superfícies por profundidade e prévia 3D do mapeamento (pedido de 2026-10-21, a confirmar)
 
 ### Phase 2: Provas no equipamento (laser e APC40)
@@ -88,4 +88,4 @@ com `OutputPresentation` para o projetor.
 
 ---
 *Roadmap created: 2026-10-21*
-*Last updated: 2026-10-21 (plano 01-01 criado)*
+*Last updated: 2026-10-22 (01-02 e 01-03 fechados)*
