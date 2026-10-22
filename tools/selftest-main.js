@@ -504,6 +504,29 @@ module.exports = (win, app, laser) => {
       })()`, true);
       ok('REC grava e a gravação vira clipe na casa vazia', r4.gravando && r4.btn === 'on' && r4.salvou && r4.clipe && r4.clipe.kind === 'video' && r4.clipe.path === '.webm' && r4.clipe.w > 0 && r4.btnDepois === '● REC', JSON.stringify(r4));
       ok('gravar não pesa (fps durante ≥ 60 % de antes)', r4.fps0 > 0 && r4.fps1 >= r4.fps0 * 0.6, 'antes ' + r4.fps0 + ' fps, gravando ' + r4.fps1 + ' fps');
+      // Automape: menu, assistente em 7 passos, malha na saída, sala de exemplo com contornos, criação na tela 1
+      const r5 = await win.webContents.executeJavaScript(`(async()=>{
+        const P=window.projecionista, S=(ms)=>new Promise(r=>setTimeout(r,ms)), A=P.automape, R={}, q=(sel)=>document.querySelector('.dlg.automape '+sel);
+        P.menubar.show(7); await S(50); R.menu=[...document.querySelectorAll('.menu .mi .lb')].map(e=>e.textContent).includes('Automape…'); P.menubar.close();
+        A.open(); await S(120); R.aberto=!!q('#wStep') && q('#wStep').textContent==='Passo 1 de 7' && q('#wDots').children.length===7;
+        A.go(1); await S(60); q('#wGridBtn').click(); await S(250);
+        const px=P.probe([[0.52,0.52],[0.0078,0.5]]); R.malha=[P.automapeGridOn(), P.state.layers[0].automapeGrid===true, q('#wGridBtn').classList.contains('on'), px[0][0]>100&&px[0][0]<170, px[1][0]>240];
+        A.go(2); await S(30); R.passo3=document.querySelectorAll('.dlg.automape .wok svg').length===2;
+        A.go(3); await S(30); R.exemplos=document.querySelectorAll('.dlg.automape .wsamples button').length===3;
+        await A.loadSample('sala'); A.go(4); await S(250);
+        R.sala={n:A.S.items.length, contorno:A.S.items.filter(i=>i.poly.length>4).length, curvos:A.S.items.filter(i=>i.curved).length, resumo:(q('#wSummary')||{}).textContent||'', pontos:document.querySelectorAll('.dlg.automape #wSvg .sf').length, popup:!!q('.miniTip')};
+        A.S.editId=A.S.items.find(i=>i.cls==='tapete').id; A.render(); await S(50); R.edicao={bolinhas:document.querySelectorAll('.dlg.automape #wSvg circle.pt').length, alcas:document.querySelectorAll('.dlg.automape #wSvg .bh').length, barra:!q('#wZbar [data-pm=corner]').hidden};
+        A.go(5); await S(50); R.linhas=document.querySelectorAll('.dlg.automape #wRows .wrow').length;
+        A.go(6); await S(100); R.prev=document.querySelectorAll('.dlg.automape #wPrev polygon').length; R.criarTxt=(q('#wResTxt')||{}).textContent||'';
+        const sc=P.screens()[0], antes=sc.items.length, nM=A.S.result.filter(r=>r.type==='mask').length, nS=A.S.result.length-nM;
+        A.create(); await S(400);
+        R.criou={antes, depois:sc.items.length, nM, nS, masks:sc.items.filter(i=>i.type==='mask').length, slices:sc.items.filter(i=>i.type==='slice').length, comContorno:sc.items.filter(i=>i.type==='slice'&&i.inMask&&i.inMask.pts.length>4).length, aoAberto:!document.getElementById('ao').hidden, dlgFechou:!document.querySelector('.dlg.automape'), malhaDesligou:!P.automapeGridOn()};
+        P.ao.hide(false); await S(100);
+        return R;
+      })()`, true);
+      ok('Automape: menu, assistente e malha na saída', r5.menu && r5.aberto && r5.malha.every(Boolean) && r5.passo3 && r5.exemplos, JSON.stringify({ menu: r5.menu, aberto: r5.aberto, malha: r5.malha, passo3: r5.passo3, exemplos: r5.exemplos }));
+      ok('Automape: sala com contornos curvos e editor', r5.sala.n >= 8 && r5.sala.contorno >= 5 && r5.sala.curvos >= 1 && /sofá/.test(r5.sala.resumo) && r5.sala.pontos >= 8 && r5.sala.popup && r5.edicao.bolinhas >= 5 && r5.edicao.alcas >= 6 && r5.edicao.barra && r5.linhas >= 5 && r5.prev >= 8, JSON.stringify({ sala: r5.sala, edicao: r5.edicao, linhas: r5.linhas, prev: r5.prev }));
+      ok('Automape: cria máscaras e slices com contorno na tela 1', r5.criou.depois === r5.criou.antes + r5.criou.nM + r5.criou.nS && r5.criou.masks >= r5.criou.nM && r5.criou.comContorno >= 1 && r5.criou.aoAberto && r5.criou.dlgFechou && r5.criou.malhaDesligou, JSON.stringify(r5.criou) + ' ' + r5.criarTxt);
     } catch (e) { ok('execução', false, e.message); }
     const f = out.filter(x => !x.pass);
     console.log(f.length ? 'REPROVADO: ' + f.map(x => x.name).join(', ') : 'APROVADO: ' + out.length + ' verificações');

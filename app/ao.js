@@ -53,6 +53,7 @@ export class AdvancedOutput {
             <span class="sp"></span>
             ${ibtn('aoPts', 'pts', 'Modo Editar pontos|Muda a posição ou a curva de cada ponto do slice. Tecla T alterna entre Editar pontos e Transformar.', 'Editar pontos')}
             ${ibtn('aoMove', 'move', 'Modo Transformar|Muda a posição, o giro ou o tamanho do slice inteiro. Tecla T alterna entre Editar pontos e Transformar.', 'Transformar')}
+            <button type="button" id="aoAutomape" class="txt" data-help="Automape|Mapeia sozinho a partir de uma foto: o projetor mostra uma malha, você fotografa de cima da lente, a IA acha as superfícies e cria slices e máscaras aqui.">Automape</button>
           </div>
           <div id="aoStage"><div id="aoView"><canvas id="aoCv"></canvas><svg id="aoSvg"></svg></div></div>
           <div id="aoFoot"><button type="button" id="aoCancel" data-help="Cancelar|Fecha a Saída avançada e devolve tudo como estava antes.">Cancelar</button><button type="button" id="aoOk" data-help="Salvar e fechar|Fecha a Saída avançada aplicando todas as mudanças.">Salvar e fechar</button></div>
@@ -66,6 +67,7 @@ export class AdvancedOutput {
     $('aoPan').onclick = () => { this.pan = !this.pan; this.syncTools(); };
     $('aoUndo').onclick = () => this.undo(); $('aoRedo').onclick = () => this.redo();
     $('aoZoom').onchange = () => { this.zoom = $('aoZoom').value; this.layout(); };
+    $('aoAutomape').onclick = () => { if (this.c.automape) this.c.automape(); };
     $('aoCancel').onclick = () => this.hide(true); $('aoOk').onclick = () => this.hide(false);
     const menu = (btn, box) => { $(btn).onclick = (e) => { e.stopPropagation(); const h = $(box).hidden; this.closeMenus(); $(box).hidden = !h; }; };
     menu('aoAdd', 'aoAddMenu'); menu('aoGridBtn', 'aoGridMenu'); menu('aoPresetBtn', 'aoPresetMenu');

@@ -1,0 +1,34 @@
+name = "OpenLume"
+version = "0.1.0"
+status = "active"
+path = "projecionista-pc"
+tags = []
+
+[paul]
+version = "1.4"
+source = "https://chrisai.cv/skool"
+
+[milestone]
+name = "v0.2 Automape e provas no equipamento"
+version = "0.2.0"
+status = "in_progress"
+phases = 4
+
+[phase]
+number = 1
+name = "Automape"
+status = "planning"
+plans_completed = 0
+
+[loop]
+position = "APPLY"
+plan = "01-01"
+plan_path = "phases/01-automape/01-01-PLAN.md"
+
+[satellite]
+groom = true
+
+[stats]
+total_plans = 0
+total_phases = 0
+last_activity = "2026-10-21T21:10:00-03:00"

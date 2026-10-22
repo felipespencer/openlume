@@ -18,6 +18,7 @@ import { Recorder } from './record.js';
 import { mkFx, cloneFx } from './effects.js';
 import { AUTOPILOT, GROUP, XFADE, serializeComposition, deserializeComposition, SETTINGS } from './composition.js';
 import { Menubar, openDialog, askText, confirmBox, installShortcuts, shortcutsDialog } from './menus.js';
+import { Automape } from './automape.js';
 import { initSplitters } from './splitters.js';
 import { paintScan } from './laser-model.js';
 import { BPM, SNAPS, advance, tap, resync, setBpm, click, effBpm } from './beat.js';
@@ -486,6 +487,31 @@ function toggleTestCard() {
   const L = mkLayer('Test Card'); L.testCard = true; state.layers.unshift(L); if (state.sel) state.sel.l++;
   const c = C.sourceClip('testcard'); L.clips[0] = c; L.on = 0; render();
 }
+// Malha do Automape: uma camada por cima com a fonte Malha, ligada e desligada pelo assistente (como o Test Card)
+function setAutomapeGrid(on) {
+  const i = state.layers.findIndex(L => L.automapeGrid);
+  if (!on) { if (i >= 0) removeLayer(i); return; }
+  if (i >= 0) return;
+  const L = mkLayer('Malha do Automape'); L.automapeGrid = true; state.layers.unshift(L); if (state.sel) state.sel.l++;
+  const c = C.sourceClip('malha'); L.clips[0] = c; L.on = 0; render();
+}
+const automapeGridOn = () => state.layers.some(L => L.automapeGrid);
+// O Automape criou o mapa: cada item vira máscara ou slice (4 cantos + máscara de entrada com o contorno) na primeira tela
+function automapeCreate(result) {
+  const sc = state.screens[0]; if (!sc) return 0;
+  const kx = sc.w / state.settings.w, ky = sc.h / state.settings.h;   // o Automape trabalha em px da composição; a tela pode ter outro tamanho
+  let n = 0;
+  for (const it of result) {
+    if (it.type === 'mask') { sc.items.push(M.mkMask(it.name, it.pts.map(p => [p[0] * kx, p[1] * ky]))); n++; continue; }
+    const pts = it.warp.pts.map(p => [p[0] * kx, p[1] * ky]), bb = { x: Math.min(...pts.map(p => p[0])), y: Math.min(...pts.map(p => p[1])) };
+    bb.w = Math.max(...pts.map(p => p[0])) - bb.x; bb.h = Math.max(...pts.map(p => p[1])) - bb.y;
+    const sl = M.mkSlice(it.name, { x: it.in.x, y: it.in.y, w: it.in.w, h: it.in.h }, bb);
+    sl.warp.pts = pts.map(p => [p[0], p[1]]);
+    if (it.inMask) sl.inMask = { pts: it.inMask.pts.map(p => [p[0], p[1]]), invert: false, rev: 1 };
+    M.touch(sl); sc.items.push(sl); n++;
+  }
+  M.touch(sc); renderScreens(); ao.show(); return n;
+}
 function removeLayer(li) {
   const L = state.layers[li]; if (state.layers.length <= 1) return;
   if (L.ghost) C.stopClip(L.ghost);
@@ -826,6 +852,8 @@ const ao = new AdvancedOutput({
   presets: D ? D.presets : null,
 });
 $('btnAO').onclick = () => ao.show();
+const automape = new Automape({ get compW() { return state.settings.w; }, get compH() { return state.settings.h; }, toast, setGrid: setAutomapeGrid, gridOn: automapeGridOn, create: automapeCreate, desktop: D });
+ao.c.automape = () => automape.open();
 
 const laser = new LaserModule({
   onChange: () => { renderScreens(); },
@@ -1099,7 +1127,8 @@ const menuDefs = () => [
     { label: 'Janela', check: open && sc.device === 'window', fn: () => { sc.device = 'window'; sc.enabled = true; if (sc.win && !sc.win.closed) sc.win.close(); openOutputs(); } },
     { label: 'Automático (projetor ligado)', check: open && sc.device === 'auto', fn: () => { sc.device = 'auto'; sc.enabled = true; if (sc.win && !sc.win.closed) sc.win.close(); openOutputs(); } }, '-',
     { label: 'Projetores…', fn: () => projectorWizard(false) },
-    { label: 'Avançada…', fn: () => ao.show() }, '-',
+    { label: 'Avançada…', fn: () => ao.show() },
+    { label: 'Automape…', fn: () => automape.open() }, '-',
     { label: 'Identificar telas', fn: () => { ao.identify(); if (!open) toast('Abra a saída para ver o nome em cada tela'); } },
     { label: 'Mostrar Test Card', check: state.layers.some(L => L.testCard), fn: toggleTestCard },
     { label: 'Instantâneo da composição (PNG)', fn: () => snapshot('comp') }]; } },
@@ -1182,7 +1211,7 @@ loop();
 render();
 
 // usado pelo teste automático (tools/selftest-main.js); não é interface de usuário
-window.projecionista = { frames: () => loop.total || 0, recordingToClip, menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, addDeck, switchDeck, removeDeck, duplicateDeck, newGroup, setLayerGroup, removeGroup, duplicateGroup, addLayerToGroup, fadeTo, bpm: state.bpm, tapBpm: (t) => tap(state.bpm, t), pending: () => pending.length, apc, stepClip, EFFECTS, audio, mkAudioFx, seg, applyProjectors, projectorWizard, autosave, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
+window.projecionista = { frames: () => loop.total || 0, recordingToClip, automape, setAutomapeGrid, automapeGridOn, menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, addDeck, switchDeck, removeDeck, duplicateDeck, newGroup, setLayerGroup, removeGroup, duplicateGroup, addLayerToGroup, fadeTo, bpm: state.bpm, tapBpm: (t) => tap(state.bpm, t), pending: () => pending.length, apc, stepClip, EFFECTS, audio, mkAudioFx, seg, applyProjectors, projectorWizard, autosave, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
   probe: (pts) => engine.probe(state.layers, pts),
   probeScreen: (sc, pts) => engine.probeScreen(sc, state.layers, state.screens, pts),
   serialize: () => serializeComposition(state, laser, COLS), load: loadComposition, reset: resetComposition,

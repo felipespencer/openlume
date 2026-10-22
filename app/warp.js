@@ -19,6 +19,14 @@ export function homography(p) {
   const a = x1 - x0 + g * x1, b = x3 - x0 + h * x3, d = y1 - y0 + g * y1, e = y3 - y0 + h * y3;
   return { a, b, c: x0, d, e, f: y0, g, h };
 }
+// Inversa: leva pontos do quadrilátero de volta ao quadrado unitário (o Automape usa para ir da foto ao projetor).
+export function invertHomography(H) {
+  if (!H) return null;
+  const { a, b, c, d, e, f, g, h } = H, i = 1;
+  const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g, D = -(b * i - c * h), E = a * i - c * g, F = -(a * h - b * g), G = b * f - c * e, Hh = -(a * f - c * d), I = a * e - b * d;
+  const det = a * A + b * B + c * C; if (Math.abs(det) < 1e-12) return null;
+  const k = 1 / det; return { a: A * k, b: D * k, c: G * k, d: B * k, e: E * k, f: Hh * k, g: C * k, h: F * k, i: I * k };
+}
 export function applyHomography(H, u, v) {
   if (!H) return [u, v];
   const w = H.g * u + H.h * v + 1;
