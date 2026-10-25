@@ -309,6 +309,7 @@ button.gh:hover{ color:var(--txt); background:var(--bg3); }
 #lzProps .pv.icons{ gap:2px; padding-left:3px; } #lzProps .pv.icons .ib{ width:24px; height:22px; background:none; } #lzProps .pv.icons .ib svg{ width:15px; height:15px; } #lzProps .pv.icons .ib.on{ color:var(--teal); background:none; }
 #lzProps .pv .seg{ display:flex; width:100%; } #lzProps .pv .seg button{ flex:1; height:22px; border-radius:0; padding:0 4px; font-size:11px; }
 #lzProps .pv input[type=color].sw{ width:28px; height:18px; padding:0; border:1px solid #666; background:none; cursor:pointer; }
+.pv input[type=range].sa{ width:64px; margin-left:6px; vertical-align:middle; }   /* alfa de uma cor com alfa (Threshold etc.) */
 #lzProps .pinfo{ color:var(--rd); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #lzProps .phead{ display:flex; align-items:center; gap:8px; height:24px; padding:0 7px; background:var(--rh); margin-top:2px; } #lzProps .phead span{ flex:1; }
 #lzProps .wide{ display:block; width:calc(100% - 14px); margin:8px 7px 0; height:24px; }

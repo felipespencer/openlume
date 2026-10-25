@@ -21,7 +21,7 @@ status = "in_progress"
 plans_completed = 3
 
 [loop]
-position = "PLAN"
+position = "APPLY"
 plan = "02-01"
 plan_path = "phases/02-efeitos-do-resolume/02-01-PLAN.md"
 
@@ -31,4 +31,4 @@ groom = true
 [stats]
 total_plans = 3
 total_phases = 0
-last_activity = "2026-10-25T17:00:00-03:00"
+last_activity = "2026-10-25T20:15:00-03:00"

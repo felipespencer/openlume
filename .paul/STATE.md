@@ -17,22 +17,22 @@ mapeamento de nível profissional.
 ## Current Position
 
 Milestone: v0.2 Automape e provas no equipamento (v0.2.0)
-Phase: 2 of 6 (Efeitos do Resolume) — Planning
-Plan: 02-01 created, awaiting approval
-Status: PLAN created, ready for APPLY. Fase 1 (Automape) segue com 3 de 5 planos: 01-03 no branch `automape` esperando o Felipe ver; 01-04 e 01-05 depois.
-Last activity: 2026-10-25 — Created .paul/phases/02-efeitos-do-resolume/02-01-PLAN.md (bancada lado a lado + Delay RGB, Trails, Threshold)
+Phase: 2 of 6 (Efeitos do Resolume) — Applying
+Plan: 02-01 — Tasks 0, 1 e 2 feitos; no checkpoint final (Felipe conferir o lote)
+Status: APPLY no checkpoint human-verify. Fase 1 (Automape) segue com 3 de 5 planos: 01-03 no branch `automape` esperando o Felipe ver; 01-04 e 01-05 depois.
+Last activity: 2026-10-25 (noite) — bancada funcionando; Threshold, Trails e Delay RGB iguais ao Resolume por quadro; selftest 71 APROVADO; relatório em tools/compare/saida/lote-01/RELATORIO.md
 
 Progress:
-- Milestone: [██░░░░░░░░] 15%
+- Milestone: [██░░░░░░░░] 18%
 - Phase 1: [██████░░░░] 60%
-- Phase 2: [░░░░░░░░░░] 0%
+- Phase 2: [████░░░░░░] 40%
 
 ## Loop Position
 
 Current loop state:
 ```
 PLAN ──▶ APPLY ──▶ UNIFY
-  ✓        ○        ○     [02-01 criado, esperando aprovação]
+  ✓        ◐        ○     [02-01: tarefas feitas, esperando o "aprovado" do Felipe no checkpoint]
 ```
 
 ## Accumulated Context
@@ -58,6 +58,7 @@ PLAN ──▶ APPLY ──▶ UNIFY
 | 2026-10-25: "não quero efeitos próprios, quero copiar" — os efeitos do Resolume entram iguais por fora e na tela, conferidos lado a lado, mas escritos do zero (sem shader, `.wired` ou código do Resolume: repo público GPL) | Phase 2 | Ferramenta de comparação lado a lado; modelos públicos de `ai-models/` podem entrar após conferir licença; plugins FFGL de terceiros podem ser abertos (Fase 3, só Windows); `.wired` não abre (formato fechado, 139 nós) |
 | 2026-10-25 (durante o APPLY do 02-01, pedido no meio): lista de misturas com grupo "Principais" no topo (Alpha, Add, Multiply, Screen, Chroma Key, Luma Key, Luma Key I, Lighten, Darken, Difference, Overlay, Subtract) e "Todos os outros" embaixo; Chroma Key novo como mistura (chave verde padrão, Suavidade = tolerância) | Phase 2 | Desvio de escopo do 02-01, registrar no UNIFY; `pselect` aceita grupo; selftest 69 APROVADO com caso do Chroma Key |
 | 2026-10-25 (durante o APPLY do 02-01, pedidos no meio): Transport do clipe no formato do Resolume (Tipo, Modo com Play Once & Clear/Hold, Ao voltar Restart/Continue/Relative, Velocidade 0–10, Duração editável com /2 ×2) e fonte nativa "Captura" em Fontes: tela, janela (desktopCapturer + getDisplayMedia com setDisplayMediaRequestHandler) e Página web (janela do Electron na tela com opacidade 0, capturada como janela; a captura de conteúdo/webContents não inicia no Electron 33 e fora da tela sai branca) | Phase 2 | Desvios de escopo do 02-01, registrar no UNIFY; selftest 71 APROVADO; cada janela de página leva ~4 s para carregar nesta máquina (motivo não investigado) |
+| 2026-10-25 (APPLY 02-01): efeitos de tempo são copiados POR QUADRO RENDERIZADO (o Resolume rende a ~30 fps nesta máquina; Trails dá um passo por quadro; Delay RGB é fila de quadros renderizados, 1,0 = 40 quadros, e a troca de clipe mostra o clipe novo de uma vez); as cores dos efeitos ganham alfa como no Resolume (`COLOR(..., true)`, "#rrggbbaa", controle de alfa no painel); o shader de camada só premultiplica textura de elemento (`uPre`), porque premultiplicava duas vezes o que passava por efeito | Phase 2 | Vale para todos os lotes seguintes: medir primeiro no Resolume com as sondas de tools/compare/sondas, escrever depois |
 | 2026-10-25: no celular, o desenho é um CLIPE (camada própria, pads, vários desenhos); disparar refaz o traço no ritmo em que foi feito | Phase 3 | O clipe de desenho entra na grade como os outros (mover, Autopilot) |
 | 2026-10-25: efeitos de física entram como PLUGINS (pasta com `plugin.js`), não no código do programa; o celular é do programa, não plugin | Phase 3 | Sistema de plugins antes dos quatro plugins de física |
 
@@ -82,11 +83,11 @@ PLAN ──▶ APPLY ──▶ UNIFY
 
 ## Session Continuity
 
-Last session: 2026-10-25 (tarde/noite)
-Stopped at: APPLY do 02-01 em andamento no branch `efeitos-resolume` (nada commitado). Task 0 feito (servidor web ligado por mim em server.xml, cópia em server.xml.bak-claude); Task 1 quase: fichas dos 96 efeitos em referencia-resolume/FICHAS.md, bancada em tools/compare (resolume.mjs, capture.py por Spout, diff.py, compare.mjs, medir-threshold.mjs) — BLOQUEADA porque o Resolume parou de renderizar nesta máquina (relógio anda, imagem congelada no próprio monitor da composição; Felipe confirmou "paradas"; persiste após reiniciar o Resolume; Steam baixando 112 GB e memória baixa na hora). Task 2 parcial: Threshold com os controles do Resolume e Suavidade medida (smoothstep 0,43×); Delay RGB e Trails com os controles da ficha, conta a conferir na bancada. Desvios feitos no meio (pedidos do Felipe): misturas "Principais" + Chroma Key; Transport do clipe igual ao Resolume; fonte Captura (tela, janela, página web). Selftest 71 APROVADO.
-Next action: quando o Resolume voltar a renderizar (pausar o Steam; Preferences → Video; ou reiniciar o PC), reabrir o OpenLume com `npx electron . --remote-debugging-port=9333`, conferir `py tools/compare/capture.py x.png 5` com quadros mudando, rodar `node tools/compare/compare.mjs Threshold --r "Smoothness=0.4"` e ajustar Threshold/Delay RGB/Trails; depois checkpoint do Felipe e /paul:unify. Commitar o branch (Título PT / Title EN).
+Last session: 2026-10-25 (noite, depois de reiniciar o PC)
+Stopped at: APPLY do 02-01 no checkpoint final (human-verify), branch `efeitos-resolume`, commitado. Tasks 0, 1 e 2 feitas: bancada funcionando (Spout + API REST + CDP), Threshold/Trails/Delay RGB medidos no Resolume e refeitos iguais por quadro (relatório com números em tools/compare/saida/lote-01/RELATORIO.md, fora do git; resumo em tools/compare/README.md). De quebra: cor com alfa nos efeitos (COLOR(..., true) → vec4, controle de alfa no painel) e correção do shader de camada que premultiplicava duas vezes (uPre). Selftest 71 APROVADO. Desvios anteriores (misturas "Principais" + Chroma Key, Transport, fonte Captura) continuam a registrar no UNIFY.
+Next action: Felipe confere o lote (abrir os PNGs de lote-01 e mexer nos três efeitos no OpenLume); com "aprovado", rodar /paul:unify 02-01 e planejar o 02-02 (próximo lote).
 Resume file: .paul/phases/02-efeitos-do-resolume/02-01-PLAN.md
-Resume context: Resolume: API em 127.0.0.1:8080 (resolume.mjs abre clipes na camada 1 casa 2; Saída avançada Screen 1 = Spout "Arena - Screen 1"); clipes de teste em tools/compare/clips (rampa.mp4, quadrado.mp4); saída da bancada em tools/compare/saida (fora do git). Composição do Resolume "Untitled(9)" restaurada com o reel do Felipe na casa 1.
+Resume context: Resolume: API em 127.0.0.1:8080; Saída avançada Screen 1 = Spout "Arena - Screen 1". ARMADILHAS desta máquina: o Resolume congela de vez em quando (API responde, Spout some, monitor preto) — reiniciar só o Arena resolve (ele abre com o aviso "Wire integration is missing", é só Continue); clipe H.264 a 60 fps congela nele; a marca d'água do demo passa pela captura (compare.mjs já captura duas vezes); o Resolume rende a ~30 fps aqui. OpenLume: `location.reload()` NÃO recarrega os módulos (cache do app://), é preciso reabrir o Electron; o diálogo "Projetores" abre ao iniciar (botão Pular). Clipes de teste em tools/compare/clips (rampa, alfa.png, quadA/B/C.png, andando.mp4 a 375 px/s).
 
 ---
 *STATE.md — Updated after every significant action*

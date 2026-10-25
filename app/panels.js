@@ -59,7 +59,7 @@ export class Panels {
   // (forma dos presets do Resolume, ciclo em batidas, mínimo e máximo)
   paramRows(P, holder, p, help) {
     // cor e lista não animam na batida: só o controle
-    if (p.color) { P.appendChild(this.pcolor(p.label, help, holder.params[p.key] ?? p.def, v => { holder.params[p.key] = v; })); return; }
+    if (p.color) { P.appendChild(this.pcolor(p.label, help, holder.params[p.key] ?? p.def, v => { holder.params[p.key] = v; }, p.alpha)); return; }
     if (p.opts) { P.appendChild(this.pselect(p.label, help, p.opts.map((t, i) => [String(i), t]), String(holder.params[p.key] ?? p.def), v => { holder.params[p.key] = +v; })); return; }
     const a = holder.panim && holder.panim[p.key];
     const o = { min: p.min, max: p.max, step: p.step, dec: p.step < 1 ? 2 : 0, unit: p.unit, bar: true };

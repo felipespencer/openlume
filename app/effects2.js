@@ -30,10 +30,12 @@ export const MORE = [
     glsl: `vec4 fx(vec2 uv){ float e = soft + 0.001; float k = smoothstep(l - e, l + e, uv.x) * smoothstep(r - e, r + e, 1.0 - uv.x) * smoothstep(b - e, b + e, uv.y) * smoothstep(t - e, t + e, 1.0 - uv.y); return tex(uv) * k; }` },
   { id: 'cubetiles', name: 'Cube Tiles', desc: 'Ladrilhos que giram como cubos.', params: [P('n', 'Ladrilhos', 6, 1, 24, 1), P('speed', 'Velocidade', 0.5, -3, 3, 0.05), P('spread', 'Desencontro', 0.5, 0, 1)],
     glsl: `vec4 fx(vec2 uv){ vec2 g = uv * vec2(n * ar(), n); vec2 cell = floor(g); vec2 loc = fract(g) - 0.5; float a = uTime * speed + hash(cell) * 6.2831853 * spread; loc = rot2(loc, a); float sc = abs(cos(a * 0.5)) * 0.7 + 0.3; loc /= sc; if (abs(loc.x) > 0.5 || abs(loc.y) > 0.5) return vec4(0.0); vec4 c = tex((cell + loc + 0.5) / vec2(n * ar(), n)); return vec4(c.rgb * (0.6 + 0.4 * sc), c.a); }` },
-  { id: 'delayrgb', name: 'Delay RGB', desc: 'Cada canal de cor chega com o seu atraso (ficha do Resolume: R delay, G delay, B delay).', feedback: true,
+  { id: 'delayrgb', name: 'Delay RGB', desc: 'Cada canal de cor mostra um quadro mais antigo: o vermelho, o verde e o azul se descolam no movimento (ficha do Resolume: R delay, G delay, B delay).', ring: true,
     params: [P('rd', 'Atraso R', 0, 0, 1), P('gd', 'Atraso G', 0.15, 0, 1), P('bd', 'Atraso B', 0.3, 0, 1)], rparams: { 'R delay': 'rd', 'G delay': 'gd', 'B delay': 'bd' },
-    // cada canal segue o seu valor anterior na proporção do atraso (a conferir na bancada: pode ser fila de quadros)
-    glsl: `vec4 fx(vec2 uv){ vec4 c = tex(uv), p = prv(uv); return vec4(mix(c.r, p.r, rd), mix(c.g, p.g, gd), mix(c.b, p.b, bd), max(c.a, p.a * max(rd, max(gd, bd)))); }` },
+    // Medido na bancada (2026-10-25): é uma fila de quadros renderizados (1,0 = 40 quadros, ver RING_FRAMES no engine.js), não uma
+    // mistura com o quadro anterior; ao trocar de clipe os três canais mostram o clipe novo de uma vez. O motor entrega em uDelR/uDelG/uDelB
+    // o quadro de cada canal; o alfa fica o maior dos três.
+    glsl: `vec4 fx(vec2 uv){ vec4 r = texture(uDelR, uv), g = texture(uDelG, uv), b = texture(uDelB, uv); return vec4(r.r, g.g, b.b, max(r.a, max(g.a, b.a))); }` },
   { id: 'dilate', name: 'Dilate', desc: 'Engorda as partes claras.', params: [P('radius', 'Raio', 2, 1, 6, 1, ' px'), P('dark', 'Escuros', 0, 0, 1, 1)],
     glsl: `vec4 fx(vec2 uv){ vec4 best = tex(uv); float bl = lum(best.rgb); for (int i = -3; i <= 3; i++) for (int j = -3; j <= 3; j++) { if (abs(float(i)) > radius || abs(float(j)) > radius) continue; vec4 s = tex(uv + vec2(float(i), float(j)) / uRes); float l = lum(s.rgb); if (dark > 0.5 ? l < bl : l > bl) { bl = l; best = s; } } return best; }` },
   { id: 'displace', name: 'Displace', desc: 'Desloca a imagem pelo próprio brilho.', params: [P('amount', 'Força', 0.3, -1, 1), P('angle', 'Ângulo', 0, 0, 6.28, 0.05)],
@@ -135,8 +137,13 @@ vec4 fx(vec2 uv){ vec2 A = vec2(blx, bly), B = vec2(brx, bry), C = vec2(trx, try
     glsl: `vec4 fx(vec2 uv){ vec2 d = 2.0 / uRes; vec4 c = tex(uv); float hx = lum(tex(uv + vec2(d.x, 0.0)).rgb) - lum(tex(uv - vec2(d.x, 0.0)).rgb); float hy = lum(tex(uv + vec2(0.0, d.y)).rgb) - lum(tex(uv - vec2(0.0, d.y)).rgb); vec3 nrm = normalize(vec3(-hx * height * 20.0, -hy * height * 20.0, 1.0)); vec3 L = normalize(vec3(cos(light), sin(light), 0.6)); float sh = 0.3 + 0.7 * max(0.0, dot(nrm, L)); return vec4(c.rgb * mix(1.0, sh, amount), c.a); }` },
   { id: 'trails', name: 'Trails', desc: 'Rastro do movimento, como exposição longa (ficha do Resolume: Feedback e Mode).', feedback: true,
     params: [P('feedback', 'Feedback', 0.9, 0, 1), LIST('mode', 'Modo', ['Alfa', 'Luma', 'Clarear'], ['Alpha', 'Luma', 'Lighten'])], rparams: { Feedback: 'feedback', Mode: 'mode' },
-    // Alfa: o quadro novo por cima do rastro esmaecido; Luma: o novo entra onde é claro; Clarear: fica o mais claro dos dois (a conferir na bancada)
-    glsl: `vec4 fx(vec2 uv){ vec4 c = tex(uv), p = prv(uv) * feedback; if (mode < 0.5) return over(p, c); if (mode < 1.5) return mix(p, c, clamp(lum(c.rgb) * 1.5, 0.0, 1.0)); return max(c, p); }` },
+    // Medido na bancada (2026-10-25), um passo por quadro renderizado: Alfa = média móvel (rastro × Feedback + novo × (1 − Feedback),
+    // com o alfa junto); Luma = o rastro fica inteiro onde o brilho dele passa de 1 − Feedback e some onde não passa (sem esmaecer;
+    // Feedback 0 apaga tudo), e o quadro novo entra pelo mais claro; Clarear = o mais claro entre o novo e o rastro × Feedback.
+    glsl: `vec4 fx(vec2 uv){ vec4 c = tex(uv), p = prv(uv);
+      if (mode < 0.5) return mix(c, p, feedback);
+      if (mode < 1.5) return max(c, p * (lum(un(p)) > 1.0 - feedback ? 1.0 : 0.0));   // estrito: Feedback 0 apaga até o branco
+      return max(c, p * feedback); }` },
   { id: 'triangulate', name: 'Triangulate', desc: 'A imagem vira triângulos.', params: [P('size', 'Tamanho', 40, 6, 200, 1, ' px')],
     glsl: `vec4 fx(vec2 uv){ vec2 g = uv * uRes / size; vec2 cell = floor(g); vec2 f = fract(g); vec2 ctr = f.x + f.y < 1.0 ? vec2(1.0 / 3.0) : vec2(2.0 / 3.0); return tex((cell + ctr) * size / uRes); }` },
   { id: 'tunnel', name: 'Tunnel', desc: 'Túnel sem fim feito da imagem.', params: [P('speed', 'Velocidade', 0.5, -3, 3, 0.05), P('rot', 'Giro', 0, -2, 2, 0.05), P('zoom', 'Zoom', 1, 0.2, 4, 0.01), P('x', 'Centro X', 0, -1, 1), P('y', 'Centro Y', 0, -1, 1)],

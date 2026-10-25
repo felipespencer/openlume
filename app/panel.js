@@ -104,10 +104,17 @@ export function propsKit(host) {
     for (const [v, t] of opts) { const b = el('button', v === cur ? 'on' : '', t); b.type = 'button'; b.onclick = () => { host.pushUndo(); set(v); host.c.onChange(); host.refresh(); }; s.appendChild(b); }
     box.appendChild(s); return K.prow(label, help, box);
   };
-  K.pcolor = (label, help, v, set) => {
-    const box = el('div', 'pv'); const i = el('input'); i.type = 'color'; i.value = v; i.className = 'sw';
-    i.oninput = () => { set(i.value); host.c.onChange(); host.draw(); }; i.onchange = () => { host.pushUndo(); set(i.value); host.c.onChange(); host.refresh(); };
-    box.appendChild(i); box.appendChild(el('span', 'cktxt', v)); return K.prow(label, help, box);
+  // cor "#rrggbb"; com alpha, "#rrggbbaa" e um controle de alfa ao lado (as cores do Resolume têm alfa)
+  K.pcolor = (label, help, v, set, alpha = false) => {
+    const box = el('div', 'pv'); const i = el('input'); i.type = 'color'; i.value = String(v || '#000000').slice(0, 7); i.className = 'sw';
+    let a = alpha ? Math.round(parseInt(String(v || '').slice(7, 9) || 'ff', 16) / 2.55) : 100;
+    const val = () => alpha ? i.value + Math.round(a * 2.55).toString(16).padStart(2, '0') : i.value;
+    const txt = el('span', 'cktxt', alpha ? i.value + ' · ' + a + ' %' : i.value);
+    const upd = (push) => { if (push) host.pushUndo(); set(val()); host.c.onChange(); txt.textContent = alpha ? i.value + ' · ' + a + ' %' : i.value; if (push) host.refresh(); else host.draw(); };
+    i.oninput = () => upd(false); i.onchange = () => upd(true);
+    box.appendChild(i);
+    if (alpha) { const r = el('input'); r.type = 'range'; r.min = 0; r.max = 100; r.step = 1; r.value = a; r.className = 'sa'; r.title = 'Alfa da cor (0 % = transparente)'; r.oninput = () => { a = +r.value; upd(false); }; r.onchange = () => { a = +r.value; upd(true); }; box.appendChild(r); }
+    box.appendChild(txt); return K.prow(label, help, box);
   };
   K.pbutton = (text, help, fn) => { const b = el('button', 'wide', text); b.type = 'button'; if (help) b.dataset.help = help; b.onclick = fn; return b; };
   return K;

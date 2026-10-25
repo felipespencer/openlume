@@ -91,7 +91,7 @@ async function fichas() {
 }
 
 const [cmd, ...args] = process.argv.slice(2);
-if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}` || process.argv[1].endsWith('resolume.mjs')) {
+if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('resolume.mjs')) {   // só como programa; importado por outro script não roda nada
   const run = { fichas, limpar: () => limpar(), efeito: () => efeito(args.join(' ')).then(e => console.log(JSON.stringify(Object.keys(e.params)))), valor: () => valor(args[0], args[1]).then(r => console.log(r)), abrir: () => abrir(args[0]) }[cmd];
   if (!run) { console.log('comandos: fichas | abrir <arquivo> | efeito <nome> | valor <controle> <v> | limpar'); process.exit(1); }
   run().catch(e => { console.error(e.message || e); process.exit(1); });

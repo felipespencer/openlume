@@ -51,10 +51,10 @@ async function openlume(a, valoresR) {
     P.trigger(0, 1);
     const params = {}; for (const p of def.params) params[p.key] = p.def;
     const rmap = def.rparams || {}, vr = ${JSON.stringify(valoresR)}, vo = ${JSON.stringify(Object.fromEntries(a.o.map(kv)))};
-    // traduz o valor do Resolume: lista pelo nome da opção, cor "#rrggbbaa" para "#rrggbb", o resto é número
+    // traduz o valor do Resolume: lista pelo nome da opção, cor "#rrggbbaa" inteira se o controle tem alfa (senão "#rrggbb"), o resto é número
     for (const [rn, v] of Object.entries(vr)) if (rmap[rn]) {
       const k = rmap[rn], p = def.params.find(q => q.key === k);
-      params[k] = p.opts ? Math.max(0, (p.ropts || p.opts).indexOf(v)) : p.color ? String(v).slice(0, 7) : +v;
+      params[k] = p.opts ? Math.max(0, (p.ropts || p.opts).indexOf(v)) : p.color ? String(v).slice(0, p.alpha ? 9 : 7) : +v;
     }
     for (const [k, v] of Object.entries(vo)) params[k] = isNaN(+v) ? v : +v;
     L.fx = [{ id: def.id, params, bypass: false, anim: {} }];
@@ -75,7 +75,16 @@ await R.efeito(a.efeito);
 const valoresR = Object.fromEntries(a.r.map(kv));
 for (const [k, v] of Object.entries(valoresR)) await R.valor(k, v);
 const rPng = path.join(OUT, rotulo + '.resolume.png');
-execFileSync('py', [path.join(HERE, 'capture.py'), rPng, String(a.espera)], { stdio: ['ignore', 'pipe', 'inherit'] });
+// A marca d'água do Resolume (modo demo) passa pela saída de vez em quando: captura duas vezes e só aceita quando as duas
+// são iguais (o clipe de teste é parado ou está num quadro fixo); senão tenta de novo
+const cap = (arq) => execFileSync('py', [path.join(HERE, 'capture.py'), arq, String(a.espera)], { stdio: ['ignore', 'pipe', 'inherit'] });
+const iguais = (x, y) => execFileSync('py', ['-c', 'import sys,numpy as n;from PIL import Image as I;a=n.asarray(I.open(sys.argv[1]).convert("L")).astype(float);b=n.asarray(I.open(sys.argv[2]).convert("L")).astype(float);print(int(abs(a-b).mean()<0.5))', x, y]).toString().trim() === '1';
+for (let tent = 1; ; tent++) {
+  cap(rPng); await new Promise(r => setTimeout(r, 700)); cap(rPng + '.b.png');
+  if (iguais(rPng, rPng + '.b.png')) break;
+  if (tent >= 5) { console.error('a captura do Resolume não parou de mudar (marca d\'água ou clipe andando)'); break; }
+}
+fs.rmSync(rPng + '.b.png', { force: true });
 
 // OpenLume
 const o = await openlume(a, valoresR);

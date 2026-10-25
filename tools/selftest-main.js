@@ -221,8 +221,16 @@ module.exports = (win, app, laser) => {
         // todos os efeitos compilam e desenham sem erro; Trails (feedback) segura a imagem depois que o clipe sai
         const fxAll = { n: 0, erros: [] }; P.trigger(0,3); await S(100);
         for (const def of P.EFFECTS) { L[0].fx = [{ id: def.id, params: {}, bypass: false, panim: {} }]; try { P.probe(mid); fxAll.n++; } catch (e) { fxAll.erros.push(def.id + ': ' + e.message); } }
+        // os efeitos igualados ao Resolume (Fase 2): cada controle no mínimo e no máximo, sem erro de shader
+        for (const id of ['threshold', 'delayrgb', 'trails']) {
+          const def = P.EFFECTS.find(e => e.id === id);
+          for (const p of def.params) for (const v of (p.color ? ['#00000000', '#ffffffff'] : [p.min, p.max])) {
+            L[0].fx = [{ id, params: { [p.key]: v }, bypass: false, panim: {} }]; try { P.probe(mid); } catch (e) { fxAll.erros.push(id + '.' + p.key + '=' + v + ': ' + e.message); }
+          }
+        }
+        // Trails em Clarear (como medido no Resolume: o mais claro entre o novo e o rastro × Feedback) segura a imagem depois que o clipe sai
         const cropFx = { id: 'crop', params: { l: 0, r: 0, t: 0, b: 0, soft: 0 }, bypass: false, panim: {} };
-        L[0].fx = [cropFx, { id: 'trails', params: { amount: 0.9, mode: 0 }, bypass: false, panim: {} }]; P.probe(mid); P.probe(mid); const trailsAntes = P.probe(mid)[0];
+        L[0].fx = [cropFx, { id: 'trails', params: { feedback: 0.9, mode: 2 }, bypass: false, panim: {} }]; P.probe(mid); P.probe(mid); const trailsAntes = P.probe(mid)[0];
         cropFx.params.l = 1; const trailsDepois = P.probe(mid)[0]; L[0].fx = []; P.eject(0);
         R.fxAll = { ...fxAll, trails: [trailsAntes, trailsDepois], total: P.EFFECTS.length };
         // APC40 mkII (sem a controladora: as mensagens entram pela função que recebe o MIDI): pad da camada 2 coluna 2, linha de cima dispara a coluna, fader e master

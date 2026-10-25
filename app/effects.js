@@ -4,8 +4,9 @@
 // Um efeito pode ir num clipe, numa camada ou na composição.
 import { MORE } from './effects2.js';
 const P = (key, label, def, min, max, step = 0.01, unit = '') => ({ key, label, def, min, max, step, unit });
-// controle de cor ("#rrggbb", vira vec3 no shader) e de lista (o índice da opção; ropts = os nomes no Resolume, para a bancada)
-export const COLOR = (key, label, def) => ({ key, label, def, color: true });
+// controle de cor ("#rrggbb", vira vec3 no shader; com alpha: "#rrggbbaa", vira vec4, como as cores do Resolume, que têm alfa)
+// e de lista (o índice da opção; ropts = os nomes no Resolume, para a bancada)
+export const COLOR = (key, label, def, alpha = false) => ({ key, label, def, color: true, alpha });
 export const LIST = (key, label, opts, ropts, def = 0) => ({ key, label, def, opts, ropts, min: 0, max: opts.length - 1, step: 1, unit: '' });
 // Efeitos igualados ao Resolume (Fase 2): `rparams` liga o nome do controle no Resolume à chave daqui, para a
 // bancada tools/compare levar os mesmos valores aos dois programas. Os controles seguem a ficha da API REST
@@ -39,14 +40,18 @@ const BASE = [
   { id: 'colorize', name: 'Colorize', desc: 'Pinta os escuros com uma cor e os claros com outra.', params: [P('hue1', 'Matiz escuro', 0.65, 0, 1), P('hue2', 'Matiz claro', 0.1, 0, 1)], glsl: `vec4 fx(vec2 uv){ vec4 c = tex(uv); float l = lum(un(c)); return pre(mix(hsv2rgb(vec3(hue1, 1.0, 0.4)), hsv2rgb(vec3(hue2, 0.6, 1.0)), l), c.a); }` },
   { id: 'posterize', name: 'Posterize', desc: 'Reduz as cores a poucos níveis.', params: [P('levels', 'Níveis', 4, 2, 16, 1)], glsl: `vec4 fx(vec2 uv){ vec4 c = tex(uv); return pre(floor(un(c) * levels) / (levels - 1.0), c.a); }` },
   { id: 'threshold', name: 'Threshold', desc: 'Duas cores por limiar de brilho: acima do limiar a Cor 1, abaixo a Cor 2.',
-    params: [P('level', 'Limiar', 0.5, 0, 1), P('soft', 'Suavidade', 0, 0, 1), COLOR('color1', 'Cor 1', '#ffffff'), COLOR('color2', 'Cor 2', '#000000'),
+    params: [P('level', 'Limiar', 0.5, 0, 1), P('soft', 'Suavidade', 0, 0, 1), COLOR('color1', 'Cor 1', '#ffffffff', true), COLOR('color2', 'Cor 2', '#000000ff', true),
       LIST('alpha', 'Alfa', ['Original', 'Combinar', 'Substituir'], ['Original', 'Combine', 'Replace'])],
     rparams: { Threshold: 'level', Smoothness: 'soft', 'Color 1': 'color1', 'Color 2': 'color2', Alpha: 'alpha' },
-    // brilho com os pesos de HD (Rec. 709): o verde a 75 % fica acima de 0,5, como no Resolume ("smooth" é palavra reservada do GLSL)
-    glsl: `vec4 fx(vec2 uv){ vec4 c = tex(uv); float l = dot(un(c), vec3(0.2126, 0.7152, 0.0722)); float s = soft * 0.43;   // medido no Resolume: a rampa de 10 % a 90 % mede 0,52 × Suavidade, o que dá um smoothstep de meia-largura 0,43 × Suavidade
+    // Medido na bancada (2026-10-25): o limiar é pelo brilho SEM premultiplicar, com os pesos de HD (Rec. 709); a rampa de
+    // 10 % a 90 % mede 0,52 × Suavidade (smoothstep de meia-largura 0,43 × Suavidade); a cor escolhida sai escurecida pelo
+    // próprio alfa; e o modo Alfa decide o alfa da saída: Original = o do clipe, Combinar = o do clipe × o da cor,
+    // Substituir = só o da cor. ("smooth" é palavra reservada do GLSL.)
+    glsl: `vec4 fx(vec2 uv){ vec4 c = tex(uv); float l = dot(un(c), vec3(0.2126, 0.7152, 0.0722)); float s = soft * 0.43;
       float m = s > 0.0 ? smoothstep(level - s, level + s, l) : step(level, l);
-      float a = alpha < 0.5 ? c.a : (alpha < 1.5 ? c.a * m : m);
-      return pre(mix(color2, color1, m), a); }` },
+      vec4 k = mix(color2, color1, m);
+      float a = alpha < 0.5 ? c.a : (alpha < 1.5 ? c.a * k.a : k.a);
+      return pre(k.rgb * k.a, a); }` },
   { id: 'edgedetection', name: 'Edge Detection', desc: 'Só as bordas.', params: [P('amount', 'Intensidade', 1, 0, 3, 0.05)], glsl: `vec4 fx(vec2 uv){ vec2 d = 1.0 / uRes; float gx = lum(tex(uv + vec2(d.x, 0.0)).rgb) - lum(tex(uv - vec2(d.x, 0.0)).rgb); float gy = lum(tex(uv + vec2(0.0, d.y)).rgb) - lum(tex(uv - vec2(0.0, d.y)).rgb); float e = clamp(length(vec2(gx, gy)) * 4.0 * amount, 0.0, 1.0); return vec4(vec3(e) * tex(uv).a, tex(uv).a); }` },
   { id: 'dotscreen', name: 'Dot Screen', desc: 'Retícula de pontos, como impressão.', params: [P('size', 'Tamanho', 8, 2, 40, 1, ' px'), P('angle', 'Ângulo', 0.4, 0, 3.14, 0.01)], glsl: `vec4 fx(vec2 uv){ vec4 c = tex(uv); float l = lum(un(c)); vec2 p = uv * uRes; float s = sin(angle), co = cos(angle); vec2 q = vec2(co * p.x - s * p.y, s * p.x + co * p.y) / size; float d = length(fract(q) - 0.5); float v = step(d, l * 0.7); return pre(vec3(v), c.a); }` },
   { id: 'lorez', name: 'LoRez', desc: 'Pixela a imagem.', params: [P('size', 'Pixel', 16, 2, 128, 1, ' px')], glsl: `vec4 fx(vec2 uv){ vec2 p = floor(uv * uRes / size) * size + size * 0.5; return tex(p / uRes); }` },

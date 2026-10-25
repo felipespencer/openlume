@@ -14,16 +14,19 @@ import { tessellate } from './warp.js';
 import { softWidths, allSlices } from './screens.js';
 import { effectById, EFFECT_HELPERS } from './effects.js';
 import { sourceById } from './sources.js';
-import { FS_MIX, mixerCode, normMixer, hexRgb, MIXER_OPT, mixerColor } from './mixers.js';
+import { FS_MIX, mixerCode, normMixer, hexRgb, hexRgba, MIXER_OPT, mixerColor } from './mixers.js';
 import { animValue } from './beat.js';
 
 // camada/clipe: quad com ajuste, posição, escala e giro
 const VS_LAYER = `#version 300 es
 in vec2 a; uniform vec2 uScale; uniform vec2 uPos; uniform float uRot; uniform float uAspect; out vec2 v;
 void main(){ v = a * 0.5 + 0.5; vec2 p = a * uScale; p.x *= uAspect; float c = cos(uRot), s = sin(uRot); p = vec2(c * p.x - s * p.y, s * p.x + c * p.y); p.x /= uAspect; gl_Position = vec4(p + uPos, 0.0, 1.0); }`;
+// uPre = 0: a textura é de um elemento (vídeo, imagem, texto), com alfa reto, e é premultiplicada aqui;
+// uPre = 1: já vem premultiplicada (resultado de efeito, de fonte ou de mistura) e entra como está — multiplicar de novo
+// escurecia duas vezes tudo que é meio transparente e passa por efeito (visto na bancada do Threshold, 2026-10-25)
 const FS_LAYER = `#version 300 es
-precision highp float; in vec2 v; uniform sampler2D uTex; uniform float uOp; out vec4 o;
-void main(){ vec4 c = texture(uTex, v); o = vec4(c.rgb * c.a * uOp, c.a * uOp); }`;
+precision highp float; in vec2 v; uniform sampler2D uTex; uniform float uOp; uniform float uPre; out vec4 o;
+void main(){ vec4 c = texture(uTex, v); if (uPre < 0.5) c.rgb *= c.a; o = c * uOp; }`;
 
 // slice: posição em px da tela; luv é a coordenada local (0..1) dentro do recorte
 const VS_SLICE = `#version 300 es
@@ -84,8 +87,12 @@ void main(){ vec4 c = texture(uTex, v); o = uOpaque != 0 ? vec4(c.rgb, 1.0) : c;
 const FX_HEAD = `#version 300 es
 precision highp float; in vec2 v; out vec4 o; uniform sampler2D uTex; uniform sampler2D uPrev; uniform vec2 uRes; uniform float uTime;
 `;
-// controle de cor ({ color: true }, valor "#rrggbb") vira vec3 no shader; número, lista (índice da opção) e liga/desliga viram float
-const uDecl = (p) => (p.color ? 'uniform vec3 ' : 'uniform float ') + p.key + ';';
+// Delay RGB: quantos quadros renderizados valem 1,0 de atraso. Medido no Resolume (bancada de 2026-10-25): 0,5 deu 20 quadros
+// com ele rendendo a 30 fps (a 0,5× de velocidade do clipe o atraso em pixels cai pela metade, então é fila de quadros, não de tempo).
+const RING_FRAMES = 40;
+// controle de cor ({ color: true }, valor "#rrggbb") vira vec3 no shader (com { alpha: true }, "#rrggbbaa" vira vec4);
+// número, lista (índice da opção) e liga/desliga viram float
+const uDecl = (p) => (p.color ? (p.alpha ? 'uniform vec4 ' : 'uniform vec3 ') : 'uniform float ') + p.key + ';';
 
 export const FITS = { contain: 'Encaixar', cover: 'Preencher', stretch: 'Esticar' };
 export const IDENT_TR = () => ({ x: 0, y: 0, scale: 1, sx: 1, sy: 1, rot: 0 });   // tamanho final: largura = scale*sx, altura = scale*sy
@@ -98,7 +105,7 @@ export class Engine {
     canvas.width = width; canvas.height = height;
     const gl = this.gl = canvas.getContext('webgl2', { alpha: false, antialias: false, premultipliedAlpha: true, preserveDrawingBuffer: true });
     if (!gl) throw new Error('WebGL2 indisponível');
-    this.progLayer = this.program(VS_LAYER, FS_LAYER, ['uScale', 'uPos', 'uRot', 'uAspect', 'uOp', 'uTex']);
+    this.progLayer = this.program(VS_LAYER, FS_LAYER, ['uScale', 'uPos', 'uRot', 'uAspect', 'uOp', 'uPre', 'uTex']);
     this.progSlice = this.program(VS_SLICE, FS_SLICE, ['uScreen', 'uIn', 'uRot', 'uFlip', 'uSrc', 'uTex', 'uBC', 'uRGB', 'uUseSoft', 'uSoft', 'uSoftP', 'uGamma', 'uUseMask', 'uMask']);
     this.progScreen = this.program(VS_QUAD, FS_SCREEN, ['uTex', 'uMask', 'uUseMask', 'uBC', 'uRGB', 'uOp']);
     this.progCopy = this.program(VS_QUAD, FS_COPY, ['uTex', 'uOpaque']);
@@ -234,7 +241,8 @@ export class Engine {
     return f.t;
   }
   setParam(pr, p, v) {
-    if (p.color) { const [r, g, b] = hexRgb(v); this.gl.uniform3f(pr.u[p.key], r, g, b); } else this.gl.uniform1f(pr.u[p.key], +v);
+    if (p.color && p.alpha) { const [r, g, b, a] = hexRgba(v); this.gl.uniform4f(pr.u[p.key], r, g, b, a); }
+    else if (p.color) { const [r, g, b] = hexRgb(v); this.gl.uniform3f(pr.u[p.key], r, g, b); } else this.gl.uniform1f(pr.u[p.key], +v);
   }
 
   // o valor de um parâmetro de efeito ou de fonte agora: o guardado, ou o animado na batida
@@ -248,25 +256,37 @@ export class Engine {
     let pr = this.fxProg.get(def.id);
     if (!pr) {
       // Opacidade do efeito (como no Resolume, todo efeito tem): mistura o resultado com o que entrou
-      const fs = FX_HEAD + 'uniform float uFxOp;\n' + def.params.map(uDecl).join('\n') + '\n' + EFFECT_HELPERS + def.glsl + '\nvoid main(){ vec4 r = fx(v); o = uFxOp >= 1.0 ? r : mix(texture(uTex, v), r, uFxOp); }';
-      pr = this.program(VS_QUAD, fs, ['uTex', 'uPrev', 'uRes', 'uTime', 'uFxOp', ...def.params.map(p => p.key)]); this.fxProg.set(def.id, pr);
+      // efeito com { ring: true } (Delay RGB): recebe três quadros mais antigos da própria entrada, um por canal
+      const fs = FX_HEAD + 'uniform float uFxOp;\n' + (def.ring ? 'uniform sampler2D uDelR; uniform sampler2D uDelG; uniform sampler2D uDelB;\n' : '') + def.params.map(uDecl).join('\n') + '\n' + EFFECT_HELPERS + def.glsl + '\nvoid main(){ vec4 r = fx(v); o = uFxOp >= 1.0 ? r : mix(texture(uTex, v), r, uFxOp); }';
+      pr = this.program(VS_QUAD, fs, ['uTex', 'uPrev', 'uRes', 'uTime', 'uFxOp', ...(def.ring ? ['uDelR', 'uDelG', 'uDelB'] : []), ...def.params.map(p => p.key)]); this.fxProg.set(def.id, pr);
     }
     return pr;
   }
-  // aplica uma cadeia de efeitos a uma textura w×h; devolve a textura resultante (ou a própria)
-  applyChain(tex, w, h, chain) {
+  // aplica uma cadeia de efeitos a uma textura w×h; devolve a textura resultante (ou a própria).
+  // key: identidade do clipe de onde vem a textura (a fila do Delay RGB recomeça quando o clipe troca)
+  applyChain(tex, w, h, chain, key) {
     const gl = this.gl, live = (chain || []).filter(f => !f.bypass && effectById(f.id));
     if (!live.length) return tex;
     gl.disable(gl.BLEND); gl.bindVertexArray(this.quadVao);
     let src = tex, i = 0;
     for (const f of live) {
       const def = effectById(f.id), pr = this.fxProgram(def);
-      let dst, prev = this.white;
+      let dst, prev = this.white, ring = null;
       if (def.feedback) {   // a saída anterior entra em uPrev; desenha na outra textura do par
         let m = this.fxMem.get(f);
         if (!m || m.w !== w || m.h !== h) { if (m) { for (const q of [m.a, m.b]) { gl.deleteFramebuffer(q.fb); gl.deleteTexture(q.t); } } m = { a: this.fbo(w, h), b: this.fbo(w, h), i: 0, w, h }; this.fxMem.set(f, m); }
         dst = m.i ? m.b : m.a; prev = (m.i ? m.a : m.b).t; m.i ^= 1;
       } else {
+        if (def.ring) {   // Delay RGB: fila dos últimos quadros renderizados desta entrada; cada canal lê um quadro mais antigo
+          const del = def.params.map(p => Math.round(Math.max(0, Math.min(1, +this.paramValue(f, p))) * RING_FRAMES)), L = Math.max(...del) + 1;
+          let m = this.fxMem.get(f);
+          if (!m || m.w !== w || m.h !== h || m.ring.length < L) { if (m) for (const q of m.ring) { gl.deleteFramebuffer(q.fb); gl.deleteTexture(q.t); } m = { w, h, ring: Array.from({ length: L }, () => this.fbo(w, h)), i: -1, n: 0, key }; this.fxMem.set(f, m); }
+          if (m.key !== key) { m.key = key; m.n = 0; }   // trocou o clipe: os três canais mostram o clipe novo de uma vez, como no Resolume
+          const R = m.ring.length; m.i = (m.i + 1) % R; m.n = Math.min(m.n + 1, R);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, m.ring[m.i].fb); this.copyInto(src, w, h, false); gl.disable(gl.BLEND);
+          const pick = d => m.ring[((m.i - Math.min(d, m.n - 1)) % R + R) % R].t;   // sem quadro tão antigo ainda, vale o mais antigo que há
+          ring = del.map(pick);
+        }
         if (def.mask && f._maskTex) prev = f._maskTex;   // Background Removal: a máscara da segmentação
         dst = this.scratch[1 + (i & 1)];
         if (dst.w !== w || dst.h !== h) { gl.deleteFramebuffer(dst.fb); gl.deleteTexture(dst.t); dst = this.scratch[1 + (i & 1)] = this.fbo(w, h); }
@@ -274,6 +294,7 @@ export class Engine {
       }
       gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fb); gl.viewport(0, 0, w, h);
       gl.useProgram(pr.p);
+      if (ring) for (let k = 0; k < 3; k++) { gl.activeTexture(gl.TEXTURE2 + k); gl.bindTexture(gl.TEXTURE_2D, ring[k]); gl.uniform1i(pr.u[['uDelR', 'uDelG', 'uDelB'][k]], 2 + k); }
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, prev); gl.uniform1i(pr.u.uPrev, 1);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src); gl.uniform1i(pr.u.uTex, 0);
       gl.uniform2f(pr.u.uRes, w, h); gl.uniform1f(pr.u.uTime, this.time);
@@ -304,6 +325,7 @@ export class Engine {
     gl.uniform2f(P.u.uScale, sx * t.scale * (t.sx ?? 1), sy * t.scale * (t.sy ?? 1));
     gl.uniform2f(P.u.uPos, t.x, t.y); gl.uniform1f(P.u.uRot, -t.rot * Math.PI / 180); gl.uniform1f(P.u.uAspect, W / H);
     gl.uniform1f(P.u.uOp, opacity);
+    gl.uniform1f(P.u.uPre, clip && clip.kind !== 'source' ? 0 : 1);   // só a textura de um elemento (vídeo, imagem, texto) ainda tem alfa reto
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
@@ -315,7 +337,7 @@ export class Engine {
     const tex = this.texFor(c);
     gl.bindFramebuffer(gl.FRAMEBUFFER, s.fb); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
     this.drawClipQuad(tex, c, c.transform, c.opacity ?? 1, W, H, 'normal');
-    const out = this.applyChain(s.t, W, H, chain);
+    const out = this.applyChain(s.t, W, H, chain, c.id);
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo.fb); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
     this.drawClipQuad(out, null, L.transform || IDENT_TR(), 1, W, H, 'normal');
     return fbo.t;
@@ -381,7 +403,7 @@ export class Engine {
           const s = this.scratch[0];
           gl.bindFramebuffer(gl.FRAMEBUFFER, s.fb); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
           this.drawClipQuad(tex, c, c.transform, 1, W, H, 'normal');
-          tex = this.applyChain(s.t, W, H, chain);
+          tex = this.applyChain(s.t, W, H, chain, c.id);
           gl.bindFramebuffer(gl.FRAMEBUFFER, target.fb); gl.viewport(0, 0, W, H);
           this.drawClipQuad(tex, null, tr, op * (c.opacity ?? 1), W, H, 'normal');
         } else this.drawClipQuad(tex, c, { ...tr }, op * (c.opacity ?? 1), W, H, 'normal');

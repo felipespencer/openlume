@@ -53,7 +53,9 @@ export const MIXER_OPT = () => ({ color: '#000000', smooth: 0.1 });
 export const mixerColor = (id, opt) => { const m = mixerById(id), c = opt && opt.color; return m.defColor && (!c || c === '#000000') ? m.defColor : (c || '#000000'); };
 // "Ao acaso" da transição sorteia entre os modos do Resolume (sem o Alpha do começo nem o Chroma Key do fim, que não é transição)
 export const randomMixer = () => MIXERS[1 + Math.floor(Math.random() * (MIXERS.length - 2))].id;
-export const hexRgb = (h) => { const n = parseInt((h || '#000000').slice(1), 16); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
+export const hexRgb = (h) => { const n = parseInt((h || '#000000').slice(1, 7), 16); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
+// "#rrggbbaa" → [r, g, b, a] em 0–1; sem os dois dígitos do alfa (cor guardada antes de existir alfa) vale 1
+export const hexRgba = (h) => { const s = String(h || '#000000'); return [...hexRgb(s), s.length >= 9 ? parseInt(s.slice(7, 9), 16) / 255 : 1]; };
 
 // família Photoshop: [id, conta com a (embaixo) e b (camada), despremultiplicadas]; as "50" misturam no fader inteiro
 const PS = [
