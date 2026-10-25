@@ -2,10 +2,10 @@
 // Clipe (meio). Autopilot, master, mistura, transição, transformação e a cadeia de efeitos.
 import { el, ICON, propsKit, fmtN } from './panel.js';
 import { FITS } from './engine.js';
-import { MIXER_OPTS, MIXER_OPT, mixerById } from './mixers.js';
+import { MIXER_OPTS, MIXER_OPT, mixerById, mixerColor } from './mixers.js';
 import { EFFECTS, effectById, mkFx } from './effects.js';
 import { sourceById } from './sources.js';
-import { renderText, playClip, pauseClip, seekClip, setRate, applyAudio, mediaOf, rebuildAudioFx, updateAudioFx } from './clips.js';
+import { PLAY_MODES, AWAY_MODES, captureNavigate, renderText, playClip, pauseClip, seekClip, setRate, applyAudio, mediaOf, rebuildAudioFx, updateAudioFx } from './clips.js';
 import { AUTOPILOT } from './composition.js';
 import { SHAPES, BEATS, ANIM } from './beat.js';
 import { AUDIO_FX, audioFxById, BANDS } from './audio.js';
@@ -58,6 +58,9 @@ export class Panels {
   // um parâmetro de efeito ou de fonte: a linha do valor e o botão ♪, que o anima na batida
   // (forma dos presets do Resolume, ciclo em batidas, mínimo e máximo)
   paramRows(P, holder, p, help) {
+    // cor e lista não animam na batida: só o controle
+    if (p.color) { P.appendChild(this.pcolor(p.label, help, holder.params[p.key] ?? p.def, v => { holder.params[p.key] = v; })); return; }
+    if (p.opts) { P.appendChild(this.pselect(p.label, help, p.opts.map((t, i) => [String(i), t]), String(holder.params[p.key] ?? p.def), v => { holder.params[p.key] = +v; })); return; }
     const a = holder.panim && holder.panim[p.key];
     const o = { min: p.min, max: p.max, step: p.step, dec: p.step < 1 ? 2 : 0, unit: p.unit, bar: true };
     const row = this.pnum(p.label, help, holder.params[p.key] ?? p.def, { ...o, reset: p.def }, v => { holder.params[p.key] = v; });
@@ -83,7 +86,9 @@ export class Panels {
       const up = el('button', 'mini', '▲'); up.type = 'button'; up.title = 'Subir'; up.disabled = i === 0; up.onclick = () => { list.splice(i - 1, 2, list[i], list[i - 1]); this.render(); };
       const x = el('button', 'mini', '✕'); x.type = 'button'; x.title = 'Tirar o efeito'; x.onclick = () => { list.splice(i, 1); this.render(); };
       h.append(by, nm, up, x); P.appendChild(h);
-      if (!f.bypass) for (const p of def.params) this.paramRows(P, f, p, def.name + ' · ' + p.label + '|' + def.desc);
+      if (f.bypass) return;
+      P.appendChild(this.pnum('Opacidade', def.name + ' · Opacidade|Quanto do efeito entra: 0 % é a imagem sem o efeito.', Math.round((f.opacity ?? 1) * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v => { f.opacity = v / 100; }));
+      for (const p of def.params) this.paramRows(P, f, p, def.name + ' · ' + p.label + '|' + def.desc);
     });
     const dz = el('div', 'dropzone', list.length ? 'Solte outro efeito aqui' : 'Solte um efeito aqui'); dz.dataset.help = 'Soltar efeito|Arraste do painel Efeitos.';
     dz.ondragover = (e) => { const d = this.ctx.drag(); if (d && d.effect) { e.preventDefault(); dz.classList.add('over'); } };
@@ -123,7 +128,7 @@ export class Panels {
   // parâmetros que alguns modos de mistura/transição têm: cor (to Color) e suavidade (Luma Key, Dissolve, Wipe…)
   mixerOptRows(P, modeId, opt, what) {
     const m = mixerById(modeId);
-    if (m.color) P.appendChild(this.pcolor('Cor', 'Cor ' + what + '|A cor pela qual o modo "' + m.name + '" passa.', opt.color || '#000000', v => { opt.color = v; }));
+    if (m.color) P.appendChild(this.pcolor('Cor', 'Cor ' + what + (m.id === 'chromakey' ? '|A cor que some da camada (o verde ou o azul do fundo).' : '|A cor pela qual o modo "' + m.name + '" passa.'), mixerColor(m.id, opt), v => { opt.color = v; }));
     if (m.smooth) P.appendChild(this.pnum('Suavidade', 'Suavidade ' + what + '|Borda macia do modo "' + m.name + '".', Math.round((opt.smooth ?? 0.1) * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 10 }, v => { opt.smooth = v / 100; }));
   }
   renderLayer(P, L) {
@@ -194,13 +199,20 @@ export class Panels {
       btn('−1q', 'Um quadro para trás|', false, () => { pauseClip(clip); seekClip(clip, v.currentTime - 1 / 30); }),
       btn('+1q', 'Um quadro para a frente|', false, () => { pauseClip(clip); seekClip(clip, v.currentTime + 1 / 30); }));
     P.appendChild(this.prow('Tocar', '', tr));
-    P.appendChild(this.pseg('Sincronia', 'Sincronia|Linha do tempo: a velocidade é a sua. BPM Sync: a faixa entre a entrada e a saída dura N batidas, presa ao relógio de BPM (como no Resolume).', [['timeline', 'Linha do tempo'], ['bpm', 'BPM Sync']], t.sync || 'timeline', v2 => { t.sync = v2; if (v2 !== 'bpm') setRate(clip, S.speed); }));
+    // formato do Transport do Resolume: tipo, modo, ao voltar, velocidade (0–10) e duração editável (/2 ×2 mexem na velocidade)
+    P.appendChild(this.pselect('Tipo', 'Tipo|Linha do tempo: a velocidade é a sua. BPM Sync: a faixa entre a entrada e a saída dura N batidas, presa ao relógio de BPM.', [['timeline', 'Linha do tempo'], ['bpm', 'BPM Sync']], t.sync || 'timeline', v2 => { t.sync = v2; if (v2 !== 'bpm') setRate(clip, S.speed); }));
     if (t.sync === 'bpm') P.appendChild(this.pselect('Batidas', 'Batidas|Quantas batidas a faixa do clipe dura.', BEATS.filter(x => x >= 1).map(x => [String(x), String(x)]), String(t.beats || 8), v2 => { t.beats = +v2; }));
-    P.appendChild(this.pseg('Modo', 'Modo|Loop repete; vai e volta inverte nas pontas; uma vez para na saída; aleatório pula pelo clipe.', [['loop', 'Loop'], ['bounce', 'Vai e volta'], ['once', 'Uma vez'], ['random', 'Aleatório']], t.mode, v2 => { t.mode = v2; }));
-    P.appendChild(this.pnum('Velocidade', 'Velocidade|1x é a do arquivo; até 10x.', clip.speed, { min: 0.05, max: 10, step: 0.05, dec: 2, unit: 'x', bar: true, reset: 1 }, v2 => { clip.speed = v2; setRate(clip, S.speed); }));
+    P.appendChild(this.pselect('Modo', 'Modo|Loop repete. Vai e volta inverte nas pontas. Aleatório pula pelo clipe. Uma vez e limpa: no fim, a camada sai do ar. Uma vez e segura: no fim, fica no último quadro.', PLAY_MODES, t.mode, v2 => { t.mode = v2; }));
+    P.appendChild(this.pselect('Ao voltar', 'Ao voltar|O que acontece quando o clipe é disparado de novo depois de outro ter tocado na camada. Recomeça: da entrada. Continua: de onde parou. Relativo: na mesma altura em que estava o clipe que saiu.', AWAY_MODES, t.away || 'restart', v2 => { t.away = v2; }));
+    P.appendChild(this.pnum('Velocidade', 'Velocidade|1x é a do arquivo; de 0 a 10x, como no Resolume.', clip.speed, { min: 0, max: 10, step: 0.01, dec: 2, unit: 'x', bar: true, reset: 1 }, v2 => { clip.speed = Math.max(0.01, v2); setRate(clip, S.speed); }));
+    const faixa = (t.out || dur) - t.in, curDur = faixa / (clip.speed * S.speed);
+    const setDur = (d) => { clip.speed = Math.max(0.01, Math.min(10, faixa / (Math.max(0.05, d) * S.speed))); setRate(clip, S.speed); };
+    const drow = this.pnum('Duração', 'Duração|Quanto tempo a faixa entre a entrada e a saída leva para tocar. Mudar aqui muda a velocidade. /2 toca duas vezes mais rápido, ×2 duas vezes mais devagar.', +curDur.toFixed(2), { min: 0.05, max: 3600, step: 0.1, dec: 2, unit: ' s', reset: +faixa.toFixed(2) }, setDur);
+    for (const [txt0, k] of [['/2', 0.5], ['×2', 2]]) { const b = el('button', 'mini', txt0); b.type = 'button'; b.title = k < 1 ? 'Metade da duração (velocidade em dobro)' : 'Dobro da duração (metade da velocidade)'; b.onclick = (e) => { e.stopPropagation(); setDur(curDur * k); this.render(); }; drow.querySelector('.pv').appendChild(b); }
+    P.appendChild(drow);
     P.appendChild(this.pnum('Entrada', 'Entrada (cut in)|Onde o clipe começa, em segundos.', t.in, { min: 0, max: dur, step: 0.1, dec: 1, unit: ' s', bar: true, reset: 0 }, v2 => { t.in = Math.min(v2, (t.out || dur) - 0.1); }));
     P.appendChild(this.pnum('Saída', 'Saída (cut out)|Onde o clipe termina, em segundos.', t.out || dur, { min: 0, max: dur, step: 0.1, dec: 1, unit: ' s', bar: true, reset: dur }, v2 => { t.out = Math.max(v2, t.in + 0.1); }));
-    P.appendChild(this.prow('Duração', 'Duração|Entre a entrada e a saída, na velocidade atual.', el('span', 'pinfo', fmtT1(((t.out || dur) - t.in) / (clip.speed * S.speed)) + ' · arquivo ' + fmtT1(dur))));
+    P.appendChild(this.prow('Arquivo', 'Arquivo|Duração do arquivo inteiro.', el('span', 'pinfo', fmtT1(dur))));
     // arquivo preparado (H.264 todo intra ou DXV) toca no reprodutor próprio: ré e pulo lisos
     const prog = this.ctx.preparing(clip);
     if (clip.anim) P.appendChild(this.prow('Arquivo', 'Animação|GIF (ou WebP/AVIF) animado, quadro a quadro: ré, pulo e velocidade funcionam como num vídeo preparado.', el('span', 'pinfo ok', 'animação · ' + clip.player.frames + ' quadros · ' + clip.player.fps.toFixed(0) + ' fps')));
@@ -265,6 +277,10 @@ export class Panels {
       P.appendChild(this.pnum('X', '', Math.round(t.x * 100), { min: -100, max: 100, step: 1, bar: true, reset: 0 }, v => { t.x = v / 100; up(); }));
       P.appendChild(this.pnum('Y', '', Math.round(t.y * 100), { min: -100, max: 100, step: 1, bar: true, reset: 0 }, v => { t.y = v / 100; up(); }));
     } else if (clip.kind === 'camera') P.appendChild(this.prow('Câmera', '', el('span', 'pinfo', clip.name + ' · ' + clip.w + ' × ' + clip.h)));
+    else if (clip.kind === 'capture') {
+      if (clip.cap.url) P.appendChild(this.ptext('Endereço', 'Endereço|A página que o navegador escondido mostra. Mudar aqui abre outra página no mesmo clipe.', clip.cap.url, v => { if (v && v !== clip.cap.url) { captureNavigate(clip, v); this.ctx.renderGrid(); } }));
+      P.appendChild(this.prow('Captura', '', el('span', 'pinfo', (clip.cap.url ? 'página web' : clip.cap.srcName) + ' · ' + clip.w + ' × ' + clip.h)));
+    }
     else if (clip.kind === 'laser') { P.appendChild(this.prow('Tipo', '', el('span', 'pinfo', 'Quadro do laser'))); P.appendChild(this.pbutton('Abrir no Laser', 'Abrir no Laser|Edita este quadro no módulo do laser.', () => { const f = this.ctx.laser.byId(clip.laserId); if (f) this.ctx.openLaser(f); })); return; }
     // para onde este clipe manda quando acaba
     const ap = clip.ap || (clip.ap = { mode: 'layer', l: 0, c: 0, dur: 'clip', secs: 5 }), S = this.ctx.state;

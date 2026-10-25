@@ -76,7 +76,15 @@ export function propsKit(host) {
     c.onclick = () => { host.pushUndo(); set(!v); host.c.onChange(); host.refresh(); }; box.appendChild(c); if (txt) box.appendChild(el('span', 'cktxt', txt)); return K.prow(label, help, box);
   };
   K.pselect = (label, help, opts, cur, set) => {
-    const box = el('div', 'pv'); const s = el('select'); for (const [v, t] of opts) { const o = el('option', '', t); o.value = v; s.appendChild(o); } s.value = cur;
+    // opção com 3º item = nome do grupo: as opções do mesmo grupo vão juntas num <optgroup>, na ordem em que aparecem
+    const box = el('div', 'pv'); const s = el('select'); const groups = new Map();
+    for (const [v, t, g] of opts) {
+      const o = el('option', '', t); o.value = v;
+      if (!g) { s.appendChild(o); continue; }
+      if (!groups.has(g)) { const og = el('optgroup'); og.label = g; groups.set(g, og); s.appendChild(og); }
+      groups.get(g).appendChild(o);
+    }
+    s.value = cur;
     s.onchange = () => { host.pushUndo(); set(s.value); host.c.onChange(); host.refresh(); }; box.appendChild(s); return K.prow(label, help, box);
   };
   K.ptext = (label, help, v, set) => {

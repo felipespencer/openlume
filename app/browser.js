@@ -149,6 +149,13 @@ export class Browser {
     try { if (!this.cameras.length) this.cameras = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput'); } catch { }
     if (!this.cameras.length) list.appendChild(el('div', 'vazio', 'Nenhuma câmera encontrada.'));
     this.cameras.forEach((cam, i) => { const name = cam.label || ('Câmera ' + (i + 1)); if (this.match(name)) mk(name, 'Câmera ligada ao computador.', { camera: { id: cam.deviceId, label: name } }); });
+    list.appendChild(el('div', 'grp', 'CAPTURA DE TELA, JANELA E PÁGINA WEB'));
+    const D = this.c.desktop;
+    if (D && D.capture) {
+      if (this.match('Página web')) mk('Página web…', 'Abre um endereço num navegador escondido dentro do OpenLume e projeta a página: sites, vídeos, visualizadores, a sua aba.', { capture: { web: true } });
+      try { this.captures = await D.capture.sources(); } catch { this.captures = []; }
+      for (const s of this.captures) { const name = (s.kind === 'screen' ? 'Tela: ' : 'Janela: ') + s.name; if (this.match(name)) mk(name, s.kind === 'screen' ? 'O monitor inteiro, ao vivo.' : 'A janela de um programa, ao vivo. Para uma aba do navegador, arraste a aba para uma janela só dela.', { capture: { srcId: s.id, name: s.name } }); }
+    } else list.appendChild(el('div', 'vazio', 'Só na versão de computador.'));
     list.appendChild(el('div', 'grp dim', 'NDI · SPOUT · VIDEO ROUTER'));
     list.appendChild(el('div', 'vazio', 'Fora por enquanto (ver o rumo).'));
   }

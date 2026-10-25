@@ -1,7 +1,7 @@
 // OpenLume — processo principal (Electron).
 // Serve a pasta app/ por um esquema próprio (app://projecionista/), abre a janela de controle
 // e põe cada janela de saída no monitor que a tela pede.
-const { app, crashReporter, BrowserWindow, Menu, protocol, net, session, screen, ipcMain, shell } = require('electron');
+const { app, crashReporter, BrowserWindow, Menu, protocol, net, session, screen, ipcMain, shell, desktopCapturer } = require('electron');
 const { Readable } = require('node:stream');
 const { spawn } = require('node:child_process');
 const path = require('node:path');
@@ -114,6 +114,8 @@ protocol.registerSchemesAsPrivileged([
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+// janela da fonte "Página web" fica fora de todos os monitores: sem isto o Windows a dá como invisível e o Chromium para de desenhar nela
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 const PREFS = { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false };
@@ -197,6 +199,55 @@ app.whenReady().then(async () => {
   try { await session.defaultSession.clearCache(); } catch {}
 
   ipcMain.handle('displays', () => displayList());
+  // ---------- fonte "Captura": telas, janelas e páginas web ----------
+  // a imagem chega à janela de controle por getUserMedia com chromeMediaSourceId (captura do Chromium)
+  const webPages = new Map();   // chave -> janela escondida que renderiza uma página; o conteúdo é capturado como "aba", sem a janela aparecer
+  ipcMain.handle('capture:sources', async () => {
+    const pages = new Set([...webPages.values()]);
+    const own = new Set(BrowserWindow.getAllWindows().filter(w => !pages.has(w)).map(w => { try { return w.getMediaSourceId(); } catch { return ''; } }));
+    const list = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 192, height: 108 }, fetchWindowIcons: false });
+    return list.filter(s => !own.has(s.id) && s.name).map(s => ({ id: s.id, name: s.name, kind: s.id.startsWith('screen') ? 'screen' : 'window', thumb: s.thumbnail && !s.thumbnail.isEmpty() ? s.thumbnail.toDataURL() : '' }));
+  });
+  ipcMain.handle('capture:web:open', async (e, key, url, w, h, opts) => {   // opts: só para depurar (opções extras da janela; opts.wp vai em webPreferences)
+    key = String(key); w = Math.max(16, w | 0 || 1920); h = Math.max(16, h | 0 || 1080);
+    let win = webPages.get(key);
+    if (!win || win.isDestroyed()) {
+      // a janela precisa estar num monitor para o Windows compor o conteúdo (fora da tela sai branca): fica no canto do monitor principal,
+      // invisível (opacidade 0), sem foco, sem receber cliques e fora da barra de tarefas
+      const o = opts && typeof opts === 'object' ? opts : {};
+      win = new BrowserWindow({ show: true, x: 0, y: 0, width: w, height: h, frame: false, skipTaskbar: true, focusable: false, resizable: false, movable: false, opacity: 0, ...o, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false, ...(o.wp || {}) } });
+      win.setIgnoreMouseEvents(true); win.setOpacity(process.env.PROJ_WEB_OPACITY != null ? +process.env.PROJ_WEB_OPACITY : 0);   // PROJ_WEB_OPACITY: só para depurar a captura
+      win.webContents.setAudioMuted(true);
+      win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+      win.setTitle('OpenLume · página ' + key);
+      win.webContents.on('did-fail-load', (_e, code, desc, u) => { win.__err = code + ' ' + desc + ' ' + String(u).slice(0, 40); });
+      win.webContents.on('render-process-gone', (_e, d) => { win.__err = 'renderer: ' + d.reason; });
+      webPages.set(key, win);
+    }
+    win.setContentSize(w, h); win.setPosition(0, 0);
+    // espera a página carregar (uns 4 s por janela nesta máquina) para a captura não começar numa janela vazia; desiste em 20 s
+    await Promise.race([win.loadURL(String(url)).catch(() => { }), new Promise(r => setTimeout(r, 20000))]);
+    // a captura é da JANELA (Windows Graphics Capture pega janela fora da tela); a captura de conteúdo (webContents) não inicia no Electron 33
+    return win.getMediaSourceId();
+  });
+  // o caminho oficial do Chromium: a janela de controle pede getDisplayMedia e este tratador entrega a fonte escolhida
+  // (getUserMedia com chromeMediaSourceId de uma página derruba o processo principal: NOTREACHED)
+  let nextPick = null;   // { key } (página escondida) ou { srcId } (tela/janela), escolhido logo antes do pedido
+  ipcMain.handle('capture:pick', (_e, pick) => { nextPick = pick && typeof pick === 'object' ? pick : null; return true; });
+  session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
+    const pick = nextPick; nextPick = null;
+    try {
+      // página: a janela fora da tela não entra na lista do desktopCapturer; vai direto pelo id da janela
+      if (pick && pick.key) { const w = webPages.get(String(pick.key)); if (w && !w.isDestroyed()) return callback({ video: { id: w.getMediaSourceId(), name: w.getTitle() } }); }
+      const list = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 0, height: 0 } });
+      const s = (pick && pick.srcId && list.find(x => x.id === pick.srcId)) || list.find(x => x.id.startsWith('screen'));
+      callback(s ? { video: s } : {});
+    } catch { callback({}); }
+  }, { useSystemPicker: false });
+  // retrato da página pelo próprio Chromium (depuração e reserva, caso a captura da janela falhe)
+  ipcMain.handle('capture:web:shot', async (_e, key) => { const w = webPages.get(String(key)); if (!w || w.isDestroyed()) return ''; const im = await w.webContents.capturePage(); return im.resize({ width: 480 }).toDataURL(); });
+  ipcMain.handle('capture:web:info', (_e, key) => { const w = webPages.get(String(key)); if (!w || w.isDestroyed()) return null; const wc = w.webContents; return { url: wc.getURL().slice(0, 60), loading: wc.isLoading(), crashed: wc.isCrashed(), bounds: w.getBounds(), visible: w.isVisible(), minimized: w.isMinimized(), title: w.getTitle(), fps: wc.getFrameRate && wc.getFrameRate(), err: w.__err || '' }; });
+  ipcMain.handle('capture:web:close', (_e, key) => { const w = webPages.get(String(key)); if (w && !w.isDestroyed()) w.destroy(); webPages.delete(String(key)); return true; });
   ipcMain.on('log', (_e, kind, msg) => logLine('janela:' + String(kind).slice(0, 20), msg));
   ipcMain.handle('log:show', () => { try { fs.appendFileSync(LOG_FILE(), ''); } catch { } shell.showItemInFolder(LOG_FILE()); return LOG_FILE(); });
   ipcMain.handle('log:lastCrash', () => { let c = lastCrash; lastCrash = ''; try { const f = RECOVER_FILE(); if (fs.existsSync(f)) { c = c || fs.readFileSync(f, 'utf8'); fs.unlinkSync(f); } } catch { } return c; });

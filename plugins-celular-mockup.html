@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenLume · Plugins e celular</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#1b1c1f; --bg2:#232428; --bg3:#2c2d32; --line:#3a3b41; --txt:#d6d7db; --dim:#8b8d95; --ghost:#5a5c64;
+  --accent:#39FF14; --sel:#FF2D95; --warn:#FFB02E; color-scheme:dark;
+}
+*{ box-sizing:border-box; }
+html,body{ height:100%; margin:0; }
+body{ background:#0f1012; color:var(--txt); font:12px/1.3 "Segoe UI",system-ui,sans-serif; display:grid;
+  grid-template-columns:380px minmax(0,1fr); overflow:hidden; user-select:none; -webkit-user-select:none; }
+button{ font:inherit; color:inherit; background:var(--bg3); border:1px solid var(--line); border-radius:3px; cursor:pointer; }
+button:hover{ border-color:var(--dim); }
+input[type=range]{ accent-color:var(--accent); margin:0; width:100%; }
+
+/* ---------- celular ---------- */
+#phoneCol{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:#0b0c0d; border-right:1px solid var(--line); }
+#phoneCol .cap{ color:var(--dim); font-size:11px; text-align:center; max-width:320px; }
+#phone{ width:340px; height:min(720px, calc(100vh - 70px)); border-radius:38px; background:#000; border:3px solid #2e2f34;
+  box-shadow:0 0 0 7px #151618, 0 20px 50px rgba(0,0,0,.8); padding:12px 10px; display:flex; flex-direction:column; overflow:hidden; }
+.ph-status{ display:flex; justify-content:space-between; padding:2px 14px 8px; font-size:12px; font-weight:600; color:#eee; }
+.ph-head{ display:flex; align-items:center; gap:8px; padding:4px 6px 10px; }
+.ph-head .logo{ font-weight:800; letter-spacing:.06em; font-size:14px; } .ph-head .logo b{ color:var(--accent); }
+.ph-head .conn{ margin-left:auto; display:flex; align-items:center; gap:5px; font-size:11px; color:var(--accent); }
+.ph-head .conn i{ width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 6px var(--accent); }
+.ph-body{ flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding:0 4px; }
+.surface{ width:100%; aspect-ratio:16/9; border-radius:10px; background:#000; border:1px solid #333; touch-action:none; display:block; cursor:crosshair; }
+.ph-hint{ color:#777; font-size:11px; text-align:center; margin-top:-4px; }
+.ph-row{ display:flex; gap:6px; flex-wrap:wrap; }
+.ph-btn{ flex:1; min-width:0; height:40px; border-radius:10px; background:#1d1e22; border:1px solid #33343a; font-size:13px; font-weight:600; }
+.ph-btn.on{ background:var(--sel); border-color:var(--sel); color:#fff; }
+.ph-btn.go{ background:#1f2a1c; border-color:#3c6b2e; color:var(--accent); }
+.swatches{ display:flex; gap:7px; justify-content:space-between; }
+.swatches span{ flex:1; aspect-ratio:1; border-radius:50%; border:2px solid transparent; cursor:pointer; }
+.swatches span.on{ border-color:#fff; box-shadow:0 0 0 2px #000 inset; }
+.ph-label{ font-size:11px; color:#999; text-transform:uppercase; letter-spacing:.08em; margin-bottom:-4px; }
+.ph-ctl{ background:#141518; border:1px solid #26272c; border-radius:10px; padding:8px 10px; display:flex; flex-direction:column; gap:8px; }
+.ph-ctl .pr{ display:grid; grid-template-columns:80px 1fr 38px; align-items:center; gap:8px; font-size:12px; }
+.ph-ctl .pr span:last-child{ text-align:right; color:#aaa; font-variant-numeric:tabular-nums; }
+.ph-ctl .seg{ display:flex; gap:4px; } .ph-ctl .seg button{ flex:1; height:30px; border-radius:7px; font-size:12px; }
+.seg button.on{ background:var(--accent); border-color:var(--accent); color:#000; font-weight:700; }
+.grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.cell{ height:66px; border-radius:10px; background:#1a1b1f; border:1px solid #303137; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-end; padding:8px 10px; font-weight:700; font-size:13px; position:relative; overflow:hidden; }
+.cell small{ font-weight:400; color:#888; font-size:10px; }
+.cell.on{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+.cell.on::after{ content:"NO AR"; position:absolute; top:7px; right:8px; font-size:9px; color:var(--accent); letter-spacing:.08em; }
+.ph-tabs{ display:flex; border-top:1px solid #222; padding-top:6px; margin-top:6px; }
+.ph-tabs button{ flex:1; background:none; border:0; height:50px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:#777; font-size:11px; }
+.ph-tabs button svg{ width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.8; }
+.ph-tabs button.on{ color:var(--accent); }
+/* pads: só os clipes, grandes, uma camada por vez */
+.layers{ display:flex; gap:5px; } .layers button{ flex:1; height:32px; border-radius:8px; background:#1a1b1f; border-color:#303137; font-size:11px; font-weight:600; }
+.layers button.on{ background:var(--accent); border-color:var(--accent); color:#000; }
+.pads{ flex:1; min-height:0; display:grid; grid-template-columns:repeat(2,1fr); grid-auto-rows:minmax(84px,1fr); gap:8px; }
+.pad{ position:relative; border-radius:12px; overflow:hidden; background:#111; border:2px solid #2a2b30; padding:0; }
+.pad canvas{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.pad b{ position:absolute; left:8px; bottom:7px; font-size:14px; text-shadow:0 1px 4px #000, 0 0 2px #000; }
+.pad:active{ transform:scale(.96); }
+.pad.on{ border-color:var(--accent); box-shadow:0 0 14px rgba(57,255,20,.35); }
+.pad.on::after{ content:"NO AR"; position:absolute; top:6px; right:7px; font-size:9px; font-weight:700; letter-spacing:.08em; color:#000; background:var(--accent); padding:2px 5px; border-radius:4px; }
+.pad.stop{ background:#160c0c; border-color:#3a1f1f; } .pad.stop b{ color:#ff7a7a; }
+.pad.new{ background:#0f1a0d; border:2px dashed #3c6b2e; } .pad.new b{ color:var(--accent); }
+.pad.stop.on{ border-color:#3a1f1f; box-shadow:none; } .pad.stop.on::after{ display:none; }
+#phone.land .pads{ grid-template-columns:repeat(4,1fr); }
+/* celular deitado: a área de toque ocupa a altura toda; ferramentas e abas vão para a direita */
+body.land{ grid-template-columns:920px minmax(0,1fr); }
+#phone.land{ width:880px; height:380px; flex-direction:row; padding:10px 12px; }
+#phone.land .ph-status, #phone.land .ph-head{ display:none; }
+#phone.land .ph-tabs{ flex-direction:column; border-top:0; border-left:1px solid #222; padding:0 0 0 6px; margin:0 0 0 6px; width:72px; }
+#phone.land .ph-tabs button{ height:auto; flex:1; }
+#phone.land .grid{ grid-template-columns:repeat(3,1fr); }
+.land-row{ display:flex; gap:10px; height:100%; min-height:0; }
+.land-row .surface{ width:auto; height:100%; flex:none; }
+.land-side{ flex:1; min-width:110px; overflow-y:auto; display:flex; flex-direction:column; gap:7px; }
+.land-side .ph-hint{ display:none; }
+.land-side .swatches{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+.land-side .ph-btn{ height:30px; font-size:11px; flex:1 1 45%; border-radius:8px; }
+.land-side .ph-ctl{ padding:6px 8px; } .land-side .ph-ctl .pr{ grid-template-columns:1fr; gap:3px; } .land-side .ph-ctl .pr span:last-child{ display:none; }
+.land-side .seg{ flex-wrap:wrap; } .land-side .seg button{ flex:1 1 45%; height:26px; font-size:11px; }
+
+/* ---------- OpenLume ---------- */
+#app{ display:grid; grid-template-rows:30px minmax(0,1fr) 250px; min-width:0; background:var(--bg); }
+#top{ display:flex; align-items:center; gap:10px; padding:0 10px; background:#141518; border-bottom:1px solid var(--line); }
+#top .logo{ font-weight:800; letter-spacing:.06em; } #top .logo b{ color:var(--accent); }
+#top .sp{ flex:1; }
+#top .pill{ display:flex; align-items:center; gap:6px; color:var(--accent); }
+#top .pill i{ width:7px; height:7px; border-radius:50%; background:var(--accent); }
+#top button{ height:22px; padding:0 10px; }
+#stage{ display:flex; align-items:center; justify-content:center; padding:14px; min-height:0; position:relative; }
+#out{ max-width:100%; max-height:100%; aspect-ratio:16/9; background:#000; border:1px solid var(--line); cursor:crosshair; touch-action:none; }
+#stage .tag{ position:absolute; top:18px; left:22px; font-size:11px; color:var(--dim); background:rgba(0,0,0,.6); padding:3px 7px; border-radius:3px; pointer-events:none; }
+#bottom{ display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:4px; padding:4px; border-top:1px solid var(--line); background:#151619; min-height:0; }
+.pan{ background:var(--bg2); border:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
+.ptabs{ display:flex; background:#1e1f23; border-bottom:1px solid var(--line); }
+.ptabs span{ padding:5px 12px; color:var(--dim); border-right:1px solid var(--line); }
+.ptabs span.on{ color:#fff; background:var(--bg2); box-shadow:inset 0 2px 0 var(--accent); }
+.ptabs span.off{ color:var(--ghost); }
+.pbody{ flex:1; overflow:auto; padding:8px 10px; min-height:0; }
+.sect{ font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--dim); margin:4px 0 6px; display:flex; align-items:center; gap:8px; }
+.sect button{ text-transform:none; letter-spacing:0; font-size:11px; height:20px; padding:0 8px; }
+.gens{ color:var(--ghost); font-size:11px; margin-bottom:10px; }
+.plugs{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:6px; }
+.plug{ background:var(--bg3); border:1px solid var(--line); border-radius:4px; padding:0; cursor:pointer; overflow:hidden; text-align:left; }
+.plug canvas{ display:block; width:100%; aspect-ratio:16/9; background:#000; }
+.plug .pn{ padding:5px 7px 6px; } .plug .pn b{ display:block; font-size:12px; } .plug .pn small{ color:var(--dim); font-size:10px; }
+.plug.on{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+.plug.add{ display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px; color:var(--dim); border-style:dashed; min-height:110px; }
+.plug.add b{ font-size:22px; font-weight:300; }
+.ptitle{ padding:6px 10px; font-weight:700; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:6px; }
+.ptitle small{ color:var(--dim); font-weight:400; }
+.props .pr{ display:grid; grid-template-columns:96px 1fr 44px; align-items:center; gap:8px; margin-bottom:7px; }
+.props .pr span:last-child{ text-align:right; color:var(--dim); font-variant-numeric:tabular-nums; }
+.props .seg{ display:flex; gap:3px; margin-bottom:7px; } .props .seg button{ flex:1; height:22px; }
+.props .chk{ display:flex; align-items:center; gap:6px; margin:8px 0; color:var(--txt); }
+.props .acts{ display:flex; gap:5px; margin-top:6px; } .props .acts button{ flex:1; height:24px; }
+.props .acts button.on{ background:var(--sel); border-color:var(--sel); color:#fff; }
+.props .empty{ color:var(--dim); padding:10px 0; }
+
+/* ---------- janelas ---------- */
+.modal{ position:fixed; inset:0; background:rgba(0,0,0,.65); display:none; align-items:center; justify-content:center; z-index:50; }
+.modal.on{ display:flex; }
+.dlg{ background:#26272c; border:1px solid #55575f; box-shadow:0 20px 60px rgba(0,0,0,.8); width:min(640px, 92vw); max-height:88vh; overflow:auto; }
+.dlg h3{ margin:0; padding:10px 14px; font-size:13px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+.dlg .db{ padding:14px; line-height:1.5; }
+.dlg pre{ background:#16171a; border:1px solid var(--line); padding:10px 12px; font:11.5px/1.5 Consolas,monospace; color:#cfd2d8; overflow:auto; margin:8px 0; }
+.dlg pre .c{ color:#6b8f5e; } .dlg pre .k{ color:#ff79b8; } .dlg pre .s{ color:#e6c07b; }
+.qrwrap{ display:flex; gap:18px; align-items:center; }
+#qr{ background:#fff; padding:10px; } #qr img, #qr canvas{ display:block; }
+.addr{ font:14px Consolas,monospace; color:var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ======================= CELULAR ======================= -->
+<div id="phoneCol">
+  <div id="phone">
+    <div class="ph-status"><span id="clock">21:40</span><span>Wi-Fi ▪ 82%</span></div>
+    <div class="ph-head"><span class="logo">OPEN<b>LUME</b></span><span class="conn"><i></i>conectado</span></div>
+    <div class="ph-body" id="phBody"></div>
+    <div class="ph-tabs" id="phTabs">
+      <button data-mode="desenhar"><svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg>Desenhar</button>
+      <button data-mode="toque"><svg viewBox="0 0 24 24"><path d="M9 11V5a2 2 0 014 0v6"/><path d="M13 10a2 2 0 014 0v3c0 4-3 7-6 7-2 0-4-1-5-3l-2-4a1.6 1.6 0 012.6-1.8L9 13"/></svg>Toque</button>
+      <button data-mode="pads"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>Pads</button>
+      <button data-mode="controle"><svg viewBox="0 0 24 24"><path d="M6 3v18M12 3v18M18 3v18"/><rect x="4" y="13" width="4" height="3" rx="1"/><rect x="10" y="6" width="4" height="3" rx="1"/><rect x="16" y="10" width="4" height="3" rx="1"/></svg>Controle</button>
+      <button id="btnRot"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="16" rx="2"/><path d="M21 13a8 8 0 01-8 8l2-2m-2 2l2 2"/></svg><span>Deitar</span></button>
+    </div>
+  </div>
+  <div class="cap">Maquete: este é o celular. No programa de verdade ele abre pelo QR code do botão “Conectar celular”.</div>
+</div>
+
+<!-- ======================= OPENLUME ======================= -->
+<div id="app">
+  <div id="top">
+    <span class="logo">OPEN<b>LUME</b></span>
+    <span class="sp"></span>
+    <span class="pill"><i></i>Celular conectado · iPhone</span>
+    <button id="btnConnect">Conectar celular…</button>
+  </div>
+  <div id="stage">
+    <canvas id="out" width="1280" height="720"></canvas>
+    <div class="tag">Saída · o mouse aqui também vale como toque</div>
+  </div>
+  <div id="bottom">
+    <div class="pan">
+      <div class="ptabs"><span class="off">Arquivos</span><span class="off">Composições</span><span class="off">Efeitos</span><span class="on">Fontes</span><span class="off">Gravar</span></div>
+      <div class="pbody">
+        <div class="sect">Geradores <span style="text-transform:none;letter-spacing:0">(os 15 de hoje, sem mudança)</span></div>
+        <div class="gens">Blank · Solid Color · Checkered · Gradient · Lines · Rings · Sine Wave · Spiral · Static · Stroboscope · Malha do Automape · Test Card · Metaballs · Line Scape · Text Block</div>
+        <div class="sect">Celular</div>
+        <div class="plugs" style="margin-bottom:10px"><button class="plug" id="drawSrc"><canvas width="192" height="108"></canvas><div class="pn"><b>Desenho do celular</b><small>cria um clipe de desenho na camada 3</small></div></button></div>
+        <div class="sect">Plugins <button id="btnFolder">Pasta de plugins…</button></div>
+        <div class="plugs" id="plugs"></div>
+      </div>
+    </div>
+    <div class="pan">
+      <div class="ptabs"><span class="on">Clipe</span></div>
+      <div class="ptitle" id="clipTitle"></div>
+      <div class="pbody props" id="clipPan"></div>
+    </div>
+  </div>
+</div>
+
+<!-- janela: conectar celular -->
+<div class="modal" id="mConnect"><div class="dlg">
+  <h3>Conectar celular <button data-close>Fechar</button></h3>
+  <div class="db qrwrap">
+    <div id="qr"></div>
+    <div>
+      <p>Aponte a câmera do celular para o código. O celular e este computador precisam estar <b>no mesmo Wi-Fi</b>.</p>
+      <p>Ou digite no navegador do celular:<br><span class="addr">http://192.168.0.10:4747</span></p>
+      <p style="color:var(--dim)">Nada para instalar: é uma página. Vários celulares podem entrar ao mesmo tempo; cada dedo vira um toque.</p>
+    </div>
+  </div>
+</div></div>
+
+<!-- janela: pasta de plugins -->
+<div class="modal" id="mFolder"><div class="dlg">
+  <h3>Pasta de plugins <button data-close>Fechar</button></h3>
+  <div class="db">
+    <p>Cada plugin é uma pasta dentro de <span class="addr" style="font-size:12px">Documentos/OpenLume/plugins</span>. O OpenLume lê a pasta ao abrir; para instalar, é só copiar a pasta para lá.</p>
+<pre>plugins/
+  fluido/        plugin.js · icone.png
+  particulas/    plugin.js · icone.png
+  neon/          plugin.js · icone.png
+  bolinhas/      plugin.js · icone.png</pre>
+    <p>Por dentro, um plugin diz o que é, que controles tem e o que faz a cada quadro:</p>
+<pre><span class="k">export default</span> {
+  nome: <span class="s">'Fluido'</span>,
+  tipo: <span class="s">'fonte'</span>,            <span class="c">// ou 'efeito' (recebe a imagem da camada)</span>
+  toque: <span class="k">true</span>,              <span class="c">// recebe o dedo do celular e o mouse</span>
+  parametros: {
+    estilo: { tipo: <span class="s">'lista'</span>, opcoes: [<span class="s">'fogo'</span>, <span class="s">'fumaça'</span>, <span class="s">'tinta'</span>, <span class="s">'arco-íris'</span>] },
+    raio:   { tipo: <span class="s">'faixa'</span>, min: 0.05, max: 1, padrao: 0.25 },
+  },
+  iniciar(gl, tela) { … },     <span class="c">// cria texturas e shaders na placa de vídeo</span>
+  toque(dedo) { … },           <span class="c">// dedo = { id, x, y, dx, dy, apertado }</span>
+  quadro(gl, dt, p) { … },     <span class="c">// desenha um quadro; p = valores dos controles</span>
+}</pre>
+    <p style="color:var(--dim)">Os controles aparecem sozinhos no painel Clipe e no celular, e podem ser ligados ao MIDI, ao som e ao Autopilot como os dos geradores.</p>
+  </div>
+</div></div>
+
+<script>
+'use strict';
+const W = 1280, H = 720;
+const $ = (s, r = document) => r.querySelector(s);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+/* ======================= estado ======================= */
+const PLUGINS = [
+  { id: 'fluido', name: 'Fluido', sub: 'fogo, fumaça e tinta', params: [
+    { k: 'estilo', l: 'Estilo', opts: ['fogo', 'fumaça', 'tinta', 'arco-íris'], v: 'fogo', quick: true },
+    { k: 'raio', l: 'Raio', min: 0.05, max: 1, step: 0.01, v: 0.3 },
+    { k: 'subida', l: 'Subida', min: -1, max: 1, step: 0.01, v: 0.5, quick: true },
+    { k: 'redemoinho', l: 'Redemoinho', min: 0, max: 50, step: 1, v: 25 },
+    { k: 'some', l: 'Some em', min: 0.1, max: 4, step: 0.05, v: 0.8 } ] },
+  { id: 'particulas', name: 'Partículas', sub: 'faíscas, pétalas, poeira', params: [
+    { k: 'tipo', l: 'Tipo', opts: ['faíscas', 'pétalas', 'poeira'], v: 'faíscas', quick: true },
+    { k: 'qtd', l: 'Quantidade', min: 1, max: 80, step: 1, v: 25 },
+    { k: 'grav', l: 'Gravidade', min: -1, max: 1, step: 0.01, v: 0.4, quick: true },
+    { k: 'vento', l: 'Vento', min: -1, max: 1, step: 0.01, v: 0 },
+    { k: 'vida', l: 'Vida (s)', min: 0.3, max: 5, step: 0.1, v: 1.6 } ] },
+  { id: 'neon', name: 'Rastro neon', sub: 'luz que segue o dedo', params: [
+    { k: 'matiz', l: 'Cor', min: 0, max: 1, step: 0.01, v: 0.55, quick: true },
+    { k: 'esp', l: 'Espessura', min: 1, max: 30, step: 0.5, v: 6 },
+    { k: 'dura', l: 'Dura (s)', min: 0.2, max: 6, step: 0.1, v: 1.5, quick: true },
+    { k: 'brilho', l: 'Brilho', min: 0, max: 60, step: 1, v: 24 } ] },
+  { id: 'bolinhas', name: 'Bolinhas', sub: 'caem e se empilham', params: [
+    { k: 'paleta', l: 'Cores', opts: ['festa', 'gelo', 'fogo'], v: 'festa' },
+    { k: 'tam', l: 'Tamanho', min: 4, max: 40, step: 1, v: 14 },
+    { k: 'grav', l: 'Gravidade', min: -1, max: 1, step: 0.01, v: 0.5, quick: true },
+    { k: 'quique', l: 'Quique', min: 0, max: 0.95, step: 0.01, v: 0.45 },
+    { k: 'max', l: 'Máximo', min: 50, max: 900, step: 10, v: 450, quick: true } ] },
+];
+const S = {
+  plugin: 'fluido', gen: null, drawClip: null, padLayer: 2, mode: 'toque', land: false, master: 1, op: { 1: 1, 2: 1, 3: 1 },
+  auto: {}, touch: {}, params: {},
+  brush: { color: '#FF2D95', size: 14, eraser: false, fade: false },
+};
+for (const p of PLUGINS) { S.params[p.id] = {}; for (const q of p.params) S.params[p.id][q.k] = q.v; S.touch[p.id] = true; S.auto[p.id] = false; }
+const P = id => S.params[id];
+const def = id => PLUGINS.find(p => p.id === id);
+
+/* ======================= Fluido (WebGL2) ======================= */
+function makeFluid() {
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const gl = cv.getContext('webgl2', { alpha: false, antialias: false, preserveDrawingBuffer: true });
+  if (!gl || !gl.getExtension('EXT_color_buffer_float')) return null;
+  const VS = `#version 300 es
+in vec2 aPos; out vec2 vUv; void main(){ vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }`;
+  const HD = `#version 300 es
+precision highp float; precision highp sampler2D; in vec2 vUv; out vec4 o; uniform vec2 tx;
+`;
+  const FS = {
+    clear: `uniform sampler2D uT; uniform float v; void main(){ o = v * texture(uT, vUv); }`,
+    splat: `uniform sampler2D uT; uniform float asp, r; uniform vec3 col; uniform vec2 pt;
+      void main(){ vec2 p = vUv - pt; p.x *= asp; vec3 s = exp(-dot(p, p) / r) * col; o = vec4(texture(uT, vUv).xyz + s, 1.0); }`,
+    advect: `uniform sampler2D uV, uS; uniform vec2 stx; uniform float dt, dis;
+      void main(){ vec2 c = vUv - dt * texture(uV, vUv).xy * stx; o = texture(uS, c) / (1.0 + dis * dt); }`,
+    div: `uniform sampler2D uV;
+      void main(){ vec2 C = texture(uV, vUv).xy;
+        float L = texture(uV, vUv - vec2(tx.x, 0)).x, R = texture(uV, vUv + vec2(tx.x, 0)).x;
+        float B = texture(uV, vUv - vec2(0, tx.y)).y, T = texture(uV, vUv + vec2(0, tx.y)).y;
+        if (vUv.x - tx.x < 0.0) L = -C.x; if (vUv.x + tx.x > 1.0) R = -C.x;
+        if (vUv.y - tx.y < 0.0) B = -C.y; if (vUv.y + tx.y > 1.0) T = -C.y;
+        o = vec4(0.5 * (R - L + T - B), 0, 0, 1); }`,
+    curl: `uniform sampler2D uV;
+      void main(){ float L = texture(uV, vUv - vec2(tx.x, 0)).y, R = texture(uV, vUv + vec2(tx.x, 0)).y;
+        float B = texture(uV, vUv - vec2(0, tx.y)).x, T = texture(uV, vUv + vec2(0, tx.y)).x;
+        o = vec4(0.5 * (R - L - T + B), 0, 0, 1); }`,
+    vort: `uniform sampler2D uV, uC; uniform float curl, dt;
+      void main(){ float L = texture(uC, vUv - vec2(tx.x, 0)).x, R = texture(uC, vUv + vec2(tx.x, 0)).x;
+        float B = texture(uC, vUv - vec2(0, tx.y)).x, T = texture(uC, vUv + vec2(0, tx.y)).x, C = texture(uC, vUv).x;
+        vec2 f = 0.5 * vec2(abs(T) - abs(B), abs(R) - abs(L)); f /= length(f) + 1e-4; f *= curl * C; f.y *= -1.0;
+        o = vec4(clamp(texture(uV, vUv).xy + f * dt, -1000.0, 1000.0), 0, 1); }`,
+    buoy: `uniform sampler2D uV, uD; uniform float k, dt;
+      void main(){ float m = dot(texture(uD, vUv).rgb, vec3(0.3, 0.5, 0.2)); o = vec4(texture(uV, vUv).xy + vec2(0, k * m) * dt, 0, 1); }`,
+    pres: `uniform sampler2D uP, uD;
+      void main(){ float L = texture(uP, vUv - vec2(tx.x, 0)).x, R = texture(uP, vUv + vec2(tx.x, 0)).x;
+        float B = texture(uP, vUv - vec2(0, tx.y)).x, T = texture(uP, vUv + vec2(0, tx.y)).x;
+        o = vec4((L + R + B + T - texture(uD, vUv).x) * 0.25, 0, 0, 1); }`,
+    grad: `uniform sampler2D uP, uV;
+      void main(){ float L = texture(uP, vUv - vec2(tx.x, 0)).x, R = texture(uP, vUv + vec2(tx.x, 0)).x;
+        float B = texture(uP, vUv - vec2(0, tx.y)).x, T = texture(uP, vUv + vec2(0, tx.y)).x;
+        o = vec4(texture(uV, vUv).xy - vec2(R - L, T - B), 0, 1); }`,
+    disp: `uniform sampler2D uD; void main(){ vec3 c = texture(uD, vUv).rgb; o = vec4(1.0 - exp(-c * 1.6), 1.0); }`,
+  };
+  function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+  const vs = sh(gl.VERTEX_SHADER, VS);
+  const prog = {};
+  for (const k in FS) {
+    const p = gl.createProgram(); gl.attachShader(p, vs); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, HD + FS[k]));
+    gl.bindAttribLocation(p, 0, 'aPos'); gl.linkProgram(p);
+    const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+    for (let i = 0; i < n; i++) { const a = gl.getActiveUniform(p, i); u[a.name] = gl.getUniformLocation(p, a.name); }
+    prog[k] = { p, u };
+  }
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  function tex(w, h) {
+    const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+    for (const [a, b] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, a, b);
+    const fb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+    gl.viewport(0, 0, w, h); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    return { t, fb, w, h };
+  }
+  function dbl(w, h) { const d = { r: tex(w, h), w: tex(w, h), swap() { [d.r, d.w] = [d.w, d.r]; } }; return d; }
+  const sw = 160, shh = 90, dw = 640, dh = 360;
+  const vel = dbl(sw, shh), dye = dbl(dw, dh), pres = dbl(sw, shh), divT = tex(sw, shh), curlT = tex(sw, shh);
+  const stx = [1 / sw, 1 / shh], dtx = [1 / dw, 1 / dh];
+  function run(name, target, u) {
+    const { p, u: loc } = prog[name]; gl.useProgram(p); let unit = 0;
+    for (const k in u) {
+      const v = u[k], l = loc[k]; if (l == null) continue;
+      if (v && v.t) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, v.t); gl.uniform1i(l, unit++); }
+      else if (typeof v === 'number') gl.uniform1f(l, v);
+      else if (v.length === 2) gl.uniform2f(l, v[0], v[1]); else gl.uniform3f(l, v[0], v[1], v[2]);
+    }
+    if (target) { gl.bindFramebuffer(gl.FRAMEBUFFER, target.fb); gl.viewport(0, 0, target.w, target.h); }
+    else { gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, W, H); }
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  function hsv(h, s, v) { const f = n => { const k = (n + h * 6) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); }; return [f(5), f(3), f(1)]; }
+  function color() {
+    const p = P('fluido'), t = performance.now() / 1000;
+    if (p.estilo === 'fogo') return hsv(rnd(0.0, 0.08), 1, 1).map(c => c * 0.35);
+    if (p.estilo === 'fumaça') return [0.18, 0.18, 0.2];
+    if (p.estilo === 'tinta') return hsv(Math.random(), 0.9, 1).map(c => c * 0.3);
+    return hsv((t * 0.15) % 1, 1, 1).map(c => c * 0.3);
+  }
+  function splat(x, y, dx, dy, col) {
+    const r = P('fluido').raio ** 2 / 60 + 0.0004;
+    run('splat', vel.w, { uT: vel.r, asp: W / H, r, col: [dx, dy, 0], pt: [x, y] }); vel.swap();
+    run('splat', dye.w, { uT: dye.r, asp: W / H, r, col, pt: [x, y] }); dye.swap();
+  }
+  return {
+    canvas: cv,
+    pointer(f) { if (!f.down) return; splat(f.x, 1 - f.y, f.dx * 5000, -f.dy * 5000, color()); },
+    burst() { for (let i = 0; i < 7; i++) splat(Math.random(), Math.random(), rnd(-1, 1) * 900, rnd(-1, 1) * 900, color().map(c => c * 3)); },
+    clear() { for (const d of [vel, dye, pres]) for (const t of [d.r, d.w]) { gl.bindFramebuffer(gl.FRAMEBUFFER, t.fb); gl.viewport(0, 0, t.w, t.h); gl.clear(gl.COLOR_BUFFER_BIT); } },
+    step(dt) {
+      const p = P('fluido');
+      run('curl', curlT, { uV: vel.r, tx: stx });
+      run('vort', vel.w, { uV: vel.r, uC: curlT, curl: p.redemoinho, dt, tx: stx }); vel.swap();
+      if (p.subida) { run('buoy', vel.w, { uV: vel.r, uD: dye.r, k: p.subida * 260, dt }); vel.swap(); }
+      run('div', divT, { uV: vel.r, tx: stx });
+      run('clear', pres.w, { uT: pres.r, v: 0.8 }); pres.swap();
+      for (let i = 0; i < 20; i++) { run('pres', pres.w, { uP: pres.r, uD: divT, tx: stx }); pres.swap(); }
+      run('grad', vel.w, { uP: pres.r, uV: vel.r, tx: stx }); vel.swap();
+      run('advect', vel.w, { uV: vel.r, uS: vel.r, stx, dt, dis: 0.2 }); vel.swap();
+      run('advect', dye.w, { uV: vel.r, uS: dye.r, stx, dt, dis: p.some }); dye.swap();
+      run('disp', null, { uD: dye.r, tx: dtx });
+    },
+  };
+}
+
+/* ======================= plugins em 2D ======================= */
+function canvas2d() { const c = document.createElement('canvas'); c.width = W; c.height = H; return [c, c.getContext('2d')]; }
+
+function makeParticles() {
+  const [cv, g] = canvas2d(); let ps = [], last = { x: 0.5, y: 0.5 };
+  function emit(x, y, dx, dy, n) {
+    const p = P('particulas');
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, sp = p.tipo === 'poeira' ? rnd(10, 60) : rnd(60, 380);
+      ps.push({ x: x * W, y: y * H, vx: Math.cos(a) * sp + dx * W * 6, vy: Math.sin(a) * sp + dy * H * 6, age: 0,
+        life: p.vida * rnd(0.6, 1.2), rot: Math.random() * 6, vr: rnd(-4, 4), hue: rnd(-0.04, 0.04), sz: rnd(0.6, 1.4), kind: p.tipo });
+    }
+    if (ps.length > 6000) ps.splice(0, ps.length - 6000);
+  }
+  return {
+    canvas: cv,
+    pointer(f) { if (!f.down) return; last = f; emit(f.x, f.y, f.dx, f.dy, Math.ceil(P('particulas').qtd * (f.auto ? 0.3 : 1))); },
+    burst() { emit(last.x, last.y, 0, 0, 500); },
+    clear() { ps = []; },
+    step(dt) {
+      const p = P('particulas'), gy = p.grav * 900, wx = p.vento * 500;
+      for (const q of ps) { q.age += dt; q.vx += wx * dt; q.vy += gy * dt; q.vx *= 0.99; q.vy *= 0.99; q.x += q.vx * dt; q.y += q.vy * dt; q.rot += q.vr * dt; }
+      ps = ps.filter(q => q.age < q.life);
+      g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, W, H); g.globalCompositeOperation = 'lighter';
+      for (const q of ps) {
+        const t = q.age / q.life, a = 1 - t;
+        if (q.kind === 'faíscas') {
+          g.strokeStyle = `hsla(${(0.08 + q.hue - t * 0.07) * 360},100%,${60 - t * 25}%,${a})`; g.lineWidth = 2.2 * q.sz;
+          g.beginPath(); g.moveTo(q.x, q.y); g.lineTo(q.x - q.vx * 0.035, q.y - q.vy * 0.035); g.stroke();
+        } else if (q.kind === 'pétalas') {
+          g.save(); g.translate(q.x, q.y); g.rotate(q.rot); g.fillStyle = `hsla(${(0.93 + q.hue) * 360},90%,${70 + q.hue * 200}%,${a})`;
+          g.beginPath(); g.ellipse(0, 0, 9 * q.sz, 4.5 * q.sz, 0, 0, Math.PI * 2); g.fill(); g.restore();
+        } else {
+          g.fillStyle = `hsla(${(0.14 + q.hue) * 360},80%,70%,${a * 0.8})`; g.beginPath(); g.arc(q.x, q.y, 1.8 * q.sz, 0, Math.PI * 2); g.fill();
+        }
+      }
+    },
+  };
+}
+
+function makeNeon() {
+  const [cv, g] = canvas2d(); let trails = new Map(), t = 0;
+  return {
+    canvas: cv,
+    pointer(f) {
+      if (!f.down) { const tr = trails.get(f.id); if (tr) tr.done = true; return; }
+      let tr = trails.get(f.id);
+      if (!tr || tr.done) { if (tr) trails.set(f.id + ':' + t, tr); tr = { pts: [], hue: rnd(-0.05, 0.05) }; trails.set(f.id, tr); }
+      tr.pts.push({ x: f.x * W, y: f.y * H, t });
+    },
+    burst() {
+      for (let k = 0; k < 10; k++) { const tr = { pts: [], hue: rnd(-0.2, 0.2), done: true }, a = k / 10 * Math.PI * 2;
+        for (let i = 0; i < 40; i++) tr.pts.push({ x: W / 2 + Math.cos(a + i * 0.04) * i * 14, y: H / 2 + Math.sin(a + i * 0.04) * i * 14, t });
+        trails.set('b' + k + ':' + t, tr); }
+    },
+    clear() { trails = new Map(); },
+    step(dt) {
+      t += dt; const p = P('neon');
+      g.clearRect(0, 0, W, H); g.globalCompositeOperation = 'lighter'; g.lineCap = 'round'; g.lineJoin = 'round';
+      for (const [id, tr] of trails) {
+        tr.pts = tr.pts.filter(q => t - q.t < p.dura);
+        if (!tr.pts.length) { if (tr.done || id.includes(':')) trails.delete(id); continue; }
+        const hue = (p.matiz + tr.hue + 1) % 1 * 360;
+        for (let pass = 0; pass < 2; pass++) {
+          g.shadowColor = `hsl(${hue},100%,60%)`; g.shadowBlur = pass ? 0 : p.brilho;
+          for (let i = 1; i < tr.pts.length; i++) {
+            const a = 1 - (t - tr.pts[i].t) / p.dura;
+            g.strokeStyle = pass ? `hsla(${hue},100%,92%,${a})` : `hsla(${hue},100%,58%,${a})`;
+            g.lineWidth = pass ? p.esp * 0.35 : p.esp;
+            g.beginPath(); g.moveTo(tr.pts[i - 1].x, tr.pts[i - 1].y); g.lineTo(tr.pts[i].x, tr.pts[i].y); g.stroke();
+          }
+        }
+      }
+      g.shadowBlur = 0;
+    },
+  };
+}
+
+function makeBalls() {
+  const [cv, g] = canvas2d(); let bs = [], acc = 0;
+  const PAL = { festa: ['#FF2D95', '#39FF14', '#22D3EE', '#FFB02E', '#A855F7', '#F8FAFC'], gelo: ['#E0F2FE', '#7DD3FC', '#38BDF8', '#0EA5E9', '#FFFFFF'], fogo: ['#FDE047', '#FB923C', '#EF4444', '#B91C1C', '#FFF7ED'] };
+  let pushers = new Map();
+  function add(x, y, vx = 0, vy = 0) {
+    const p = P('bolinhas'), pal = PAL[p.paleta];
+    bs.push({ x, y, vx, vy, r: p.tam * rnd(0.7, 1.3), c: pal[(Math.random() * pal.length) | 0] });
+    if (bs.length > p.max) bs.splice(0, bs.length - p.max);
+  }
+  return {
+    canvas: cv,
+    pointer(f) {
+      if (!f.down) { pushers.delete(f.id); return; }
+      pushers.set(f.id, f);
+      acc += f.auto ? 0.4 : 1; while (acc >= 1) { acc--; add(f.x * W + rnd(-6, 6), f.y * H + rnd(-6, 6), f.dx * W * 8, f.dy * H * 8); }
+    },
+    burst() { for (let i = 0; i < 120; i++) add(rnd(0, W), rnd(-200, 0), rnd(-100, 100), rnd(0, 200)); },
+    clear() { bs = []; },
+    step(dt) {
+      const p = P('bolinhas'), gy = p.grav * 1600, e = p.quique;
+      for (const b of bs) { b.vy += gy * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.vx *= 0.999; }
+      for (const f of pushers.values()) for (const b of bs) {
+        const dx = b.x - f.x * W, dy = b.y - f.y * H, d2 = dx * dx + dy * dy, R = 90;
+        if (d2 < R * R && d2 > 1) { const d = Math.sqrt(d2), k = (R - d) / R * 2400 * dt; b.vx += dx / d * k; b.vy += dy / d * k; }
+      }
+      const cell = 2 * p.tam * 1.3 + 1, grid = new Map();
+      bs.forEach((b, i) => { const k = ((b.x / cell) | 0) + ',' + ((b.y / cell) | 0); (grid.get(k) || grid.set(k, []).get(k)).push(i); });
+      for (let it = 0; it < 3; it++) {
+        for (let i = 0; i < bs.length; i++) {
+          const a = bs[i], cx = (a.x / cell) | 0, cy = (a.y / cell) | 0;
+          for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
+            const list = grid.get((cx + ox) + ',' + (cy + oy)); if (!list) continue;
+            for (const j of list) { if (j <= i) continue; const b = bs[j];
+              const dx = b.x - a.x, dy = b.y - a.y, rr = a.r + b.r, d2 = dx * dx + dy * dy;
+              if (d2 >= rr * rr || d2 === 0) continue;
+              const d = Math.sqrt(d2), nx = dx / d, ny = dy / d, ov = (rr - d) / 2;
+              a.x -= nx * ov; a.y -= ny * ov; b.x += nx * ov; b.y += ny * ov;
+              const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+              if (rv < 0) { const j2 = -(1 + e) * rv / 2; a.vx -= j2 * nx; a.vy -= j2 * ny; b.vx += j2 * nx; b.vy += j2 * ny; }
+            }
+          }
+        }
+        for (const b of bs) {
+          if (b.y > H - b.r) { b.y = H - b.r; if (b.vy > 0) b.vy *= -e; b.vx *= 0.98; }
+          if (b.y < b.r && gy < 0) { b.y = b.r; if (b.vy < 0) b.vy *= -e; b.vx *= 0.98; }
+          if (b.x < b.r) { b.x = b.r; b.vx = Math.abs(b.vx) * e; }
+          if (b.x > W - b.r) { b.x = W - b.r; b.vx = -Math.abs(b.vx) * e; }
+        }
+      }
+      g.clearRect(0, 0, W, H);
+      for (const b of bs) {
+        g.fillStyle = b.c; g.beginPath(); g.arc(b.x, b.y, b.r, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.arc(b.x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.3, 0, Math.PI * 2); g.fill();
+      }
+    },
+  };
+}
+
+const RUN = { fluido: makeFluid(), particulas: makeParticles(), neon: makeNeon(), bolinhas: makeBalls() };
+if (!RUN.fluido) { const [c, g] = canvas2d(); g.fillStyle = '#fff'; g.font = '28px sans-serif'; g.fillText('Este navegador não tem WebGL2 com textura float.', 60, 360);
+  RUN.fluido = { canvas: c, pointer() {}, burst() {}, clear() {}, step() {} }; }
+
+/* ======================= camada 1: geradores (fundo) ======================= */
+// Na maquete os clipes da camada 1 são geradores simples; no programa os pads mostram os clipes da composição
+const GENS = [
+  { id: 'rings', name: 'Rings', draw(g, t, w, h) { g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.lineWidth = h * 0.03;
+    for (let i = 0; i < 14; i++) { const r = (i * h * 0.09 + t * h * 0.12) % (w * 0.7); g.strokeStyle = `hsl(${(190 + i * 12 + t * 20) % 360},90%,${55 - r / w * 40}%)`; g.beginPath(); g.arc(w / 2, h / 2, r, 0, Math.PI * 2); g.stroke(); } } },
+  { id: 'lines', name: 'Lines', draw(g, t, w, h) { g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 12; i++) { const x = ((i * w / 12 + t * w * 0.15) % (w + w / 12)) - w / 24; g.fillStyle = `hsl(${(280 + i * 8) % 360},90%,55%)`; g.fillRect(x, 0, w / 34, h); } } },
+  { id: 'gradient', name: 'Gradient', draw(g, t, w, h) { const a = t * 0.4, gr = g.createLinearGradient(w / 2 - Math.cos(a) * w / 2, h / 2 - Math.sin(a) * h / 2, w / 2 + Math.cos(a) * w / 2, h / 2 + Math.sin(a) * h / 2);
+    gr.addColorStop(0, `hsl(${(t * 25) % 360},90%,45%)`); gr.addColorStop(1, `hsl(${(t * 25 + 140) % 360},90%,40%)`); g.fillStyle = gr; g.fillRect(0, 0, w, h); } },
+  { id: 'checkered', name: 'Checkered', draw(g, t, w, h) { const s = h / 6, o = (t * s * 0.8) % (2 * s); g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.fillStyle = '#e9e9ee';
+    for (let y = -2; y < 8; y++) for (let x = -2; x < 14; x++) if ((x + y) % 2 === 0) g.fillRect(x * s + o, y * s, s, s); } },
+  { id: 'sine', name: 'Sine Wave', draw(g, t, w, h) { g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.lineWidth = h * 0.012;
+    for (let k = 0; k < 5; k++) { g.strokeStyle = `hsl(${(140 + k * 30) % 360},100%,60%)`; g.beginPath();
+      for (let x = 0; x <= w; x += w / 80) g.lineTo(x, h / 2 + Math.sin(x / w * 6.28 * (1 + k * 0.5) + t * (1.5 + k * 0.4)) * h * (0.12 + k * 0.05)); g.stroke(); } } },
+  { id: 'strobe', name: 'Stroboscope', draw(g, t, w, h) { g.fillStyle = (t * 4) % 1 < 0.15 ? '#fff' : '#000'; g.fillRect(0, 0, w, h); } },
+];
+const [genCv, genG] = (() => { const c = document.createElement('canvas'); c.width = 640; c.height = 360; return [c, c.getContext('2d')]; })();
+let genT0 = 0;
+// Tocar num clipe sempre começa do começo (regra da grade); vale para gerador e para plugin
+function fireGen(id) { S.gen = id; genT0 = performance.now(); sync(); }
+function firePlugin(id) { if (id && id === S.plugin) RUN[id].clear(); setPlugin(id); }
+
+/* ======================= camada de desenho ======================= */
+// Cada desenho é um clipe da camada 3: guarda os traços com o tempo em que foram feitos.
+// Disparar o clipe começa do começo, ou seja, o desenho se refaz na projeção no mesmo ritmo em que foi feito.
+const DRAWS = []; let drawN = 0;
+const curDraw = () => DRAWS.find(x => x.id === S.drawClip);
+function newDraw(render = true) {
+  const [cv, g] = canvas2d(); const d = { id: 'd' + (++drawN), name: 'Desenho ' + drawN, segs: [], cv, g, t0: 0, idx: 0 };
+  DRAWS.push(d); fireDraw(d.id, render); return d;
+}
+function fireDraw(id, render = true) {
+  S.drawClip = id; const d = curDraw();
+  if (d) { d.t0 = performance.now(); d.idx = 0; d.g.clearRect(0, 0, W, H); }
+  if (render) renderPhone(); else sync();
+}
+function paintSeg(g, s) {
+  g.globalCompositeOperation = s.er ? 'destination-out' : 'source-over';
+  g.strokeStyle = s.c; g.lineWidth = s.w * (s.er ? 2.5 : 1); g.lineCap = 'round'; g.lineJoin = 'round';
+  g.shadowColor = s.c; g.shadowBlur = s.er ? 0 : s.w * 0.8;
+  g.beginPath(); g.moveTo(s.x0 * W, s.y0 * H); g.lineTo(s.x1 * W + 0.01, s.y1 * H); g.stroke();
+  g.shadowBlur = 0; g.globalCompositeOperation = 'source-over';
+}
+const drawLast = new Map();
+function drawInput(f) {
+  if (f.phase === 'down') { drawLast.set(f.id, f); }
+  if (f.phase === 'up') { drawLast.delete(f.id); return; }
+  // sem desenho no ar, o primeiro traço cria um clipe novo (sem redesenhar a tela, para não perder o dedo)
+  const d = curDraw() || newDraw(false);
+  const a = drawLast.get(f.id) || f;
+  d.segs.push({ x0: a.x, y0: a.y, x1: f.x, y1: f.y, c: S.brush.color, w: S.brush.size, er: S.brush.eraser, t: (performance.now() - d.t0) / 1000 });
+  drawLast.set(f.id, f);
+}
+function drawStep(now) {
+  const d = curDraw(); if (!d) return;
+  const el = (now - d.t0) / 1000;
+  while (d.idx < d.segs.length && d.segs[d.idx].t <= el) paintSeg(d.g, d.segs[d.idx++]);
+  if (S.brush.fade) { d.g.globalCompositeOperation = 'destination-out'; d.g.fillStyle = 'rgba(0,0,0,0.02)'; d.g.fillRect(0, 0, W, H); d.g.globalCompositeOperation = 'source-over'; }
+}
+function clearDraw() { const d = curDraw(); if (d) { d.segs = []; d.idx = 0; d.g.clearRect(0, 0, W, H); } }
+
+/* ======================= toques ======================= */
+// Um "dedo" chega do celular ou do mouse: id, x e y de 0 a 1 na imagem de saída
+function feed(f, target) {
+  if (target === 'draw') return drawInput(f);
+  const id = S.plugin; if (!id || !S.touch[id]) return;
+  RUN[id].pointer(f);
+}
+function bindSurface(el, target) {
+  const last = new Map();
+  const at = (e) => { const r = el.getBoundingClientRect(); return { x: clamp((e.clientX - r.left) / r.width, 0, 1), y: clamp((e.clientY - r.top) / r.height, 0, 1) }; };
+  el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); const p = at(e); last.set(e.pointerId, p);
+    feed({ id: 'p' + e.pointerId, ...p, dx: 0, dy: 0, down: true, phase: 'down' }, target()); });
+  el.addEventListener('pointermove', e => { const l = last.get(e.pointerId); if (!l) return; const p = at(e);
+    feed({ id: 'p' + e.pointerId, ...p, dx: p.x - l.x, dy: p.y - l.y, down: true, phase: 'move' }, target()); last.set(e.pointerId, p); });
+  const up = e => { const l = last.get(e.pointerId); if (!l) return; last.delete(e.pointerId);
+    feed({ id: 'p' + e.pointerId, ...l, dx: 0, dy: 0, down: false, phase: 'up' }, target()); };
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+}
+// Auto-desenho: um dedo de mentira passeando por uma curva
+let autoT = 0, autoPrev = null;
+function autoStep(dt) {
+  const id = S.plugin; if (!id || !S.auto[id]) { autoPrev = null; return; }
+  autoT += dt;
+  const x = 0.5 + 0.38 * Math.sin(autoT * 0.9) * Math.cos(autoT * 0.31), y = 0.5 + 0.3 * Math.sin(autoT * 1.37 + 1);
+  const f = { id: 'auto', x, y, dx: autoPrev ? x - autoPrev.x : 0, dy: autoPrev ? y - autoPrev.y : 0, down: true, phase: 'move', auto: true };
+  RUN[id].pointer(f); autoPrev = f;
+}
+
+/* ======================= mistura e laço ======================= */
+const out = $('#out'), og = out.getContext('2d');
+let thumbs = [];
+let prev = performance.now();
+function frame(now) {
+  const dt = Math.min(1 / 30, (now - prev) / 1000); prev = now;
+  autoStep(dt);
+  if (S.plugin) RUN[S.plugin].step(dt);
+  drawStep(now);
+  // camadas de baixo para cima: 1 fundo, 2 física (somando a luz), 3 desenho
+  og.globalAlpha = 1; og.fillStyle = '#000'; og.fillRect(0, 0, W, H);
+  if (S.gen) { GENS.find(x => x.id === S.gen).draw(genG, (now - genT0) / 1000, 640, 360); og.globalAlpha = S.op[1]; og.drawImage(genCv, 0, 0, W, H); }
+  if (S.plugin) { og.globalAlpha = S.op[2]; og.globalCompositeOperation = S.gen ? 'lighter' : 'source-over'; og.drawImage(RUN[S.plugin].canvas, 0, 0); og.globalCompositeOperation = 'source-over'; }
+  const d = curDraw(); if (d) { og.globalAlpha = S.op[3]; og.drawImage(d.cv, 0, 0); }
+  og.globalAlpha = 1;
+  if (S.master < 1) { og.fillStyle = `rgba(0,0,0,${1 - S.master})`; og.fillRect(0, 0, W, H); }
+  for (const c of thumbs) { const g = c.getContext('2d'); g.drawImage(out, 0, 0, c.width, c.height); }
+  for (const c of document.querySelectorAll('.pad canvas')) {
+    const g = c.getContext('2d'), id = c.dataset.id;
+    if (c.dataset.kind === 'gen') GENS.find(x => x.id === id).draw(g, id === S.gen ? (now - genT0) / 1000 : now / 1000, c.width, c.height);
+    else if (c.dataset.kind === 'draw') { const dd = DRAWS.find(x => x.id === id); g.fillStyle = '#000'; g.fillRect(0, 0, c.width, c.height); if (dd) g.drawImage(dd.cv, 0, 0, c.width, c.height); }
+    else if (id === S.plugin) g.drawImage(RUN[id].canvas, 0, 0, c.width, c.height);
+  }
+  const ds = $('#drawSrc canvas'); if (ds) { const g = ds.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, ds.width, ds.height); if (d) g.drawImage(d.cv, 0, 0, ds.width, ds.height); }
+  const live = $('.plug.on canvas'); if (live) live.getContext('2d').drawImage(out, 0, 0, live.width, live.height);
+  requestAnimationFrame(frame);
+}
+
+/* ======================= controles (painel e celular) ======================= */
+function fmt(v, step) { return step >= 1 ? String(Math.round(v)) : (+v).toFixed(2); }
+function paramControls(box, id, onlyQuick, cls) {
+  box.innerHTML = '';
+  for (const q of def(id).params) {
+    if (onlyQuick && !q.quick) continue;
+    if (q.opts) {
+      const seg = document.createElement('div'); seg.className = 'seg';
+      for (const o of q.opts) { const b = document.createElement('button'); b.textContent = o; b.dataset.plug = id; b.dataset.k = q.k; b.dataset.opt = o;
+        b.onclick = () => { P(id)[q.k] = o; sync(); }; seg.append(b); }
+      box.append(seg);
+    } else {
+      const r = document.createElement('div'); r.className = 'pr';
+      r.innerHTML = `<span>${q.l}</span><input type="range" min="${q.min}" max="${q.max}" step="${q.step}"><span></span>`;
+      const inp = r.querySelector('input'); inp.dataset.plug = id; inp.dataset.k = q.k; inp.dataset.step = q.step;
+      inp.oninput = () => { P(id)[q.k] = +inp.value; sync(); };
+      box.append(r);
+    }
+  }
+}
+function sync() {
+  document.querySelectorAll('input[data-plug]').forEach(i => { const v = P(i.dataset.plug)[i.dataset.k]; if (+i.value !== v) i.value = v; i.nextElementSibling.textContent = fmt(v, +i.dataset.step); });
+  document.querySelectorAll('button[data-opt]').forEach(b => b.classList.toggle('on', P(b.dataset.plug)[b.dataset.k] === b.dataset.opt));
+  document.querySelectorAll('[data-onair]').forEach(el => el.classList.toggle('on', (el.dataset.onair || null) === S.plugin));
+  document.querySelectorAll('[data-gen]').forEach(el => el.classList.toggle('on', (el.dataset.gen || null) === S.gen));
+  document.querySelectorAll('[data-layer]').forEach(el => el.classList.toggle('on', +el.dataset.layer === S.padLayer));
+  document.querySelectorAll('[data-flag]').forEach(el => { const [kind, key] = el.dataset.flag.split('.');
+    const v = kind === 'brush' ? S.brush[key] : S[kind][S.plugin];
+    if (el.type === 'checkbox') el.checked = !!v; else el.classList.toggle('on', !!v); });
+  document.querySelectorAll('[data-draw]').forEach(el => el.classList.toggle('on', (el.dataset.draw || null) === S.drawClip));
+  document.querySelectorAll('input[data-op]').forEach(i => { const k = i.dataset.op, v = k === 'master' ? S.master : S.op[k]; if (+i.value !== v) i.value = v; i.nextElementSibling.textContent = Math.round(v * 100) + '%'; });
+  const dn = $('#drawName'); if (dn) dn.textContent = curDraw() ? curDraw().name : 'nenhum (o primeiro traço cria um)';
+  document.querySelectorAll('.swatches span').forEach(s => s.classList.toggle('on', !S.brush.eraser && s.dataset.c === S.brush.color));
+  const bs = $('#brushSize'); if (bs) { bs.value = S.brush.size; bs.nextElementSibling.textContent = S.brush.size; }
+}
+function setPlugin(id) { const changed = S.plugin !== id; S.plugin = id; if (changed) { renderClip(); renderPhone(); } sync(); }
+function act(name) { if (!S.plugin) return; if (name === 'burst') RUN[S.plugin].burst(); if (name === 'clear') RUN[S.plugin].clear(); }
+
+/* ---------- painel Fontes ---------- */
+function renderPlugs() {
+  const box = $('#plugs'); box.innerHTML = ''; thumbs = [];
+  for (const p of PLUGINS) {
+    const b = document.createElement('button'); b.className = 'plug'; b.dataset.onair = p.id;
+    b.innerHTML = `<canvas width="192" height="108"></canvas><div class="pn"><b>${p.name}</b><small>${p.sub} · toque</small></div>`;
+    b.onclick = () => setPlugin(p.id);
+    box.append(b);
+  }
+  const add = document.createElement('button'); add.className = 'plug add'; add.innerHTML = '<b>+</b>Pasta de plugins…';
+  add.onclick = () => $('#mFolder').classList.add('on'); box.append(add);
+  // miniaturas paradas: cada uma recebe um quadro do seu plugin quando ele está no ar
+}
+/* ---------- painel Clipe ---------- */
+function renderClip() {
+  const id = S.plugin, box = $('#clipPan');
+  if (!id) { $('#clipTitle').innerHTML = 'Nada no ar'; box.innerHTML = '<div class="empty">Escolha um plugin em Fontes ou toque numa casa no celular.</div>'; return; }
+  $('#clipTitle').innerHTML = `${def(id).name} <small>plugin · ${def(id).sub}</small>`;
+  paramControls(box, id, false);
+  box.insertAdjacentHTML('beforeend', `
+    <label class="chk"><input type="checkbox" data-flag="touch"> Recebe toque do celular e do mouse</label>
+    <div class="acts"><button data-act="burst">Explosão</button><button data-act="clear">Limpar</button><button data-flag="auto">Auto-desenho</button></div>`);
+  box.querySelector('[data-flag="touch"]').onchange = e => { S.touch[id] = e.target.checked; };
+  box.querySelectorAll('[data-act]').forEach(b => b.onclick = () => act(b.dataset.act));
+  box.querySelector('[data-flag="auto"]').onclick = () => { S.auto[id] = !S.auto[id]; sync(); };
+}
+
+/* ---------- celular ---------- */
+const COLORS = ['#FF2D95', '#39FF14', '#22D3EE', '#FFB02E', '#A855F7', '#EF4444', '#FFFFFF', '#3B82F6'];
+function surfaceEl(target) {
+  const c = document.createElement('canvas'); c.className = 'surface'; c.width = 480; c.height = 270;
+  bindSurface(c, () => target); thumbs.push(c); return c;
+}
+function renderPhone() {
+  thumbs = thumbs.filter(c => !c.classList.contains('surface'));
+  const body = $('#phBody'); body.innerHTML = '';
+  document.querySelectorAll('#phTabs button[data-mode]').forEach(b => b.classList.toggle('on', b.dataset.mode === S.mode));
+  $('#phone').classList.toggle('land', S.land); document.body.classList.toggle('land', S.land);
+  $('#btnRot span').textContent = S.land ? 'Em pé' : 'Deitar';
+  // em pé: área de toque em cima e ferramentas embaixo; deitado: área de toque à esquerda e ferramentas ao lado
+  let tools = body;
+  const surf = target => {
+    const s = surfaceEl(target);
+    if (!S.land) return body.append(s);
+    const row = document.createElement('div'); row.className = 'land-row';
+    tools = document.createElement('div'); tools.className = 'land-side';
+    row.append(s, tools); body.append(row);
+  };
+  if (S.mode === 'desenhar') {
+    surf('draw');
+    tools.insertAdjacentHTML('beforeend', `<div class="ph-hint">Desenhe aqui: o traço vai para o clipe de desenho que está no ar (camada 3).</div>
+      <div class="ph-row" style="align-items:center"><div class="ph-label" style="margin:0;flex:1">No ar: <b id="drawName" style="color:#fff;text-transform:none;letter-spacing:0"></b></div><button class="ph-btn go" id="drawNew" style="flex:none;padding:0 12px;height:30px">+ Novo</button></div>
+      <div class="swatches">${COLORS.map(c => `<span data-c="${c}" style="background:${c}"></span>`).join('')}</div>
+      <div class="ph-ctl"><div class="pr"><span>Espessura</span><input id="brushSize" type="range" min="2" max="60" step="1"><span></span></div></div>
+      <div class="ph-row"><button class="ph-btn" data-flag="brush.eraser">Borracha</button><button class="ph-btn" data-flag="brush.fade">Some aos poucos</button></div>
+      <div class="ph-row"><button class="ph-btn" id="drawClear">Limpar desenho</button></div>`);
+    body.querySelectorAll('.swatches span').forEach(s => s.onclick = () => { S.brush.color = s.dataset.c; S.brush.eraser = false; sync(); });
+    $('#brushSize').oninput = e => { S.brush.size = +e.target.value; sync(); };
+    body.querySelector('[data-flag="brush.eraser"]').onclick = () => { S.brush.eraser = !S.brush.eraser; sync(); };
+    body.querySelector('[data-flag="brush.fade"]').onclick = () => { S.brush.fade = !S.brush.fade; sync(); };
+    $('#drawClear').onclick = clearDraw;
+    $('#drawNew').onclick = () => newDraw();
+  } else if (S.mode === 'toque') {
+    surf('plugin');
+    const name = S.plugin ? def(S.plugin).name : 'nada';
+    tools.insertAdjacentHTML('beforeend', `<div class="ph-hint">Seu dedo vira mão dentro de: <b style="color:#fff">${name}</b>. Vale mais de um dedo.</div>
+      <div class="ph-label">No ar</div>
+      <div class="ph-row">${PLUGINS.map(p => `<button class="ph-btn" data-onair="${p.id}" style="font-size:11px;height:34px">${p.name.split(' ')[0]}</button>`).join('')}</div>
+      <div class="ph-row"><button class="ph-btn go" data-act="burst">Explosão</button><button class="ph-btn" data-act="clear">Limpar</button><button class="ph-btn" data-flag="auto">Auto</button></div>
+      <div class="ph-ctl" id="quick"></div>`);
+    body.querySelectorAll('button[data-onair]').forEach(b => b.onclick = () => setPlugin(b.dataset.onair));
+    body.querySelectorAll('[data-act]').forEach(b => b.onclick = () => act(b.dataset.act));
+    body.querySelector('[data-flag="auto"]').onclick = () => { if (S.plugin) { S.auto[S.plugin] = !S.auto[S.plugin]; sync(); } };
+    if (S.plugin) paramControls($('#quick'), S.plugin, true); else $('#quick').remove();
+  } else if (S.mode === 'pads') {
+    const pad = (attr, id, kind, name) => `<button class="pad" ${attr}="${id}"><canvas width="160" height="90" data-kind="${kind}" data-id="${id}"></canvas><b>${name}</b></button>`;
+    const pads = S.padLayer === 1
+      ? GENS.map(g => pad('data-gen', g.id, 'gen', g.name)).join('') + `<button class="pad stop" data-gen=""><b>Parar camada</b></button>`
+      : S.padLayer === 2
+      ? PLUGINS.map(p => pad('data-onair', p.id, 'plug', p.name)).join('') + `<button class="pad stop" data-onair=""><b>Parar camada</b></button>`
+      : DRAWS.map(d => pad('data-draw', d.id, 'draw', d.name)).join('') + `<button class="pad new" id="padNew"><b>+ Novo desenho</b></button><button class="pad stop" data-draw=""><b>Parar camada</b></button>`;
+    body.insertAdjacentHTML('beforeend', `<div class="layers"><button data-layer="1">1 · Fundo</button><button data-layer="2">2 · Física</button><button data-layer="3">3 · Desenho</button></div>
+      <div class="pads">${pads}</div>`);
+    body.querySelectorAll('[data-layer]').forEach(b => b.onclick = () => { S.padLayer = +b.dataset.layer; renderPhone(); });
+    body.querySelectorAll('.pad[data-gen]').forEach(b => b.onclick = () => fireGen(b.dataset.gen || null));
+    body.querySelectorAll('.pad[data-onair]').forEach(b => b.onclick = () => firePlugin(b.dataset.onair || null));
+    body.querySelectorAll('.pad[data-draw]').forEach(b => b.onclick = () => fireDraw(b.dataset.draw || null, false));
+    const pn = $('#padNew'); if (pn) pn.onclick = () => { newDraw(false); S.mode = 'desenhar'; renderPhone(); };
+  } else {
+    const fader = (k, l) => `<div class="pr"><span>${l}</span><input type="range" min="0" max="1" step="0.01" data-op="${k}"><span></span></div>`;
+    body.insertAdjacentHTML('beforeend', `<div class="ph-label">Saída e camadas</div>
+      <div class="ph-ctl">${fader('master', 'Master')}${fader(1, '1 · Fundo')}${fader(2, '2 · Física')}${fader(3, '3 · Desenho')}</div>
+      ${S.plugin ? `<div class="ph-label">${def(S.plugin).name}</div><div class="ph-ctl" id="full"></div>` : ''}`);
+    body.querySelectorAll('input[data-op]').forEach(i => i.oninput = () => { const k = i.dataset.op; if (k === 'master') S.master = +i.value; else S.op[k] = +i.value; sync(); });
+    if (S.plugin) paramControls($('#full'), S.plugin, false);
+  }
+  sync();
+}
+document.querySelectorAll('#phTabs button[data-mode]').forEach(b => b.onclick = () => { S.mode = b.dataset.mode; renderPhone(); });
+$('#btnRot').onclick = () => { S.land = !S.land; renderPhone(); };
+
+/* ---------- janelas ---------- */
+let qrDone = false;
+$('#btnConnect').onclick = () => {
+  $('#mConnect').classList.add('on');
+  if (!qrDone && window.QRCode) { new QRCode($('#qr'), { text: 'http://192.168.0.10:4747', width: 170, height: 170 }); qrDone = true; }
+};
+$('#drawSrc').onclick = () => newDraw();
+$('#btnFolder').onclick =() => $('#mFolder').classList.add('on');
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m || e.target.hasAttribute('data-close')) m.classList.remove('on'); }));
+
+/* ---------- começo ---------- */
+bindSurface(out, () => 'plugin');
+setInterval(() => { const d = new Date(); $('#clock').textContent = d.toTimeString().slice(0, 5); }, 10000);
+renderPlugs(); renderClip(); renderPhone();
+S.auto.fluido = true; sync();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

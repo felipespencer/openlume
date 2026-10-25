@@ -14,7 +14,7 @@ import { tessellate } from './warp.js';
 import { softWidths, allSlices } from './screens.js';
 import { effectById, EFFECT_HELPERS } from './effects.js';
 import { sourceById } from './sources.js';
-import { FS_MIX, mixerCode, normMixer, hexRgb, MIXER_OPT } from './mixers.js';
+import { FS_MIX, mixerCode, normMixer, hexRgb, MIXER_OPT, mixerColor } from './mixers.js';
 import { animValue } from './beat.js';
 
 // camada/clipe: quad com ajuste, posição, escala e giro
@@ -84,6 +84,8 @@ void main(){ vec4 c = texture(uTex, v); o = uOpaque != 0 ? vec4(c.rgb, 1.0) : c;
 const FX_HEAD = `#version 300 es
 precision highp float; in vec2 v; out vec4 o; uniform sampler2D uTex; uniform sampler2D uPrev; uniform vec2 uRes; uniform float uTime;
 `;
+// controle de cor ({ color: true }, valor "#rrggbb") vira vec3 no shader; número, lista (índice da opção) e liga/desliga viram float
+const uDecl = (p) => (p.color ? 'uniform vec3 ' : 'uniform float ') + p.key + ';';
 
 export const FITS = { contain: 'Encaixar', cover: 'Preencher', stretch: 'Esticar' };
 export const IDENT_TR = () => ({ x: 0, y: 0, scale: 1, sx: 1, sy: 1, rot: 0 });   // tamanho final: largura = scale*sx, altura = scale*sy
@@ -196,7 +198,7 @@ export class Engine {
       const p = clip.player;
       if (p.live && p.audio && p.audio.readyState >= 2) { try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, p.audio); e.rev = -1; } catch { } }
       else if (p.frame && e.rev !== p.frameId) { try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, p.frame); e.rev = p.frameId; } catch { } }
-    } else if (clip.kind === 'video' || clip.kind === 'camera') {
+    } else if (clip.kind === 'video' || clip.kind === 'camera' || clip.kind === 'capture') {
       if (el.readyState >= 2) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
     } else if (clip.kind === 'text' || clip.kind === 'lasermirror') {
       if (e.rev !== clip.rev) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el); e.rev = clip.rev; }
@@ -220,30 +222,34 @@ export class Engine {
     if (!f) { f = this.fbo(this.W, this.H); this.srcFbo.set(clip.id, f); }
     let pr = this.srcProg.get(def.id);
     if (!pr) {
-      const fs = FX_HEAD + def.params.map(p => 'uniform float ' + p.key + ';').join('\n') + '\n' + EFFECT_HELPERS + def.glsl + '\nvoid main(){ vec4 c = src(v); o = vec4(c.rgb * c.a, c.a); }';
+      const fs = FX_HEAD + def.params.map(uDecl).join('\n') + '\n' + EFFECT_HELPERS + def.glsl + '\nvoid main(){ vec4 c = src(v); o = vec4(c.rgb * c.a, c.a); }';
       pr = this.program(VS_QUAD, fs, ['uRes', 'uTime', ...def.params.map(p => p.key)]); this.srcProg.set(def.id, pr);
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, f.fb); gl.viewport(0, 0, f.w, f.h); gl.disable(gl.BLEND);
     gl.useProgram(pr.p); gl.bindVertexArray(this.quadVao);
     gl.uniform2f(pr.u.uRes, f.w, f.h); gl.uniform1f(pr.u.uTime, this.time + (clip.seed || 0));
-    for (const p of def.params) gl.uniform1f(pr.u[p.key], this.paramValue(clip, p));
+    for (const p of def.params) this.setParam(pr, p, this.paramValue(clip, p));
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.enable(gl.BLEND); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return f.t;
+  }
+  setParam(pr, p, v) {
+    if (p.color) { const [r, g, b] = hexRgb(v); this.gl.uniform3f(pr.u[p.key], r, g, b); } else this.gl.uniform1f(pr.u[p.key], +v);
   }
 
   // o valor de um parâmetro de efeito ou de fonte agora: o guardado, ou o animado na batida
   paramValue(holder, p) {
     const a = holder.panim && holder.panim[p.key];
-    if (a && a.shape && this.beat) return animValue(a, this.beat);
+    if (a && a.shape && this.beat && !p.color) return animValue(a, this.beat);
     return holder.params[p.key] ?? p.def;
   }
   // ---------- efeitos ----------
   fxProgram(def) {
     let pr = this.fxProg.get(def.id);
     if (!pr) {
-      const fs = FX_HEAD + def.params.map(p => 'uniform float ' + p.key + ';').join('\n') + '\n' + EFFECT_HELPERS + def.glsl + '\nvoid main(){ o = fx(v); }';
-      pr = this.program(VS_QUAD, fs, ['uTex', 'uPrev', 'uRes', 'uTime', ...def.params.map(p => p.key)]); this.fxProg.set(def.id, pr);
+      // Opacidade do efeito (como no Resolume, todo efeito tem): mistura o resultado com o que entrou
+      const fs = FX_HEAD + 'uniform float uFxOp;\n' + def.params.map(uDecl).join('\n') + '\n' + EFFECT_HELPERS + def.glsl + '\nvoid main(){ vec4 r = fx(v); o = uFxOp >= 1.0 ? r : mix(texture(uTex, v), r, uFxOp); }';
+      pr = this.program(VS_QUAD, fs, ['uTex', 'uPrev', 'uRes', 'uTime', 'uFxOp', ...def.params.map(p => p.key)]); this.fxProg.set(def.id, pr);
     }
     return pr;
   }
@@ -271,7 +277,8 @@ export class Engine {
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, prev); gl.uniform1i(pr.u.uPrev, 1);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src); gl.uniform1i(pr.u.uTex, 0);
       gl.uniform2f(pr.u.uRes, w, h); gl.uniform1f(pr.u.uTime, this.time);
-      for (const p of def.params) gl.uniform1f(pr.u[p.key], this.paramValue(f, p));
+      gl.uniform1f(pr.u.uFxOp, f.opacity ?? 1);
+      for (const p of def.params) this.setParam(pr, p, this.paramValue(f, p));
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       src = dst.t; i++;
     }
@@ -322,7 +329,7 @@ export class Engine {
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texB); gl.uniform1i(P.u.uB, 1);
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform1f(P.u.uK, k); gl.uniform1i(P.u.uTrans, trans ? 1 : 0); gl.uniform1i(P.u.uMode, mixerCode(mode));
-    const [r, g, b] = hexRgb(o.color); gl.uniform3f(P.u.uColor, r, g, b); gl.uniform1f(P.u.uSmooth, o.smooth ?? 0.1);
+    const [r, g, b] = hexRgb(mixerColor(mode, o)); gl.uniform3f(P.u.uColor, r, g, b); gl.uniform1f(P.u.uSmooth, o.smooth ?? 0.1);
     gl.uniform1f(P.u.uTime, this.time); gl.uniform2f(P.u.uRes, W, H); gl.uniform1f(P.u.uSeed, seed);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.enable(gl.BLEND);

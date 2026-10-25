@@ -3,3 +3,4 @@ dist/
 referencia-resolume/*.png
 referencia-resolume/extraido/
 tools/ffmpeg/
+tools/compare/saida/

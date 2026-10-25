@@ -10,6 +10,7 @@ import { Engine, IDENT_TR } from './engine.js';
 import { MIXER_OPT, randomMixer } from './mixers.js';
 import * as M from './screens.js';
 import * as C from './clips.js';
+const { PLAY_MODES } = C;
 import { AdvancedOutput } from './ao.js';
 import { LaserModule } from './laser.js';
 import { Panels } from './panels.js';
@@ -146,7 +147,12 @@ async function prepareClip(li, col, fmt) {
 function putSource(li, col, id) { const c = C.sourceClip(id); if (c) putClip(li, col, c); return c; }
 function putText(li, col, text) { const c = C.textClip(text); putClip(li, col, c); return c; }
 async function putCamera(li, col, cam) { try { putClip(li, col, await C.cameraClip(cam.id, cam.label)); } catch (e) { toast('Câmera: ' + e.message); } }
-const dropClip = (c) => { engine.drop(c.id); if (c.player) { c.player.close(); c.player = null; } };
+const dropClip = (c) => { engine.drop(c.id); if (c.player) { c.player.close(); c.player = null; } C.freeClip(c); };
+// captura de tela/janela, ou página web (pergunta o endereço)
+async function putCapture(li, col, cap) {
+  if (cap.web && !cap.url) { const url = await askText('Página web', 'Endereço', 'https://'); if (!url || url === 'https://') return; cap = { url: /^https?:\/\//.test(url) ? url : 'https://' + url, w: 1920, h: 1080 }; }
+  try { putClip(li, col, await C.captureClip(cap)); } catch (e) { toast('Captura: ' + e.message); }
+}
 function putLaserClip(li, col, frame) { putClip(li, col, C.laserClip(frame, laser.thumbSvg(frame))); }
 // soltar qualquer coisa numa casa
 function dropInto(li, col, d, files, ctrl) {
@@ -157,6 +163,7 @@ function dropInto(li, col, d, files, ctrl) {
   if (d.text) return putText(li, col, 'TEXTO');
   if (d.lasermirror) return putClip(li, col, C.laserMirrorClip());
   if (d.camera) return putCamera(li, col, d.camera);
+  if (d.capture) return putCapture(li, col, d.capture);
   if (d.laser) return putLaserClip(li, col, d.laser);
   if (d.effect) { const c = state.layers[li].clips[col]; if (c) { c.fx.push(mkFx(d.effect)); render(); } return; }
   if (d.afx) { const c = state.layers[li].clips[col]; if (c && c.kind === 'video') { c.afx.push(mkAudioFx(d.afx)); C.rebuildAudioFx(c); render(); } else toast('Efeito de áudio só entra em clipe de vídeo'); return; }
@@ -177,8 +184,21 @@ function swapClip(L, col) {
     const mode = L.transMode === 'random' ? randomMixer() : (L.transMode || 'alpha');
     L.prev = { clip: old, t0: engine.time, dur: L.transition, mode, opt: { ...(L.transOpt || MIXER_OPT()) }, seed: Math.random() * 100 };
   } else { C.stopClip(old); L.prev = null; }
-  L.on = col; C.startClip(clip, layerSpeed(L));
+  L.on = col; C.startClip(clip, layerSpeed(L), awayStart(clip, old));
 }
+// "ao voltar" do Resolume: Restart começa da entrada; Continue retoma de onde o clipe parou;
+// Relative começa na mesma fração da faixa em que estava o clipe que sai da camada
+function awayStart(clip, old) {
+  const t = clip.tr; if (clip.kind !== 'video' || !t) return null;
+  if (t.away === 'continue') return t.last ?? null;
+  if (t.away === 'relative' && old && old.kind === 'video') {
+    const ot = old.tr, ov = C.mediaOf(old); if (!ov || !old.dur) return null;
+    const oi = ot.in || 0, oo = ot.out || old.dur, f = (ov.currentTime - oi) / Math.max(0.001, oo - oi);
+    return t.in + Math.max(0, Math.min(1, f)) * ((t.out || clip.dur) - t.in);
+  }
+  return null;
+}
+const clearAfterOnce = [];   // camadas cujo clipe "uma vez e limpa" acabou neste quadro
 const pending = [];   // disparos esperando o Beat Snap: { li, col } ou { col, onlyGroup }, com a batida `at`
 const snapOf = (col) => state.colSnap[col] ?? state.bpm.snap;
 function queueTrigger(q, snap) {
@@ -466,7 +486,7 @@ function stepColumn(dir) { lastColumn = ((lastColumn + dir) % COLS + COLS) % COL
 function knobTargets(holder) {
   const out = [];
   if (holder.kind === 'source') { const def = sourceById(holder.source); if (def) for (const p of def.params) out.push({ holder, p }); }
-  for (const f of holder.fx || []) { const def = effectById(f.id); if (def && !f.bypass) for (const p of def.params) out.push({ holder: f, p }); }
+  for (const f of holder.fx || []) { const def = effectById(f.id); if (def && !f.bypass) for (const p of def.params) if (!p.color) out.push({ holder: f, p }); }
   return out;
 }
 function knobSet(target, f) { if (!target) return; const { holder, p } = target; const v = p.min + f * (p.max - p.min); holder.params[p.key] = p.step >= 1 ? Math.round(v) : Math.round(v / p.step) * p.step; clearTimeout(knobSet.h); knobSet.h = setTimeout(() => panels.render(), 80); }
@@ -538,7 +558,7 @@ function tickAutopilot(now) {
     const ap = cap ? { dir: cap.mode, dur: cap.dur, secs: cap.secs, loop: true } : L.autopilot;
     const dur = ap.dur === 'fixed' ? ap.secs : ap.dur === 'beats' ? (ap.beats || 4) * 60 / effBpm(state.bpm) : (clip.kind === 'video' && clip.dur ? Math.max(0.05, ((clip.tr.out || clip.dur) - clip.tr.in)) / (clip.speed * layerSpeed(L)) : ap.secs);
     const elapsed = now - (clip.startedAt || now);
-    if (elapsed < dur && !(clip.kind === 'video' && clip.tr.mode === 'once' && !clip.tr.playing)) { allEnded = false; continue; }
+    if (elapsed < dur && !(clip.kind === 'video' && (clip.tr.mode === 'once' || clip.tr.mode === 'onceclear') && !clip.tr.playing)) { allEnded = false; continue; }
     if (ap.dir === 'off') { if (clip.kind === 'video') { const m = clip.el || clip.player; allEnded = allEnded && (!m || !!m.ended); } continue; }   // clipe preparado não tem el: o reprodutor próprio diz se acabou
     if (ap.dir === 'stop') { eject(li); continue; }
     if (ap.dir === 'cell') { const tl = Math.min(cap.l, state.layers.length - 1); if (state.layers[tl].clips[cap.c]) { if (tl !== li) clip.startedAt = now; trigger(tl, cap.c); } else clip.startedAt = now; continue; }
@@ -936,7 +956,7 @@ async function redoComp() {
   if (hist.undo[hist.undo.length - 1] !== cur) hist.undo.push(cur);
   await restoreComp(next); hist.undo.push(snapComp()); toast('Refeito');
 }
-const clipKey = (c) => c.kind + ':' + (c.kind === 'video' || c.kind === 'image' ? c.path : c.kind === 'source' ? c.source : c.kind === 'laser' ? c.laserId : c.kind === 'camera' ? (c.deviceId || '') : '');
+const clipKey = (c) => c.kind + ':' + (c.kind === 'video' || c.kind === 'image' ? c.path : c.kind === 'source' ? c.source : c.kind === 'laser' ? c.laserId : c.kind === 'camera' ? (c.deviceId || '') : c.kind === 'capture' ? (c.cap.url || c.cap.srcName) : '');
 // volta a composição a um retrato: clipes do mesmo arquivo/fonte são reaproveitados; o que estava no ar continua, se o clipe ficou na mesma casa
 async function restoreComp(json) {
   hist.busy = true;
@@ -1180,7 +1200,7 @@ const menuDefs = () => [
     { label: 'Remover todas antes', disabled: c === 0, fn: () => { for (let i = 0; i < c; i++) removeColumn(0); } },
     { label: 'Remover todas depois', disabled: c >= COLS - 1, fn: () => { while (COLS > c + 1) removeColumn(COLS - 1); } }]; } },
   { label: 'Clipe', items: () => { const s = selectedCell(), k = s ? s.clip : null, isV = k && k.kind === 'video'; return [
-    { label: 'Transporte', disabled: !isV, sub: () => [['loop', 'Loop'], ['bounce', 'Vai e volta'], ['once', 'Uma vez'], ['random', 'Aleatório']].map(([v, t]) => ({ label: t, check: k.tr.mode === v, fn: () => { k.tr.mode = v; panels.render(); } })) },
+    { label: 'Transporte', disabled: !isV, sub: () => PLAY_MODES.map(([v, t]) => ({ label: t, check: k.tr.mode === v, fn: () => { k.tr.mode = v; panels.render(); } })) },
     { label: 'Alvo (autopilot)', disabled: !k, sub: () => [['layer', 'Como a camada'], ['next', 'Próximo'], ['prev', 'Anterior'], ['random', 'Ao acaso'], ['stop', 'Parar']].map(([v, t]) => ({ label: t, check: k.ap && k.ap.mode === v, fn: () => { k.ap = { ...(k.ap || {}), mode: v }; panels.render(); } })) },
     { label: 'Estilo de disparo', disabled: !k, sub: () => [['normal', 'Normal'], ['piano', 'Piano'], ['toggle', 'Alternar']].map(([v, t]) => ({ label: t, check: k.trig === v, fn: () => { k.trig = v; panels.render(); } })) },
     { label: 'Ignorar disparo de coluna', disabled: !k, check: !!(k && k.ignoreColumn), fn: () => { k.ignoreColumn = !k.ignoreColumn; panels.render(); } },
@@ -1256,7 +1276,8 @@ function loop() {
   if (now - (loop.apcAt || 0) > 0.2) { loop.apcAt = now; apc.refresh(); }
   for (const L of state.layers) if (L.prev && now - L.prev.t0 >= L.prev.dur) { if (L.clips[L.on] !== L.prev.clip) C.stopClip(L.prev.clip); L.prev = null; }
   // transporte dos vídeos no ar: entrada/saída, modo e direção
-  for (const L of state.layers) { const c = liveClip(L); if (c && c.kind === 'video') { if (C.tickTransport(c, dt, layerSpeed(L))) c.endedAt = now; } }
+  for (const L of state.layers) { const c = liveClip(L); if (c && c.kind === 'video') { if (C.tickTransport(c, dt, layerSpeed(L))) { c.endedAt = now; if (c.tr.mode === 'onceclear') clearAfterOnce.push(L); } } }
+  for (const L of clearAfterOnce.splice(0)) eject(state.layers.indexOf(L));   // Play Once & Clear: acabou, a camada sai do ar
   tickXfade(now);
   panels.tick();
   // taxa de quadros da composição: desenha só quando passou 1/fps

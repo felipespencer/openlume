@@ -29,6 +29,14 @@ contextBridge.exposeInMainWorld('projDesktop', {
     read: (p) => ipcRenderer.invoke('media:read', p),
     readRange: (p, off, len) => ipcRenderer.invoke('media:readRange', p, off, len),
   },
+  capture: {
+    sources: () => ipcRenderer.invoke('capture:sources'),
+    webOpen: (key, url, w, h, opts) => ipcRenderer.invoke('capture:web:open', key, url, w, h, opts),
+    webClose: (key) => ipcRenderer.invoke('capture:web:close', key),
+    pick: (p) => ipcRenderer.invoke('capture:pick', p),
+    webShot: (key) => ipcRenderer.invoke('capture:web:shot', key),
+    webInfo: (key) => ipcRenderer.invoke('capture:web:info', key),
+  },
   rec: {
     save: (name, bytes, dir) => ipcRenderer.invoke('rec:save', name, bytes, dir),
     list: (dir) => ipcRenderer.invoke('rec:list', dir),

@@ -39,11 +39,16 @@ module.exports = (win, app, laser) => {
   const shot = async (w, name) => fs.writeFileSync(path.join(dir, name), (await w.webContents.capturePage()).toPNG());
   const fake = fakeLaserCube();
   win.webContents.on('console-message', (_e, level, msg) => { if (level >= 2) console.log('CONSOLE ' + msg); });
+  const trace = (m) => { try { fs.appendFileSync(path.join(dir, 'harness.txt'), new Date().toISOString().slice(11, 19) + ' ' + m + '\n'); } catch { } };   // rastro em arquivo: o stdout só sai no fim
+  trace('harness carregado; url ' + win.webContents.getURL() + ' loading ' + win.webContents.isLoading());
+  win.webContents.on('did-fail-load', (_e, c, d) => trace('did-fail-load ' + c + ' ' + d));
   win.webContents.once('did-finish-load', async () => {
+    trace('did-finish-load');
     const out = [];
     const ok = (name, cond, detail) => { out.push({ name, pass: !!cond }); console.log((cond ? 'PASS' : 'FAIL') + '  ' + name + '  ' + (detail ?? '')); };
     try {
       await sleep(800);
+      trace('depois do sleep');
       await win.webContents.executeJavaScript(`window.__recDir = ${JSON.stringify(dir)}; window.projecionista.recorder.c.dir = window.__recDir; true`, true);
       const r = await win.webContents.executeJavaScript(`(async()=>{
         const P=window.projecionista, S=(ms)=>new Promise(r=>setTimeout(r,ms));
@@ -53,7 +58,7 @@ module.exports = (win, app, laser) => {
         const R={};
         const mid=[[0.5,0.5]], pts=[[0.5,0.5],[0.2,0.3]];   // centro, e um ponto fora da faixa do vídeo em pé
         R.vazio=P.probe(mid)[0];
-        R.n1=await P.putFiles(2,0,[file(${JSON.stringify(b64('va.mp4'))},'deitado.mp4','video/mp4')]);
+        window.__step='passo: arquivos'; R.n1=await P.putFiles(2,0,[file(${JSON.stringify(b64('va.mp4'))},'deitado.mp4','video/mp4')]);
         R.n2=await P.putFiles(1,0,[file(${JSON.stringify(b64('vb.mp4'))},'em-pe.mp4','video/mp4')]);
         R.n3=await P.putFiles(0,1,[png]);
         const L=P.state.layers;
@@ -158,11 +163,25 @@ module.exports = (win, app, laser) => {
         const trans = {}; trans.cutAntes = await probeT('cut', 250); await S(500); trans.cutDepois = P.probe(mid)[0];
         trans.push = await probeT('pushleft', 500); trans.preto = await probeT('toblack', 500);
         L[0].transition = 0; L[0].transMode = 'alpha'; await S(600); P.eject(0);
+        window.__step='passo: mistura';
         // mistura da camada: verde (camada de cima) sobre vermelho; 50 Multiply → preto, 50 Add → amarelo, Alpha → verde, Add a 50 % do fader → amarelo (Add a 100 % seria verde: vira normal por cima, como no Resolume)
         P.putSource(1,5,'solidcolor'); L[1].clips[5].params.hue = 0; P.trigger(1,5); P.trigger(0,2); await S(150);
         L[0].blend = 'multiply50'; trans.mult = P.probe(mid)[0]; L[0].blend = 'add50'; trans.add = P.probe(mid)[0]; L[0].blend = 'alpha'; trans.alpha = P.probe(mid)[0];
-        L[0].opacity = 0.5; L[0].blend = 'add'; trans.add50 = P.probe(mid)[0]; L[0].opacity = 1; L[0].blend = 'normal'; P.eject(0); P.eject(1);
+        L[0].opacity = 0.5; L[0].blend = 'add'; trans.add50 = P.probe(mid)[0]; L[0].opacity = 1;
+        // Chroma Key com a chave verde padrão: a camada verde some e aparece o vermelho de baixo
+        L[0].blend = 'chromakey'; trans.chroma = P.probe(mid)[0]; L[0].blend = 'normal'; P.eject(0); P.eject(1);
         R.trans = trans;
+        window.__step='passo: captura';
+        // fonte "Captura": página web num navegador escondido (quadrado que anda): a imagem chega, com as cores certas, e muda com o tempo
+        const capHtml = '<body style="margin:0;background:#102030"><canvas id=c width=640 height=360></canvas><script>const g=c.getContext("2d");let t=0;(function f(){t+=1/60;g.fillStyle="#102030";g.fillRect(0,0,640,360);g.fillStyle="#ff3060";g.fillRect(50+((t*100)%400),120,100,100);g.fillStyle="#39ff14";g.fillRect(30,30,70,70);requestAnimationFrame(f)})()<\/script>';
+        let cap = { erro: '' };
+        try {
+          const cc = await P.C.captureClip({ url: 'data:text/html,' + encodeURIComponent(capHtml), w: 640, h: 360 }); P.state.layers[0].clips[4] = cc; P.trigger(0, 4); await S(800);
+          const row = () => P.probe(Array.from({ length: 8 }, (_, i) => [0.1 + i * 0.1, 0.47])); const green = P.probe([[0.1, 0.18]])[0], r1 = row(); await S(500); const r2 = row();
+          const mudou = r1.some((p, i) => Math.abs(p[0] - r2[i][0]) > 60); const list = await window.projDesktop.capture.sources();
+          cap = { w: cc.w, h: cc.h, green, mudou, fontes: list.length, telas: list.filter(x => x.kind === 'screen').length }; P.eject(0); P.clearCell(0, 4);
+        } catch (e) { cap.erro = e.message; }
+        R.captura = cap; window.__step='captura ok ' + JSON.stringify(cap);
         // decks: o deck novo fica vazio, o clipe que estava no ar continua (ghost); disparar no deck novo tira o ghost; o deck 1 volta com os clipes
         P.trigger(0,2); await S(100); const dk = {}; P.addDeck(1); await S(100);
         dk.vazio = L[0].clips.every(c => !c) && L[1].clips.every(c => !c); dk.decks = P.state.decks.length; dk.atual = P.state.deck; dk.ghost = !!L[0].ghost; dk.px = P.probe(mid)[0];
@@ -289,13 +308,18 @@ module.exports = (win, app, laser) => {
         red.ap={mode:'cell',l:1,c:2,dur:'fixed',secs:0.3}; P.putSource(1,2,'testcard'); P.state.layers[1].clips[2].ap={mode:'stop',l:0,c:0,dur:'fixed',secs:0.3};
         P.eject(0); P.eject(1); P.trigger(0,3); await S(450); const apCell=[P.state.layers[0].on,P.state.layers[1].on]; red.ap.mode='layer'; await S(600); const apStop=P.state.layers[1].on;
         R.apClip={cell:apCell, stop:apStop}; P.eject(0); P.eject(1); P.state.layers[1].clips[2]=null; P.state.layers[0].clips[0]=null; P.state.layers[0].clips[3]=null; P.render();
+        window.__step='passo: transporte';
         // transporte do clipe: entrada/saída em loop, para trás, uma vez, ignorar coluna
         await P.putPath(2,7,${JSON.stringify(dir.replace(/\\/g, '/') + '/va.mp4')},'va.mp4'); const vc=P.state.layers[2].clips[7];
         vc.tr.in=1.0; vc.tr.out=2.0; vc.tr.mode='loop'; P.trigger(2,7); await S(1300); const loopPos=vc.el.currentTime;
         P.C.seekClip(vc,1.8); await S(100); P.C.playClip(vc,-1,1); const re0=vc.el.currentTime; await S(400); const re1=vc.el.currentTime;
         P.C.pauseClip(vc); vc.tr.mode='once'; P.C.seekClip(vc,1.5); await S(100); P.C.playClip(vc,1,1); await S(900); const oncePos=vc.el.currentTime, oncePlaying=vc.tr.playing;
         P.eject(2); vc.ignoreColumn=true; P.triggerColumn(7); const ign=P.state.layers[2].on; vc.ignoreColumn=false; P.eject(0); P.eject(1); P.eject(2);
-        R.transporte={loopPos, re:[re0,re1], oncePos, oncePlaying, ign}; P.state.sel={l:2,c:7}; P.render();
+        // formato do Resolume: "uma vez e limpa" tira a camada do ar no fim; "ao voltar: continua" retoma de onde parou; duração /2 dobra a velocidade
+        vc.tr.mode='onceclear'; vc.tr.in=1.0; vc.tr.out=1.5; P.trigger(2,7); await S(1200); const clearOn=P.state.layers[2].on;
+        vc.tr.mode='loop'; vc.tr.out=2.0; vc.tr.away='continue'; P.trigger(2,7); await S(400); P.C.seekClip(vc,1.7); await S(100); P.eject(2); await S(100); P.trigger(2,7); await S(50); const contPos=vc.el.currentTime;
+        vc.tr.away='restart'; P.eject(2); P.state.sel={l:2,c:7}; P.render(); const durRow=[...document.querySelectorAll('#clipPan .prow')].find(r=>r.textContent.startsWith('Duração')); const half=durRow&&[...durRow.querySelectorAll('button')].find(b=>b.textContent==='/2'); const sp0=vc.speed; if(half) half.click(); await S(100); const sp1=vc.speed; vc.speed=1; P.C.setRate(vc,1);
+        R.transporte={loopPos, re:[re0,re1], oncePos, oncePlaying, ign, clearOn, contPos, sp:[sp0,sp1], half:!!half}; P.state.sel={l:2,c:7}; P.render();
         // preparar: ffmpeg gera va.proj.mp4 (todo intra) e o clipe passa para o reprodutor próprio
         let prep={erro:'sem ponte'};
         if(window.projDesktop){ try{
@@ -411,8 +435,11 @@ module.exports = (win, app, laser) => {
       const Bp = r.bpm;
       ok('BPM: relógio, TAP, animação, Beat Snap e BPM Sync', Math.abs(Bp.anda - 1) < 0.3 && Math.abs(Bp.tap - 150) < 2 && Bp.an[0] === 1 && Bp.an[1] === -1 && Bp.snapAntes.join() === '-1,1' && Bp.snapDepois.join() === '3,0' && Math.abs(Bp.syncRate[0] - 1) < 0.15 && Math.abs(Bp.syncRate[1] - 2) < 0.3 && Bp.syncPos >= 0 && Bp.syncPos <= 1.15 && Bp.barra >= 12,
         'em 0,5 s andou ' + Bp.anda.toFixed(2) + ' batida a 120; TAP deu ' + Bp.tap + '; On Off a 1 batida: ' + Bp.an.join(' / ') + '; Beat Snap 2: antes ' + Bp.snapAntes.join('/') + ', depois ' + Bp.snapDepois.join('/') + '; BPM Sync: velocidade ' + Bp.syncRate.map(x => x.toFixed(2)).join(' → ') + ', posição ' + Bp.syncPos.toFixed(2) + ' s; barra com ' + Bp.barra + ' botões');
-      ok('modos de mistura da camada', Tm.mult[0] < 30 && Tm.mult[1] < 30 && Tm.add[0] > 200 && Tm.add[1] > 200 && Tm.alpha[1] > 200 && Tm.alpha[0] < 40 && Tm.add50[0] > 200 && Tm.add50[1] > 200,
-        'verde sobre vermelho: 50 Multiply ' + Tm.mult + ', 50 Add ' + Tm.add + ', Alpha ' + Tm.alpha + ', Add a 50 % ' + Tm.add50);
+      const Ca = r.captura;
+      ok('fonte Captura: página web num navegador escondido', !Ca.erro && Ca.green[1] > 200 && Ca.green[0] < 100 && Ca.mudou && Ca.telas >= 1,
+        Ca.erro || ('página ' + Ca.w + '×' + Ca.h + ', verde ' + Ca.green + ', quadrado ' + (Ca.mudou ? 'andou' : 'parado') + '; ' + Ca.fontes + ' fontes de captura (' + Ca.telas + ' telas)'));
+      ok('modos de mistura da camada', Tm.mult[0] < 30 && Tm.mult[1] < 30 && Tm.add[0] > 200 && Tm.add[1] > 200 && Tm.alpha[1] > 200 && Tm.alpha[0] < 40 && Tm.add50[0] > 200 && Tm.add50[1] > 200 && Tm.chroma[0] > 200 && Tm.chroma[1] < 40,
+        'verde sobre vermelho: 50 Multiply ' + Tm.mult + ', 50 Add ' + Tm.add + ', Alpha ' + Tm.alpha + ', Add a 50 % ' + Tm.add50 + ', Chroma Key ' + Tm.chroma);
       const Cp = r.comp;
       ok('salvar e abrir a composição', Cp.nome === 'teste' && Cp.camadas === 5 && Cp.primeira === 'Topo' && Cp.clipes.join() === Cp.antes.join() && Cp.fx === 1 && Cp.blur === 0.5 && Cp.kinds.includes('source') && Cp.kinds.includes('text'),
         Cp.camadas + ' camadas, clipes ' + Cp.clipes.join('/') + ' (antes ' + Cp.antes.join('/') + '), tipos ' + [...new Set(Cp.kinds)].join(', ') + ', efeito da camada 2 preservado');
@@ -439,6 +466,8 @@ module.exports = (win, app, laser) => {
       const Tr = r.transporte;
       ok('transporte do clipe', Tr.loopPos >= 0.95 && Tr.loopPos <= 2.05 && Tr.re[1] < Tr.re[0] && Tr.re[1] > 1.0 && !Tr.oncePlaying && Tr.oncePos >= 1.9 && Tr.ign === -1,
         'loop entre 1 s e 2 s: posição ' + Tr.loopPos.toFixed(2) + '; para trás ' + Tr.re[0].toFixed(2) + ' → ' + Tr.re[1].toFixed(2) + '; uma vez parou em ' + Tr.oncePos.toFixed(2) + '; ignorar coluna: camada ficou ' + (Tr.ign === -1 ? 'fora do ar' : 'no ar'));
+      ok('transporte no formato do Resolume', Tr.clearOn === -1 && Tr.contPos >= 1.6 && Tr.contPos <= 1.85 && Tr.half && Math.abs(Tr.sp[1] - Tr.sp[0] * 2) < 0.02,
+        'uma vez e limpa: camada ' + (Tr.clearOn === -1 ? 'saiu do ar' : 'ficou no ar') + '; ao voltar continua: retomou em ' + Tr.contPos.toFixed(2) + ' s (parou em 1,70); botão /2 ' + (Tr.half ? 'existe' : 'não existe') + ', velocidade ' + Tr.sp[0] + ' → ' + Tr.sp[1]);
       const Pp = r.prep;
       ok('preparar e reprodutor próprio', Pp && !Pp.erro && Pp.player && Pp.intra && Pp.n >= 70 && Pp.w === 320 && Pp.h === 180 && Pp.thumb.startsWith('data:image') && nz(Pp.px) && Pp.anda[1] > Pp.anda[0] && Pp.re[1] < Pp.re[0] && Pp.re[3] < Pp.re[2] && Pp.re[3] > 1.0 && Pp.pulo[0] === Pp.pulo[1] && Pp.rapido > 1.0,
         Pp && Pp.erro ? Pp.erro : Pp.n + ' quadros todo intra ' + Pp.w + '×' + Pp.h + ' ' + (Pp.dur || 0).toFixed(2) + ' s; toca ' + Pp.anda[0] + '→' + Pp.anda[1] + '; ré ' + Pp.re[0] + '→' + Pp.re[1] + ' (' + Pp.re[2].toFixed(2) + '→' + Pp.re[3].toFixed(2) + ' s); pulo para 0,5 s mostra o quadro ' + Pp.pulo[1] + ' (esperado ' + Pp.pulo[0] + '); 4x andou ' + (Pp.rapido || 0).toFixed(2) + ' s em 0,4');

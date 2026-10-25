@@ -35,14 +35,24 @@ export const MIXERS = [
   { id: 'rotatex', name: 'Rotate X' }, { id: 'rotatey', name: 'Rotate Y' }, { id: 'cube', name: 'Cube' },
   { id: 'sidebyside', name: 'Side by Side' }, { id: 'zoomin', name: 'Zoom In' }, { id: 'zoomout', name: 'Zoom Out' },
   { id: 'wipeellipse', name: 'Wipe Ellipse', smooth: true }, { id: 'timeswitcher', name: 'Time Switcher' },
+  // não existe como mistura no Resolume (lá é efeito); entrou a pedido do Felipe em 2026-10-25. Sempre no fim: o índice vira o caso do shader
+  { id: 'chromakey', name: 'Chroma Key', color: true, smooth: true, defColor: '#00ff00' },
 ];
+// os mais usados, no topo da lista e separados do resto (pedido de 2026-10-25)
+const FEATURED = ['alpha', 'add', 'multiply', 'screen', 'chromakey', 'lumakey', 'lumakeyi', 'lighten', 'darken', 'difference', 'overlay', 'subtract'];
 const ALIAS = { normal: 'alpha' };
 export const normMixer = (id) => (MIXERS.some(m => m.id === (ALIAS[id] || id)) ? (ALIAS[id] || id) : 'alpha');
 export const mixerCode = (id) => Math.max(0, MIXERS.findIndex(m => m.id === normMixer(id)));
 export const mixerById = (id) => MIXERS.find(m => m.id === normMixer(id)) || MIXERS[0];
-export const MIXER_OPTS = MIXERS.map(m => [m.id, m.name]);
+export const MIXER_OPTS = [
+  ...FEATURED.map(id => { const m = MIXERS.find(x => x.id === id); return [m.id, m.name, 'Principais']; }),
+  ...MIXERS.filter(m => !FEATURED.includes(m.id)).map(m => [m.id, m.name, 'Todos os outros']),
+];
 export const MIXER_OPT = () => ({ color: '#000000', smooth: 0.1 });
-export const randomMixer = () => MIXERS[1 + Math.floor(Math.random() * (MIXERS.length - 1))].id;
+// cor do modo: a escolhida, ou a padrão do modo (verde no Chroma Key) enquanto a pessoa não escolheu outra que não o preto inicial
+export const mixerColor = (id, opt) => { const m = mixerById(id), c = opt && opt.color; return m.defColor && (!c || c === '#000000') ? m.defColor : (c || '#000000'); };
+// "Ao acaso" da transição sorteia entre os modos do Resolume (sem o Alpha do começo nem o Chroma Key do fim, que não é transição)
+export const randomMixer = () => MIXERS[1 + Math.floor(Math.random() * (MIXERS.length - 2))].id;
 export const hexRgb = (h) => { const n = parseInt((h || '#000000').slice(1), 16); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
 
 // família Photoshop: [id, conta com a (embaixo) e b (camada), despremultiplicadas]; as "50" misturam no fader inteiro
@@ -138,6 +148,10 @@ vec4 mx_zoomin(vec4 A, vec4 B, float k, vec2 uv){ if (k >= 1.0) return fim(A, B)
 vec4 mx_zoomout(vec4 A, vec4 B, float k, vec2 uv){ if (uTrans != 0) { if (k >= 1.0) return B; float s = max(1.0 - k, 0.001); return over(B, tA((uv - 0.5) / s + 0.5)); } float z = 1.0 + 4.0 * (1.0 - k); return over(A, tB((uv - 0.5) / z + 0.5) * k); }
 vec4 mx_wipeellipse(vec4 A, vec4 B, float k, vec2 uv){ float d = length((uv - 0.5) * vec2(uRes.x / uRes.y, 1.0)) / length(vec2(uRes.x / uRes.y, 1.0) * 0.5); float s = uSmooth * 0.5 + 0.005; float m = 1.0 - smoothstep(k - s, k + s, d); return mix(A, fim(A, B), m); }
 vec4 mx_timeswitcher(vec4 A, vec4 B, float k, vec2 uv){ float t = floor(uTime * 12.0); return hash(vec2(t, 9.0)) < k ? fim(A, B) : A; }
+// Chroma Key: some da camada o que tem a cor da chave (compara só o tom, pelo Cb/Cr, para a sombra no fundo verde sumir junto);
+// Suavidade abre a tolerância; o fader é a opacidade do que sobra
+vec2 cbcr(vec3 c){ return vec2(dot(c, vec3(-0.169, -0.331, 0.5)), dot(c, vec3(0.5, -0.419, -0.081))); }
+vec4 mx_chromakey(vec4 A, vec4 B, float k, vec2 uv){ vec3 b = un(B); float tol = 0.06 + uSmooth * 0.35; float m = smoothstep(tol, tol + 0.05, distance(cbcr(b), cbcr(uColor))) * B.a; vec4 Bm = vec4(b * m, m); return mix(A, uTrans != 0 ? Bm : over(A, Bm), k); }
 vec4 mixer(vec4 A, vec4 B, float k, vec2 uv){
   switch (uMode) {
 ${CASES}

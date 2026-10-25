@@ -14,7 +14,7 @@ export const nextId = () => seq++;
 // tr: transporte — in/out em segundos, modo loop|bounce|once|random, dir 1|-1, playing; audio: volume, pan, mudo;
 // blend: mistura do clipe ('' = a da camada); opacity; trig: normal|piano|toggle; ignoreColumn
 const base = (kind, name) => ({ id: seq++, name, kind, url: '', path: '', w: 0, h: 0, dur: 0, fit: 'contain', speed: 1, thumb: '', el: null, fx: [], transform: IDENT_TR(),
-  ap: { mode: 'layer', l: 0, c: 0, dur: 'clip', secs: 5, beats: 4 }, tr: { in: 0, out: 0, mode: 'loop', dir: 1, playing: true, sync: 'timeline', beats: 8 }, audio: { vol: 1, pan: 0, mute: false }, panim: {},
+  ap: { mode: 'layer', l: 0, c: 0, dur: 'clip', secs: 5, beats: 4 }, tr: { in: 0, out: 0, mode: 'loop', dir: 1, playing: true, sync: 'timeline', beats: 8, away: 'restart' }, audio: { vol: 1, pan: 0, mute: false }, panim: {},
   blend: '', opacity: 1, trig: 'normal', ignoreColumn: false, rev: 1, afx: [] });
 export const mediaUrl = (path) => 'app://projecionista/media/' + btoa(unescape(encodeURIComponent(path))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 export const isVideoName = (n) => /\.(mp4|webm|mov|m4v|mkv|ogv|avi)$/i.test(n);
@@ -89,6 +89,9 @@ async function withPlayer(clip, desktop) {
 }
 // o que toca de verdade: o reprodutor próprio, se houver, senão o <video>
 export const mediaOf = (c) => c.player || c.el;
+// modos de reprodução e "ao voltar" (playmode e playmodeaway do Resolume)
+export const PLAY_MODES = [['loop', 'Loop'], ['bounce', 'Vai e volta'], ['random', 'Aleatório'], ['onceclear', 'Uma vez e limpa'], ['once', 'Uma vez e segura']];
+export const AWAY_MODES = [['restart', 'Recomeça'], ['continue', 'Continua'], ['relative', 'Relativo']];
 export function sourceClip(id) {
   const def = sourceById(id); if (!def) return null;
   const c = base('source', def.name); c.source = id; c.params = {}; for (const p of def.params) c.params[p.key] = p.def;
@@ -124,6 +127,35 @@ export async function cameraClip(deviceId, label) {
   try { const cv = document.createElement('canvas'); cv.width = 160; cv.height = Math.round(160 * c.h / c.w); cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height); c.thumb = cv.toDataURL('image/jpeg', 0.7); } catch { }
   return c;
 }
+// captura de tela, janela ou página web: um vídeo ligado ao stream de captura do Chromium (como a câmera).
+// spec: { srcId, name } (tela ou janela da lista) ou { url, w, h } (página renderizada numa janela escondida do programa)
+const webUse = new Map();   // chave da página -> quantos clipes a usam (cópias compartilham a janela)
+let webSeq = 0;
+const pageName = (url) => 'Página: ' + url.replace(/^https?:\/\//, '').slice(0, 40);
+export async function captureClip(spec) {
+  const D = window.projDesktop;
+  if (!D || !D.capture) throw new Error('captura só na versão de computador');
+  const cap = { srcId: spec.srcId || '', srcName: spec.name || '', url: spec.url || '', w: spec.w || 1920, h: spec.h || 1080, key: spec.key || '' };
+  let id = cap.srcId;
+  if (cap.url) { cap.key = cap.key || ('web' + (++webSeq) + '-' + Date.now()); id = await D.capture.webOpen(cap.key, cap.url, cap.w, cap.h); webUse.set(cap.key, (webUse.get(cap.key) || 0) + 1); }
+  else if (!id) {   // tela/janela guardada numa composição: o id muda a cada sessão, acha pelo nome
+    const list = await D.capture.sources(); const s = list.find(x => x.name === cap.srcName) || list.find(x => x.kind === 'screen');
+    if (!s) throw new Error('não achei a tela ou janela "' + cap.srcName + '"'); id = cap.srcId = s.id;
+  }
+  // o processo principal entrega a fonte escolhida ao getDisplayMedia (setDisplayMediaRequestHandler)
+  await D.capture.pick(cap.url ? { key: cap.key } : { srcId: id });
+  const stream = await navigator.mediaDevices.getDisplayMedia({ audio: false, video: { frameRate: { ideal: 60 }, width: { max: 3840 }, height: { max: 2160 } } });
+  const c = base('capture', cap.url ? pageName(cap.url) : cap.srcName || 'Captura'); c.cap = cap; c.stream = stream;
+  const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.srcObject = stream; await v.play().catch(() => { });
+  await new Promise((r, j) => { if (v.videoWidth) return r(); v.onloadedmetadata = r; setTimeout(() => j(new Error('a captura não mandou imagem em 10 s')), 10000); });
+  c.el = v; c.w = v.videoWidth || cap.w; c.h = v.videoHeight || cap.h;
+  try { const cv = document.createElement('canvas'); cv.width = 160; cv.height = Math.round(160 * c.h / c.w); cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height); c.thumb = cv.toDataURL('image/jpeg', 0.7); } catch { }
+  return c;
+}
+// troca o endereço de uma página capturada (a janela escondida é a mesma; o stream segue)
+export function captureNavigate(c, url) { const D = window.projDesktop; if (c.kind !== 'capture' || !c.cap.url || !D) return; c.cap.url = url; c.name = pageName(url); D.capture.webOpen(c.cap.key, url, c.cap.w, c.cap.h); }
+// o clipe saiu da grade: a última cópia de uma página fecha a janela escondida
+export function freeClip(c) { const D = window.projDesktop; if (!c || c.kind !== 'capture' || !c.cap.key || !D) return; const n = (webUse.get(c.cap.key) || 1) - 1; if (n <= 0) { webUse.delete(c.cap.key); D.capture.webClose(c.cap.key); } else webUse.set(c.cap.key, n); }
 // espelho do laser: o que o LaserCube desenha aparece na projeção, num quadrado do tamanho do palco do laser
 export function laserMirrorClip() {
   const c = base('lasermirror', 'Laser (espelho)'); c.el = document.createElement('canvas'); c.el.width = c.el.height = 1080; c.w = c.h = 1080; c.fit = 'contain';
@@ -141,16 +173,18 @@ export function cloneClip(c) {
   n.tr = { ...c.tr }; n.audio = { ...c.audio };
   if (c.kind === 'source') { n.params = { ...c.params }; n.seed = Math.random() * 100; }
   if (c.kind === 'text') { n.text = { ...c.text }; n.el = document.createElement('canvas'); n.el.width = 1920; n.el.height = 1080; renderText(n); }
-  if (c.kind === 'camera') { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.srcObject = c.stream; v.play().catch(() => { }); n.el = v; }
+  if (c.kind === 'camera' || c.kind === 'capture') { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.srcObject = c.stream; v.play().catch(() => { }); n.el = v; if (c.cap) { n.cap = { ...c.cap }; if (c.cap.key) webUse.set(c.cap.key, (webUse.get(c.cap.key) || 0) + 1); } }
   if (c.kind === 'lasermirror') { n.el = document.createElement('canvas'); n.el.width = n.el.height = 1080; }
   n.ap = { ...c.ap }; n.panim = JSON.parse(JSON.stringify(c.panim || {})); n.afx = (c.afx || []).map(f => ({ ...f, params: { ...f.params } })); n.srcNode = n.gainNode = n.panNode = null; n.afxNodes = [];
   return n;
 }
-export function stopClip(c) { if (c && c.kind === 'video') { if (c.player) c.player.pause(); if (c.el) c.el.pause(); } }
-export function startClip(c, speedMul = 1) {
+// guarda onde parou: "Continue" (ao voltar) retoma daí
+export function stopClip(c) { if (c && c.kind === 'video') { const v = mediaOf(c); if (v) c.tr.last = v.currentTime; if (c.player) c.player.pause(); if (c.el) c.el.pause(); } }
+// at: segundo de onde começar (o "ao voltar" Continue/Relative); sem ele, começa da entrada (ou da saída, tocando para trás)
+export function startClip(c, speedMul = 1, at = null) {
   if (c && c.kind === 'video' && mediaOf(c)) {
     const t = c.tr, v = mediaOf(c); t.playing = true;
-    try { v.currentTime = t.dir < 0 ? (t.out || c.dur) : t.in; } catch { }
+    try { v.currentTime = at != null ? Math.max(t.in, Math.min(t.out || c.dur, at)) : t.dir < 0 ? (t.out || c.dur) : t.in; } catch { }
     applyAudio(c); setRate(c, speedMul);
     if (t.dir > 0) v.play().catch(() => { }); else v.pause();   // para trás: o laço anda o tempo na mão
   }
@@ -199,7 +233,7 @@ export function tickTransport(c, dt, speedMul = 1) {
     if (t.mode === 'loop') seekClip(c, inP);
     else if (t.mode === 'bounce') { t.dir = -1; el.pause(); seekClip(c, outP - 0.02); }
     else if (t.mode === 'random') seekClip(c, inP + Math.random() * (outP - inP) * 0.9);
-    else { t.playing = false; el.pause(); seekClip(c, outP - 0.02); ended = true; }
+    else { t.playing = false; el.pause(); seekClip(c, outP - 0.02); ended = true; }   // Play Once & Hold segura o último quadro; & Clear: quem chama tira a camada do ar
     if (t.dir > 0 && t.playing && el.paused) el.play().catch(() => { });
   } else if (t.dir < 0 && pos <= inP + 0.02) {
     if (t.mode === 'loop') seekClip(c, outP - 0.02);
@@ -213,11 +247,12 @@ export function releaseClip(c) { if (!c) return; stopClip(c); if (c.kind === 'ca
 // o que vai para o arquivo da composição
 export function serializeClip(c) {
   if (!c) return null;
-  const o = { kind: c.kind, name: c.name, fit: c.fit, speed: c.speed, fx: c.fx, transform: c.transform, ap: c.ap, tr: { in: c.tr.in, out: c.tr.out, mode: c.tr.mode, dir: c.tr.dir, sync: c.tr.sync, beats: c.tr.beats }, audio: c.audio, panim: c.panim || {}, afx: c.afx || [], blend: c.blend, opacity: c.opacity, trig: c.trig, ignoreColumn: c.ignoreColumn };
+  const o = { kind: c.kind, name: c.name, fit: c.fit, speed: c.speed, fx: c.fx, transform: c.transform, ap: c.ap, tr: { in: c.tr.in, out: c.tr.out, mode: c.tr.mode, dir: c.tr.dir, sync: c.tr.sync, beats: c.tr.beats, away: c.tr.away }, audio: c.audio, panim: c.panim || {}, afx: c.afx || [], blend: c.blend, opacity: c.opacity, trig: c.trig, ignoreColumn: c.ignoreColumn };
   if (c.kind === 'video' || c.kind === 'image') { if (!c.path) return { ...o, missing: true }; o.path = c.path; }
   if (c.kind === 'source') { o.source = c.source; o.params = c.params; }
   if (c.kind === 'text') o.text = c.text;
   if (c.kind === 'camera') { o.deviceId = c.deviceId; }
+  if (c.kind === 'capture') o.cap = { srcName: c.cap.srcName, url: c.cap.url, w: c.cap.w, h: c.cap.h };
   if (c.kind === 'laser') o.laserId = c.laserId;
   return o;
 }
@@ -229,6 +264,7 @@ export async function deserializeClip(o, ctx) {
     else if (o.kind === 'source') c = sourceClip(o.source);
     else if (o.kind === 'text') c = textClip(o.text && o.text.content);
     else if (o.kind === 'camera') { c = await cameraClip(o.deviceId, o.name); }
+    else if (o.kind === 'capture') { c = await captureClip({ name: o.cap && o.cap.srcName, url: o.cap && o.cap.url, w: o.cap && o.cap.w, h: o.cap && o.cap.h }); }
     else if (o.kind === 'laser' && ctx && ctx.laserClip) { c = ctx.laserClip(o.laserId); }
     else if (o.kind === 'lasermirror') c = laserMirrorClip();
   } catch (e) { if (ctx && ctx.toast) ctx.toast('Não abriu ' + o.name + ': ' + e.message); return null; }
