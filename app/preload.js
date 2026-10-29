@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('projDesktop', {
   // fechar: o processo principal segura o X e pergunta à página; a página responde com quit()
   onCloseRequested: (fn) => ipcRenderer.on('app:closeRequested', () => fn()),
   quit: () => ipcRenderer.invoke('app:quit'),
+  info: () => ipcRenderer.invoke('app:info'),
   // caminho no disco de um arquivo solto na janela (para salvar a composição por caminho)
   pathOf: (file) => { try { return webUtils.getPathForFile(file) || ''; } catch { return ''; } },
   fs: { roots: () => ipcRenderer.invoke('fs:roots'), list: (dir) => ipcRenderer.invoke('fs:list', dir) },

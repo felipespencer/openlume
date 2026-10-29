@@ -32,7 +32,7 @@ input[type=range]{ accent-color:var(--accent); height:14px; margin:0; }
 .dlgOver{ position:fixed; inset:0; z-index:950; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; }
 .dlg{ background:#1b1b1b; border:1px solid #3a3a3a; box-shadow:0 10px 30px rgba(0,0,0,.6); color:#d4d4d4; font-size:12px; --rt:#d4d4d4; --rd:#8a8a8a; --teal:#6fe6c6; }
 .dlg .dhead{ height:30px; display:flex; align-items:center; padding:0 10px; background:#2b2b2b; font-weight:600; }
-.dlg .dbody{ padding:6px 0; max-height:70vh; overflow:auto; } .dlg .dbody .prow{ grid-template-columns:120px minmax(0,1fr); } .dlg .dtext{ margin:6px 10px; color:#bbb; line-height:1.4; }
+.dlg .dbody{ padding:6px 0; max-height:70vh; overflow:auto; } .dlg .dbody .prow{ grid-template-columns:120px minmax(0,1fr); } .dlg .dtext{ margin:6px 10px; color:#bbb; line-height:1.4; } .dlg .dtext.big{ color:#fff; font-size:15px; font-weight:600; }
 .dlg .dfoot{ display:flex; justify-content:flex-end; gap:6px; padding:8px 10px; border-top:1px solid #2b2b2b; } .dlg .dfoot button{ height:26px; padding:0 14px; border:0; background:#3a3a3a; color:#d4d4d4; font:inherit; cursor:pointer; border-radius:2px; } .dlg .dfoot button.primary{ background:var(--teal); color:#111; }
 .dlg .rprops .pinfo{ padding-left:6px; align-self:center; }
 

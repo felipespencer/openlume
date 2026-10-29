@@ -1085,9 +1085,11 @@ function preferencesDialog() {
     buttons: [{ label: 'Cancelar' }, { label: 'OK', primary: true, fn: () => { recorder.c.dir = p.recDir; $('fpsBox').hidden = !p.showFps; state.bpm.nudgePct = p.nudgePct; window.__projSoftDecode = !p.hwDecode; if (D) D.prefs.get().then(q => D.prefs.set({ ...q, recDir: p.recDir, showFps: p.showFps, hwDecode: p.hwDecode })).catch(() => { }); } }],
   });
 }
-function aboutDialog() {
+async function aboutDialog() {
   const ua = /Chrome\/([\d.]+)/.exec(navigator.userAgent), ev = /Electron\/([\d.]+)/.exec(navigator.userAgent);
-  openDialog({ title: 'Sobre o OpenLume', width: 420, build: (body) => { body.appendChild(el('p', 'dtext', 'OpenLume — projeção e laser ao vivo, no jeito de trabalhar do Resolume. Software livre (GPL-3.0) de Felipe Spencer, 2026. github.com/felipespencer/openlume')); body.appendChild(el('p', 'dtext', 'Electron ' + (ev ? ev[1] : '?') + ' · Chromium ' + (ua ? ua[1] : '?') + ' · WebGL2 · WebCodecs')); }, buttons: [{ label: 'Fechar', primary: true }] });
+  const info = D && D.info ? await D.info().catch(() => null) : null;
+  const versao = info ? 'Versão ' + info.version + (info.packaged ? ' (instalado)' : ' (desenvolvimento)') : 'Versão web';
+  openDialog({ title: 'Sobre o OpenLume', width: 420, build: (body) => { body.appendChild(el('p', 'dtext big', versao)); body.appendChild(el('p', 'dtext', 'OpenLume — projeção e laser ao vivo, no jeito de trabalhar do Resolume. Software livre (GPL-3.0) de Felipe Spencer, 2026. github.com/felipespencer/openlume')); body.appendChild(el('p', 'dtext', 'Electron ' + (ev ? ev[1] : '?') + ' · Chromium ' + (ua ? ua[1] : '?') + ' · WebGL2 · WebCodecs')); }, buttons: [{ label: 'Fechar', primary: true }] });
 }
 
 // ---------- painéis e navegador ----------
