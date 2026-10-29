@@ -2,6 +2,7 @@
 // Serve a pasta app/ por um esquema próprio (app://projecionista/), abre a janela de controle
 // e põe cada janela de saída no monitor que a tela pede.
 const { app, crashReporter, BrowserWindow, Menu, protocol, net, session, screen, ipcMain, shell, desktopCapturer } = require('electron');
+let fechando = false;   // a página já confirmou o fechamento (ou o app está saindo): o X fecha de verdade
 const { Readable } = require('node:stream');
 const { spawn } = require('node:child_process');
 const path = require('node:path');
@@ -152,6 +153,7 @@ function createMain() {
   // janela de saída: output.html?screen=ID&display=<id do monitor | window | auto>
   // "auto" pega o primeiro monitor que não é o do controle e ainda não tem saída aberta
   const taken = new Map();   // display id → janela de saída que o ocupa
+  const outWins = new Set();  // todas as janelas de saída abertas (para o botão "Mostrar saídas" trazê-las para a frente)
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (!url.startsWith(ORIGIN + '/output.html')) return { action: 'deny' };
     const q = new URL(url).searchParams, want = q.get('display') || 'auto';
@@ -166,15 +168,26 @@ function createMain() {
     return { action: 'allow', overrideBrowserWindowOptions: opts };
   });
   win.webContents.on('did-create-window', (child, { options }) => {
+    outWins.add(child); child.on('closed', () => outWins.delete(child));
     if (!options.fullscreen) return;
     const d = screen.getDisplayMatching({ x: options.x, y: options.y, width: options.width, height: options.height });
     taken.set(d.id, child); child.on('closed', () => { if (taken.get(d.id) === child) taken.delete(d.id); });
+  });
+  // "Mostrar saídas": traz as janelas de saída para a frente sem tirar o foco do controle (window.focus() da página não consegue)
+  ipcMain.handle('outputs:show', () => {
+    let n = 0;
+    for (const w of outWins) { if (w.isDestroyed()) continue; if (w.isMinimized()) w.restore(); w.showInactive(); w.moveTop(); n++; }
+    return n;
   });
   win.webContents.on('before-input-event', (ev, input) => {
     if (input.type !== 'keyDown') return;
     if (input.key === 'F5') { win.webContents.reloadIgnoringCache(); ev.preventDefault(); }
     else if (input.key === 'F12') { win.webContents.toggleDevTools(); ev.preventDefault(); }
   });
+  // o X da janela de controle não fecha na hora: a página pergunta "salvar e fechar / fechar sem salvar / cancelar"
+  // (como o Resolume) e só então pede app:quit. No teste automático e ao sair pelo app.quit() o fechamento é direto.
+  win.on('close', (e) => { if (fechando || process.env.PROJ_TEST) return; e.preventDefault(); win.webContents.send('app:closeRequested'); });
+  ipcMain.handle('app:quit', () => { fechando = true; win.close(); });
   win.on('closed', () => app.quit());      // fechar o controle fecha as saídas junto
   win.loadURL(ORIGIN + '/index.html');
   return win;
@@ -302,7 +315,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('laser:fill', (_e, f) => { laser.setFill(+f); return true; });
   ipcMain.handle('laser:status', () => laser.status());
   ipcMain.on('laser:frame', (_e, buf) => { laser.setFrame(new Uint16Array(buf.buffer, buf.byteOffset, buf.byteLength / 2)); });
-  app.on('before-quit', () => laser.disconnect());
+  app.on('before-quit', () => { fechando = true; laser.disconnect(); });
 
   const win = createMain();
   laser.on('status', (s) => { if (!win.isDestroyed()) win.webContents.send('laser:status', s); });

@@ -355,7 +355,7 @@ module.exports = (win, app, laser) => {
         P.applySettings({...P.state.settings, w:1920, h:1080, bg:'#000000'}); await S(100); mn.volta=[P.engine.W, scN.items[0].in.w]; P.screens().pop();
         const c0=P.cols(); P.insertColumn(1); mn.col=[c0,P.cols(),P.state.layers[0].clips.length, P.state.layers[0].clips[1]===null, !!P.state.layers[0].clips[0]]; P.removeColumn(1); mn.col.push(P.cols(), P.state.layers[0].clips.length);
         P.state.sel={l:0,c:0}; P.copyClip(false); P.state.sel={l:1,c:3}; P.pasteClip(); mn.cola=[!!P.state.layers[1].clips[3], P.state.layers[1].clips[3]&&P.state.layers[1].clips[3].kind, P.state.layers[1].clips[3]!==P.state.layers[0].clips[0]];
-        P.toggleTestCard(); const tcOn=P.state.layers[0].testCard===true; P.trigger(0,0); await S(100); const tcPx=P.probe([[0.5,0.5],[0.1,0.5]]); P.toggleTestCard(); mn.testCard=[tcOn, P.state.layers.some(L=>L.testCard), tcPx[0].join()!=='0,0,0'];
+        P.toggleTestCard(); const tcOn=P.state.testCard===true && !P.state.layers.some(L=>L.testCard); await S(100); const tcPx=P.probeScreen(P.screens()[0],[[0.5,0.5],[0.1,0.5]]); P.toggleTestCard(); mn.testCard=[tcOn, !!P.state.testCard, tcPx[0].join()!=='0,0,0' && tcPx[1].join()!=='0,0,0'];
         P.state.layers[1].clips[3]=null; P.state.layers[0].clips[0]=null; P.render();
         R.menus=mn;
         // GIF animado: vira clipe de vídeo de 20 quadros, toca e anda para trás

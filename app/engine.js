@@ -129,6 +129,7 @@ export class Engine {
     this.fxProg = new Map();       // effect id → programa
     this.srcProg = new Map();      // source id → programa
     this.srcFbo = new Map();       // clip.id → fbo da fonte gerada
+    this.testCard = false;         // Test Card ligado: as telas recebem o test card no lugar da composição
     this.scratch = [this.fbo(width, height), this.fbo(width, height), this.fbo(width, height)];   // efeitos: entrada e pingue-pongue
     this.mixFbo = [this.fbo(width, height), this.fbo(width, height), this.fbo(width, height), this.fbo(width, height)];   // mistura: clipe antigo, clipe novo, camada pronta, cópia do alvo
     this.compFx = []; this.bg = [0, 0, 0];
@@ -551,6 +552,8 @@ export class Engine {
 
   renderScreen(screen, layers, screens) {
     const gl = this.gl, w = screen.w, h = screen.h;
+    // Test Card: a fonte "testcard" no tamanho da composição entra em todos os slices no lugar da composição ou da camada
+    const card = this.testCard ? this.renderSource(this.testCardClip || (this.testCardClip = { id: '__testcard', kind: 'source', source: 'testcard', params: {} })) : null;
     this.ensureSize(w, h);
     let f = this.screenFbo.get(screen.id);
     if (!f || f.w !== w || f.h !== h) {
@@ -565,7 +568,7 @@ export class Engine {
     const all = allSlices(screens);
     for (const s of screen.items) {
       if (s.type !== 'slice' || !s.enabled) continue;
-      const tex = this.sourceTex(s, layers);
+      const tex = card || this.sourceTex(s, layers);
       if (!tex) continue;
       const g = this.geomFor(s);
       gl.bindVertexArray(g.vao);

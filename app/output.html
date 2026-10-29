@@ -78,6 +78,13 @@
           ctx.strokeStyle = '#ff3b3b'; ctx.lineWidth = 2;
           ctx.beginPath(); ctx.moveTo(0, h.cursor[1] * ky); ctx.lineTo(ov.width, h.cursor[1] * ky); ctx.moveTo(h.cursor[0] * kx, 0); ctx.lineTo(h.cursor[0] * kx, ov.height); ctx.stroke();
         }
+        if(h.card){
+          ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(ov.width * 0.25, ov.height / 2 - 70, ov.width * 0.5, 140);
+          ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = 'bold 64px Segoe UI, sans-serif';
+          ctx.fillText(h.card.name, ov.width / 2, ov.height / 2 - 2);
+          ctx.font = '32px Segoe UI, sans-serif'; ctx.fillText(h.card.w + ' × ' + h.card.h, ov.width / 2, ov.height / 2 + 46);
+          ctx.textAlign = 'start';
+        }
         if(h.identify){
           ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, ov.width, ov.height);
           ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = 'bold 96px Segoe UI, sans-serif';

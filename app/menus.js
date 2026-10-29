@@ -35,6 +35,14 @@ export class Menubar {
     this.popup(this.defs()[i].items(), r.left, r.bottom, null);
   }
   close() { if (this.layer) this.layer.remove(); this.layer = null; if (this.open >= 0) { this.open = -1; this.syncButtons(); } }
+  // menu de contexto (botão direito): mesmo popup, aberto onde o mouse está, sem acender botão da barra
+  context(items, x, y) {
+    this.close(); this.open = 99; this.syncButtons();
+    this.layer = el('div', 'menuLayer'); document.body.appendChild(this.layer);
+    this.layer.onpointerdown = (e) => { if (e.target === this.layer) this.close(); };
+    this.layer.oncontextmenu = (e) => { e.preventDefault(); this.close(); };
+    return this.popup(items, x, y, null);
+  }
   popup(items, x, y, parent) {
     const m = el('div', 'menu'); m.style.left = x + 'px'; m.style.top = y + 'px';
     for (const it of items) {

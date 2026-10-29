@@ -500,12 +500,17 @@ async function snapshot(what) {
   if (!D) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); return; }
   try { const r = await D.rec.save(name, bytes, recorder.c.dir); toast('Instantâneo salvo: ' + r.path); recorder.refresh && recorder.refresh(); } catch (e) { toast('Não consegui salvar: ' + e.message); }
 }
-// Test Card: uma camada por cima com a fonte Test Card; o menu liga e desliga
+// Test Card: como no Resolume, não é um clipe. Substitui a composição na saída (passa pelos slices, warps e máscaras
+// da Saída avançada) e escreve o nome e o tamanho de cada tela por cima; o menu Saída liga e desliga
 function toggleTestCard() {
-  const i = state.layers.findIndex(L => L.testCard);
-  if (i >= 0) { removeLayer(i); return; }
-  const L = mkLayer('Test Card'); L.testCard = true; state.layers.unshift(L); if (state.sel) state.sel.l++;
-  const c = C.sourceClip('testcard'); L.clips[0] = c; L.on = 0; render();
+  const i = state.layers.findIndex(L => L.testCard); if (i >= 0) removeLayer(i);   // versões antigas punham uma camada "Test Card"
+  state.testCard = !state.testCard; engine.testCard = state.testCard;
+  if (!state.testCard) helpers.clear();
+  render(); renderScreens();
+}
+function testCardHelpers() {
+  if (!state.testCard) return;
+  for (const sc of state.screens) { const h = window.__projHelpers[sc.id]; if (!h || !h.card || h.card.name !== sc.name || h.w !== sc.w || h.h !== sc.h) helpers.set(sc, { card: { name: sc.name, w: sc.w, h: sc.h } }); }
 }
 // Malha do Automape: uma camada por cima com a fonte Malha, ligada e desligada pelo assistente (como o Test Card)
 function setAutomapeGrid(on) {
@@ -627,8 +632,11 @@ function render() {
         cell.draggable = true;
         cell.ondragstart = (e) => { drag = { l: li, c }; e.dataTransfer.effectAllowed = 'copyMove'; e.dataTransfer.setData('text/plain', 'clip'); };
         cell.ondragend = () => { drag = null; };
-        cell.oncontextmenu = (e) => { e.preventDefault(); clearCell(li, c); };
-      } else cell.append(el('div', 'th'), el('div', 'nm', ' '));
+        cell.oncontextmenu = (e) => { e.preventDefault(); state.selLayer = li; state.sel = { l: li, c }; render(); menubar.context(clipMenuItems(), e.clientX, e.clientY); };
+      } else {
+        cell.append(el('div', 'th'), el('div', 'nm', ' '));
+        cell.oncontextmenu = (e) => { e.preventDefault(); state.selLayer = li; state.sel = { l: li, c }; render(); menubar.context([{ label: 'Colar', key: 'Ctrl+V', disabled: !clipboard, fn: pasteClip }], e.clientX, e.clientY); };
+      }
       // estilo de disparo: normal dispara; alternar tira do ar se já estiver; piano fica no ar só enquanto segura
       cell.onclick = (e) => {
         if (clip && e.target.classList.contains('nm')) { state.selLayer = li; state.sel = { l: li, c }; trigger(li, c); return; }   // rodapé: seleciona, mostra a prévia e dispara do começo
@@ -835,10 +843,10 @@ function setScreenDevice(sc, v) {
   renderScreens(); if (ao.open) ao.layout();
 }
 function openOutputs(quais) {
-  let n = 0;
+  let n = 0, jaAbertas = 0;
   for (const sc of (Array.isArray(quais) ? quais : state.screens)) {
     if (!sc.enabled || !state.screens.includes(sc)) continue;
-    if (sc.win && !sc.win.closed) { sc.win.focus(); n++; continue; }
+    if (sc.win && !sc.win.closed) { sc.win.focus(); n++; jaAbertas++; continue; }
     const cv = screenCanvas(sc);
     window.__projCanvas[sc.id] = cv;   // a saída desenha este canvas; o captureStream fica só de reserva
     if (!window.__projStreams[sc.id]) { try { window.__projStreams[sc.id] = cv.captureStream(0); } catch { } }
@@ -846,10 +854,12 @@ function openOutputs(quais) {
     n++;
   }
   if (!n && !Array.isArray(quais)) toast('Nenhuma tela ligada. Abra a Saída avançada para ligar uma.');
+  if (jaAbertas && D && D.showOutputs) D.showOutputs().catch(() => { });   // "Mostrar saídas": traz as janelas para a frente (o focus() da página não consegue)
   renderScreens();
 }
 $('btnOut').onclick = () => openOutputs();
 function renderScreens() {
+  testCardHelpers();
   const list = $('scrList'); list.textContent = '';
   let on = 0;
   for (const sc of state.screens) {
@@ -893,11 +903,26 @@ const comps = {
   current: () => state.name,
   async save(name) {
     if (!D) { toast('Salvar composição precisa do programa instalado'); return; }
-    try { state.name = name; await D.comps.save(name, serializeComposition(state, laser, COLS)); toast('Composição "' + name + '" salva'); renderScreens(); browser.render(); } catch (e) { toast('Não consegui salvar: ' + e.message); }
+    try { state.name = name; await D.comps.save(name, serializeComposition(state, laser, COLS)); toast('Composição "' + name + '" salva'); renderScreens(); browser.render(); return true; } catch (e) { toast('Não consegui salvar: ' + e.message); return false; }
   },
   async open(name) { if (!D) return; try { await loadComposition(await D.comps.load(name), name); toast('Composição "' + name + '" aberta'); } catch (e) { toast('Não consegui abrir: ' + e.message); } browser.render(); },
   newComp() { resetComposition(); toast('Composição nova'); browser.render(); },
 };
+// fechar o programa (X da janela): pergunta como o Resolume — salvar e fechar, fechar sem salvar ou cancelar
+function askClose() {
+  if (document.querySelector('.dlgOver')) return;   // já há um diálogo na tela (ou a própria pergunta)
+  const nome = state.name;
+  openDialog({
+    title: 'Fechar o OpenLume', width: 460,
+    build: (body) => body.appendChild(el('p', 'dtext', nome ? 'Salvar as mudanças na composição "' + nome + '" antes de fechar?' : 'A composição ainda não tem nome. Salvar antes de fechar?')),
+    buttons: [
+      { label: 'Cancelar' },
+      { label: 'Fechar sem salvar', fn: () => { D && D.quit(); } },
+      { label: 'Salvar e fechar', primary: true, fn: () => { (async () => { let n = nome; if (!n) { n = await askText('Salvar composição', 'Nome', ''); if (!n) return; } if (await comps.save(n)) D && D.quit(); })(); } },
+    ],
+  });
+}
+if (D && D.onCloseRequested) D.onCloseRequested(askClose);
 function dropAll() { for (const L of state.layers) { if (L.ghost) C.stopClip(L.ghost); for (const row of rowsOf(L)) for (const c of row) if (c) { C.stopClip(c); dropClip(c); } } }
 function resetComposition() {
   dropAll();
@@ -1130,6 +1155,24 @@ function midiDialog() {
 const selL = () => state.layers[state.selLayer] ? state.selLayer : 0;
 const selC = () => state.sel ? state.sel.c : 0;
 const withClip = (fn) => () => { const s = selectedCell(); if (!s) { toast('Selecione um clipe'); return; } fn(s.clip, state.layers.indexOf(s.L), s.idx); };
+// itens do menu Clipe da barra; o botão direito numa casa abre os mesmos itens para aquele clipe
+const clipMenuItems = () => { const s = selectedCell(), k = s ? s.clip : null, isV = k && k.kind === 'video'; return [
+    { label: 'Transporte', disabled: !isV, sub: () => PLAY_MODES.map(([v, t]) => ({ label: t, check: k.tr.mode === v, fn: () => { k.tr.mode = v; panels.render(); } })) },
+    { label: 'Alvo (autopilot)', disabled: !k, sub: () => [['layer', 'Como a camada'], ['next', 'Próximo'], ['prev', 'Anterior'], ['random', 'Ao acaso'], ['stop', 'Parar']].map(([v, t]) => ({ label: t, check: k.ap && k.ap.mode === v, fn: () => { k.ap = { ...(k.ap || {}), mode: v }; panels.render(); } })) },
+    { label: 'Estilo de disparo', disabled: !k, sub: () => [['normal', 'Normal'], ['piano', 'Piano'], ['toggle', 'Alternar']].map(([v, t]) => ({ label: t, check: k.trig === v, fn: () => { k.trig = v; panels.render(); } })) },
+    { label: 'Ignorar disparo de coluna', disabled: !k, check: !!(k && k.ignoreColumn), fn: () => { k.ignoreColumn = !k.ignoreColumn; panels.render(); } },
+    { label: 'Ajuste', disabled: !k, sub: () => [['contain', 'Encaixar'], ['cover', 'Preencher'], ['stretch', 'Esticar']].map(([v, t]) => ({ label: t, check: k.fit === v, fn: () => { k.fit = v; panels.render(); } })) },
+    { label: 'Miniatura do quadro atual', disabled: !k || k.kind !== 'video', fn: withClip((c) => { const cv = document.createElement('canvas'); const kk = Math.min(240 / c.w, 240 / c.h); cv.width = Math.round(c.w * kk); cv.height = Math.round(c.h * kk); try { cv.getContext('2d').drawImage(c.player ? c.player.frame : c.el, 0, 0, cv.width, cv.height); c.thumb = cv.toDataURL('image/jpeg', 0.75); render(); } catch { toast('Não consegui tirar a miniatura'); } }) }, '-',
+    { label: 'Recortar', key: 'Ctrl+X', disabled: !k, fn: () => copyClip(true) },
+    { label: 'Copiar', key: 'Ctrl+C', disabled: !k, fn: () => copyClip(false) },
+    { label: 'Colar', key: 'Ctrl+V', disabled: !clipboard, fn: pasteClip },
+    { label: 'Copiar efeitos', disabled: !k, fn: withClip((c) => { fxClipboard = fxCopy(c.fx); toast(fxClipboard.length + ' efeito(s) copiado(s)'); }) },
+    { label: 'Colar efeitos', disabled: !k || !fxClipboard, fn: withClip((c) => { c.fx.push(...fxCopy(fxClipboard)); panels.render(); }) }, '-',
+    { label: 'Renomear…', disabled: !k, fn: withClip(async (c) => { const n = await askText('Renomear clipe', 'Nome', c.name); if (n) { c.name = n; render(); } }) },
+    { label: 'Limpar', key: 'Delete', disabled: !k, fn: withClip((c, l, col) => clearCell(l, col)) },
+    { label: 'Mostrar no Explorer', disabled: !k || !k.path || !D, fn: withClip((c) => D.rec.show(c.path)) },
+    { label: 'Preparar (H.264 todo intra)', disabled: !isV || !k.path || k.prepared || !D, fn: withClip((c, l, col) => prepareClip(l, col, 'h264')) },
+    { label: 'Instantâneo do clipe (PNG)', disabled: !k, fn: () => snapshot('clip') }]; };
 const menuDefs = () => [
   { label: 'OpenLume', items: () => [
     { label: 'Preferências…', key: 'Ctrl+,', fn: preferencesDialog }, '-',
@@ -1204,23 +1247,7 @@ const menuDefs = () => [
     { label: 'Remover', disabled: COLS <= 1, fn: () => removeColumn(c) },
     { label: 'Remover todas antes', disabled: c === 0, fn: () => { for (let i = 0; i < c; i++) removeColumn(0); } },
     { label: 'Remover todas depois', disabled: c >= COLS - 1, fn: () => { while (COLS > c + 1) removeColumn(COLS - 1); } }]; } },
-  { label: 'Clipe', items: () => { const s = selectedCell(), k = s ? s.clip : null, isV = k && k.kind === 'video'; return [
-    { label: 'Transporte', disabled: !isV, sub: () => PLAY_MODES.map(([v, t]) => ({ label: t, check: k.tr.mode === v, fn: () => { k.tr.mode = v; panels.render(); } })) },
-    { label: 'Alvo (autopilot)', disabled: !k, sub: () => [['layer', 'Como a camada'], ['next', 'Próximo'], ['prev', 'Anterior'], ['random', 'Ao acaso'], ['stop', 'Parar']].map(([v, t]) => ({ label: t, check: k.ap && k.ap.mode === v, fn: () => { k.ap = { ...(k.ap || {}), mode: v }; panels.render(); } })) },
-    { label: 'Estilo de disparo', disabled: !k, sub: () => [['normal', 'Normal'], ['piano', 'Piano'], ['toggle', 'Alternar']].map(([v, t]) => ({ label: t, check: k.trig === v, fn: () => { k.trig = v; panels.render(); } })) },
-    { label: 'Ignorar disparo de coluna', disabled: !k, check: !!(k && k.ignoreColumn), fn: () => { k.ignoreColumn = !k.ignoreColumn; panels.render(); } },
-    { label: 'Ajuste', disabled: !k, sub: () => [['contain', 'Encaixar'], ['cover', 'Preencher'], ['stretch', 'Esticar']].map(([v, t]) => ({ label: t, check: k.fit === v, fn: () => { k.fit = v; panels.render(); } })) },
-    { label: 'Miniatura do quadro atual', disabled: !k || k.kind !== 'video', fn: withClip((c) => { const cv = document.createElement('canvas'); const kk = Math.min(240 / c.w, 240 / c.h); cv.width = Math.round(c.w * kk); cv.height = Math.round(c.h * kk); try { cv.getContext('2d').drawImage(c.player ? c.player.frame : c.el, 0, 0, cv.width, cv.height); c.thumb = cv.toDataURL('image/jpeg', 0.75); render(); } catch { toast('Não consegui tirar a miniatura'); } }) }, '-',
-    { label: 'Recortar', key: 'Ctrl+X', disabled: !k, fn: () => copyClip(true) },
-    { label: 'Copiar', key: 'Ctrl+C', disabled: !k, fn: () => copyClip(false) },
-    { label: 'Colar', key: 'Ctrl+V', disabled: !clipboard, fn: pasteClip },
-    { label: 'Copiar efeitos', disabled: !k, fn: withClip((c) => { fxClipboard = fxCopy(c.fx); toast(fxClipboard.length + ' efeito(s) copiado(s)'); }) },
-    { label: 'Colar efeitos', disabled: !k || !fxClipboard, fn: withClip((c) => { c.fx.push(...fxCopy(fxClipboard)); panels.render(); }) }, '-',
-    { label: 'Renomear…', disabled: !k, fn: withClip(async (c) => { const n = await askText('Renomear clipe', 'Nome', c.name); if (n) { c.name = n; render(); } }) },
-    { label: 'Limpar', key: 'Delete', disabled: !k, fn: withClip((c, l, col) => clearCell(l, col)) },
-    { label: 'Mostrar no Explorer', disabled: !k || !k.path || !D, fn: withClip((c) => D.rec.show(c.path)) },
-    { label: 'Preparar (H.264 todo intra)', disabled: !isV || !k.path || k.prepared || !D, fn: withClip((c, l, col) => prepareClip(l, col, 'h264')) },
-    { label: 'Instantâneo do clipe (PNG)', disabled: !k, fn: () => snapshot('clip') }]; } },
+  { label: 'Clipe', items: clipMenuItems },
   { label: 'Saída', items: () => { const sc = state.screens[0], open = state.screens.some(s => s.win && !s.win.closed); return [
     { label: 'Desligada', check: !open, fn: () => { for (const s of state.screens) if (s.win && !s.win.closed) s.win.close(); renderScreens(); } },
     { label: 'Tela cheia', sub: () => displays.length ? displays.map(d => ({ label: d.label, check: open && sc.device === d.id, fn: () => { sc.device = d.id; sc.enabled = true; if (sc.win && !sc.win.closed) sc.win.close(); openOutputs(); } })) : [{ label: 'nenhum monitor listado', disabled: true }] },
@@ -1230,7 +1257,7 @@ const menuDefs = () => [
     { label: 'Avançada…', fn: () => ao.show() },
     { label: 'Automape…', fn: () => automape.open() }, '-',
     { label: 'Identificar telas', fn: () => { ao.identify(); if (!open) toast('Abra a saída para ver o nome em cada tela'); } },
-    { label: 'Mostrar Test Card', check: state.layers.some(L => L.testCard), fn: toggleTestCard },
+    { label: 'Mostrar Test Card', check: !!state.testCard, fn: toggleTestCard },
     { label: 'Instantâneo da composição (PNG)', fn: () => snapshot('comp') }]; } },
   { label: 'Atalhos', items: () => [{ label: 'Teclado…', fn: () => shortcutsDialog(SHORTCUTS) }, { label: 'MIDI: APC40 mkII…', fn: midiDialog }, { label: 'Usar a APC40', check: apc.enabled, fn: () => apc.setEnabled(!apc.enabled) }] },
   { label: 'Ver', items: () => [
@@ -1319,4 +1346,5 @@ window.projecionista = { frames: () => loop.total || 0, undo: undoComp, redo: re
   probe: (pts) => engine.probe(state.layers, pts),
   probeScreen: (sc, pts) => engine.probeScreen(sc, state.layers, state.screens, pts),
   serialize: () => serializeComposition(state, laser, COLS), load: loadComposition, reset: resetComposition,
+  askClose, clipMenuItems,
   screens: () => state.screens, setScreens, openOutputs, outWins: () => state.screens.map(sc => sc.win).filter(w => w && !w.closed) };
