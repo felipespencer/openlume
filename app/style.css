@@ -214,7 +214,7 @@ button.gh:hover{ color:var(--txt); background:var(--bg3); }
 #aoView svg .hdg{ cursor:grab; }
 #aoView svg .hd{ fill:#1b1b1b; stroke:var(--teal); stroke-width:1.5; vector-effect:non-scaling-stroke; cursor:grab; }
 #aoView svg .hdc{ fill:none; stroke:var(--teal); stroke-width:1.5; vector-effect:non-scaling-stroke; }
-#aoView svg .hd.anc{ fill:var(--teal); } #aoView svg .hd.anc.cur{ stroke:#fff; }
+#aoView svg .hd.anc{ fill:var(--teal); } #aoView svg .hd.cur{ stroke:#fff; stroke-width:2.5; }
 #aoView svg .handle{ stroke:var(--teal); stroke-width:1; stroke-dasharray:3 3; opacity:.8; vector-effect:non-scaling-stroke; pointer-events:none; }
 #aoView svg .mask, #aoView svg .inmask{ fill:#f5d742; fill-opacity:.12; stroke:#f5d742; stroke-width:1; stroke-dasharray:5 4; vector-effect:non-scaling-stroke; cursor:move; }
 #aoView svg .mname{ fill:#f5d742; }

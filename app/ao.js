@@ -18,7 +18,7 @@ export class AdvancedOutput {
   constructor(ctx) {
     this.c = ctx;
     this.open = false; this.tab = 'in'; this.mode = 'move'; this.snap = false; this.grid = true; this.led = false; this.pan = false; this.zoom = 'fit';
-    this.sel = null; this.selPt = -1; this.drawing = null; this.cursor = null; this.drag = null; this.scale = 1;
+    this.sel = null; this.selPt = -1; this.selPtK = null; this.nudgeT = 0; this.drawing = null; this.cursor = null; this.drag = null; this.scale = 1;
     this.snapshot = ''; this.presetName = ''; this.hist = []; this.redoHist = []; this.space = false;
     Object.assign(this, propsKit(this));
     this.build();
@@ -51,8 +51,8 @@ export class AdvancedOutput {
             <span class="gridWrap"><button type="button" id="aoGridBtn" class="ib" data-help="Grade|Mostra o nome e a borda do slice no projetor, com o cursor; ou uma grade de 8×8 px para alinhar.">${ICON.grid}${ICON.caret}</button>
               <div id="aoGridMenu" class="menu" hidden><button type="button" data-g="grid">Mostrar grade do slice</button><button type="button" data-g="led">Grade LED 8×8</button><button type="button" data-g="ident">Identificar slices</button></div></span>
             <span class="sp"></span>
-            ${ibtn('aoPts', 'pts', 'Modo Editar pontos|Muda a posição ou a curva de cada ponto do slice. Tecla T alterna entre Editar pontos e Transformar.', 'Editar pontos')}
-            ${ibtn('aoMove', 'move', 'Modo Transformar|Muda a posição, o giro ou o tamanho do slice inteiro. Tecla T alterna entre Editar pontos e Transformar.', 'Transformar')}
+            ${ibtn('aoPts', 'pts', 'Modo Editar pontos|Muda a posição ou a curva de cada ponto do slice. Setas movem o ponto selecionado 1 px; com Shift, 10 px. Tecla T alterna entre Editar pontos e Transformar.', 'Editar pontos')}
+            ${ibtn('aoMove', 'move', 'Modo Transformar|Muda a posição, o giro ou o tamanho do slice inteiro. Setas movem o slice 1 px; com Shift, 10 px. Tecla T alterna entre Editar pontos e Transformar.', 'Transformar')}
             <button type="button" id="aoAutomape" class="txt" data-help="Automape|Mapeia sozinho a partir de uma foto: o projetor mostra uma malha, você fotografa de cima da lente, a IA acha as superfícies e cria slices e máscaras aqui.">Automape</button>
           </div>
           <div id="aoStage"><div id="aoView"><canvas id="aoCv"></canvas><svg id="aoSvg"></svg></div></div>
@@ -146,9 +146,25 @@ export class AdvancedOutput {
     else if (e.key === 'Escape') { if (this.drawing) { this.drawing = null; this.draw(); } else this.hide(true); }
     else if (e.key === 't' || e.key === 'T') { if (this.tab === 'out') this.setMode(this.mode === 'move' ? 'pts' : 'move'); }
     else if (e.key === 'Enter' && this.drawing) this.finishDrawing();
+    else if (e.key.startsWith('Arrow') && this.sel && this.sel.item && !this.drawing) { this.nudge(e.key, e.shiftKey ? 10 : 1); e.preventDefault(); }
     else if (e.key === 'Delete' && this.sel && this.sel.item) this.removeItem(this.sel.item);
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.shiftKey ? this.redo() : this.undo(); e.preventDefault(); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { this.redo(); e.preventDefault(); }
+  }
+  // Setas: movem o ponto selecionado (ou o item inteiro) 1 px; com Shift, 10 px. Toques seguidos viram um só "desfazer".
+  nudge(key, step) {
+    const it = this.sel.item, dx = key === 'ArrowLeft' ? -step : key === 'ArrowRight' ? step : 0, dy = key === 'ArrowUp' ? -step : key === 'ArrowDown' ? step : 0;
+    if (!dx && !dy) return;
+    const k = this.selPt >= 0 ? this.selPtK : null;
+    if (this.tab === 'in' && it.type !== 'slice') return;
+    const now = Date.now(); if (now - this.nudgeT > 800) this.pushUndo(); this.nudgeT = now;
+    if (k === 'anchor' && it.warp && it.warp.pts[this.selPt]) M.moveAnchor(it, this.selPt, dx, dy);
+    else if (k === 'maskpt' && it.pts && it.pts[this.selPt]) { const q = it.pts[this.selPt]; q[0] += dx; q[1] += dy; M.touch(it); }
+    else if (k === 'inmaskpt' && it.inMask && it.inMask.pts[this.selPt]) { const q = it.inMask.pts[this.selPt]; q[0] += dx / it.in.w; q[1] += dy / it.in.h; it.inMask.rev++; M.touch(it); }
+    else if (this.tab === 'in') { it.in.x += dx; it.in.y += dy; M.touch(it); }
+    else if (it.type === 'mask') { it.pts.forEach(q => { q[0] += dx; q[1] += dy; }); M.touch(it); }
+    else { const r = M.outRect(it); M.fitOutRect(it, { x: r.x + dx, y: r.y + dy, w: r.w, h: r.h }); }
+    this.draw(); this.renderProps(); this.c.onChange();
   }
 
   // ---------- palco ----------
@@ -269,7 +285,7 @@ export class AdvancedOutput {
       if (!M.isAnchor(item, i)) return;
       const g = svgEl('g', { class: 'hdg', 'data-k': 'anchor', 'data-i': i, 'data-id': item.id });
       g.appendChild(svgEl('rect', { x: p[0] - 11 * k, y: p[1] - 11 * k, width: 22 * k, height: 22 * k, class: 'hdc' }));
-      g.appendChild(svgEl('rect', { x: p[0] - 5 * k, y: p[1] - 5 * k, width: 10 * k, height: 10 * k, class: 'hd anc' + (i === this.selPt ? ' cur' : '') }));
+      g.appendChild(svgEl('rect', { x: p[0] - 5 * k, y: p[1] - 5 * k, width: 10 * k, height: 10 * k, class: 'hd anc' + (i === this.selPt && this.selPtK === 'anchor' ? ' cur' : '') }));
       svg.appendChild(g);
     });
   }
@@ -277,7 +293,7 @@ export class AdvancedOutput {
     const k = 1 / this.scale, attrs = { points: pts.map(p => p.join(',')).join(' '), class: kind };
     if (item) { attrs['data-k'] = 'body'; attrs['data-id'] = item.id; }
     this.svg.appendChild(svgEl('polygon', attrs));
-    if (points) pts.forEach((p, i) => this.svg.appendChild(svgEl('rect', { x: p[0] - 5 * k, y: p[1] - 5 * k, width: 10 * k, height: 10 * k, class: 'hd', 'data-k': kind + 'pt', 'data-i': i, 'data-id': item ? item.id : '' })));
+    if (points) pts.forEach((p, i) => this.svg.appendChild(svgEl('rect', { x: p[0] - 5 * k, y: p[1] - 5 * k, width: 10 * k, height: 10 * k, class: 'hd' + (i === this.selPt && this.selPtK === kind + 'pt' ? ' cur' : ''), 'data-k': kind + 'pt', 'data-i': i, 'data-id': item ? item.id : '' })));
   }
 
   // ---------- interação ----------
@@ -294,7 +310,7 @@ export class AdvancedOutput {
     this.svg.setPointerCapture(e.pointerId);
     this.pushUndo();
     const d = this.drag = { k, i: +t.dataset.i, it, last: p, start: p };
-    if (k === 'anchor') { this.selPt = d.i; this.draw(); this.renderProps(); }
+    if (k === 'anchor' || k === 'maskpt' || k === 'inmaskpt') { this.selPt = d.i; this.selPtK = k; this.draw(); this.renderProps(); }
     if (k === 'resize' || k === 'body') d.rect = this.tab === 'in' ? { ...it.in } : it.type === 'slice' ? M.outRect(it) : bbox(it.pts);
   }
   move(e) {

@@ -1,4 +1,4 @@
-// Verifica que a Saída avançada NÃO derruba a saída no ar: com uma tela aberta em janela, abre a Saída avançada,
+// Verifica que a Saída avançada NÃO derruba a saída no ar e que as SETAS movem o item ou o ponto (1 px; Shift: 10 px): com uma tela aberta em janela, abre a Saída avançada,
 // muda algo, Ctrl+Z (evento de teclado REAL pelo CDP), Ctrl+Y, Esc (cancelar) e Salvar; a janela de saída tem de
 // continuar aberta em todos os passos. Programa aberto com --remote-debugging-port=9333 (ou PROJ_CDP).
 // Uso: node tools/ao-check.mjs
@@ -13,6 +13,9 @@ const send = (method, params = {}) => new Promise(r => { const i = ++id; waits.s
 const ev = async (expr) => { const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); if (r.result.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description || r.result.exceptionDetails.text); return r.result.result.value; };
 const key = async (k, code, vk, mods = 0) => { await send('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code, modifiers: mods, windowsVirtualKeyCode: vk }); await send('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code, modifiers: mods, windowsVirtualKeyCode: vk }); };
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
+const mouse = (type, x, y) => send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1 });
+const click = async (x, y) => { await mouse('mouseMoved', x, y); await mouse('mousePressed', x, y); await mouse('mouseReleased', x, y); };
+const arrow = (name, shift = false) => key(name, name, { ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40 }[name], shift ? 8 : 0);
 const results = []; const check = (name, ok, info = '') => { results.push({ name, ok }); console.log((ok ? 'OK    ' : 'FALHA ') + name + (info ? '  — ' + info : '')); };
 const P = 'window.projecionista';
 const noAr = async () => +await ev(`${P}.outWins().length`);
@@ -40,6 +43,35 @@ check('Ctrl+Z mantém a saída no ar', await noAr() === 1 && await janelasSaida(
 await key('y', 'KeyY', 89, 2); await wait(400);
 check('Ctrl+Y refaz', await ev(`${P}.screens()[0].items[0].name`) === 'teste-ao');
 check('Ctrl+Y mantém a saída no ar', await noAr() === 1, `outWins=${await noAr()}`);
+
+// setas: no modo Transformar movem o slice inteiro 1 px (Shift: 10 px); no modo Editar pontos movem o ponto selecionado
+{
+  await ev(`(() => { const p = ${P}; const sc = p.screens()[0]; p.ao.setTab('out'); p.ao.select(sc, sc.items[0]); p.ao.setMode('move'); return 1; })()`);
+  await ev(`document.activeElement && document.activeElement.blur(); 1`); await wait(900);
+  const rect = () => ev(`JSON.stringify(${P}.M.outRect(${P}.screens()[0].items[0]))`).then(JSON.parse);
+  const r0 = await rect();
+  await arrow('ArrowRight'); await wait(100); const r1 = await rect();
+  check('seta → move o slice 1 px', r1.x === r0.x + 1 && r1.y === r0.y && r1.w === r0.w, `x ${r0.x}→${r1.x}`);
+  await arrow('ArrowDown', true); await wait(100); const r2 = await rect();
+  check('Shift+seta ↓ move o slice 10 px', r2.y === r0.y + 10 && r2.x === r1.x, `y ${r0.y}→${r2.y}`);
+  // ponto: clique real na âncora 0 (canto superior esquerdo) no modo Editar pontos, depois setas
+  await ev(`${P}.ao.setMode('pts'); 1`); await wait(100);
+  const a = JSON.parse(await ev(`(() => { const p = ${P}; const s = p.screens()[0]; const it = s.items[0]; const r = document.getElementById('aoSvg').getBoundingClientRect(); const q = it.warp.pts[0]; return JSON.stringify({ x: r.left + q[0] / s.w * r.width, y: r.top + q[1] / s.h * r.height, px: q[0], py: q[1] }); })()`));
+  await click(a.x, a.y); await wait(150);
+  check('clique real seleciona a âncora', await ev(`${P}.ao.selPt`) === 0 && await ev(`${P}.ao.selPtK`) === 'anchor', `selPt=${await ev(`${P}.ao.selPt`)}`);
+  await arrow('ArrowLeft'); await arrow('ArrowUp', true); await wait(100);
+  const q = JSON.parse(await ev(`JSON.stringify(${P}.screens()[0].items[0].warp.pts[0])`));
+  check('setas movem só o ponto selecionado (← 1 px, Shift+↑ 10 px)', q[0] === a.px - 1 && q[1] === a.py - 10, `${a.px},${a.py} → ${q[0]},${q[1]}`);
+  const r3 = await rect();
+  check('os outros cantos ficam onde estavam', r3.x + r3.w === r2.x + r2.w && r3.y + r3.h === r2.y + r2.h);
+  // toques seguidos viram um só desfazer
+  await wait(900); const before = JSON.parse(await ev(`JSON.stringify(${P}.screens()[0].items[0].warp.pts[0])`));
+  await arrow('ArrowRight'); await arrow('ArrowRight'); await arrow('ArrowRight'); await wait(100);
+  await key('z', 'KeyZ', 90, 2); await wait(300);
+  const after = JSON.parse(await ev(`JSON.stringify(${P}.screens()[0].items[0].warp.pts[0])`));
+  check('Ctrl+Z desfaz a sequência de setas de uma vez', after[0] === before[0] && after[1] === before[1], `${before} → ${after}`);
+  check('setas mantêm a saída no ar', await noAr() === 1, `outWins=${await noAr()}`);
+}
 
 // Esc cancela (volta ao retrato de quando abriu) e a saída continua
 const focoAntesEsc = await ev(`document.activeElement ? document.activeElement.tagName + (document.activeElement.id ? '#' + document.activeElement.id : '') : 'nenhum'`);
