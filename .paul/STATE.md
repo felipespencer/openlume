@@ -62,6 +62,8 @@ PLAN ──▶ APPLY ──▶ UNIFY
 | 2026-10-25: no celular, o desenho é um CLIPE (camada própria, pads, vários desenhos); disparar refaz o traço no ritmo em que foi feito | Phase 3 | O clipe de desenho entra na grade como os outros (mover, Autopilot) |
 | 2026-10-25: efeitos de física entram como PLUGINS (pasta com `plugin.js`), não no código do programa; o celular é do programa, não plugin | Phase 3 | Sistema de plugins antes dos quatro plugins de física |
 
+| 2026-10-29: Felipe quer um PLANETÁRIO: projeção em domo com VÁRIOS projetores na borda, não olho de peixe; "deixar esse passo pra depois" | futuro | Anotado em ROADMAP.md (Ideias para um marco futuro); não entra no v0.2 |
+
 ### Deferred Issues
 
 | Issue | Origin | Effort | Revisit |

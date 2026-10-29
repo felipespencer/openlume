@@ -137,6 +137,15 @@ com `OutputPresentation` para o projetor.
 **Plans:**
 - [ ] 06-01: a definir
 
+## Ideias para um marco futuro
+
+- **Domo / planetário com vários projetores** (pedido de 2026-10-29, "quero deixar esse passo pra depois"):
+  3 a 6 projetores na borda do domo, sem lente olho de peixe. Três pedaços: (1) conteúdo em domemaster
+  (render das camadas numa esfera + conversor de 360° equirretangular); (2) malha de deformação esférica por
+  projetor na Saída avançada (a homografia atual só serve para parede plana), calibrada por foto como no
+  Automape; (3) soft-edge nas sobreposições. O Resolume não faz domo sozinho (usa Blendy Dome, VIOSO); seria
+  recurso só nosso, como o Automape. Entra como fase quando ele pedir.
+
 ---
 *Roadmap created: 2026-10-21*
-*Last updated: 2026-10-25 (inseridas depois do Automape: Fase 2 "Efeitos do Resolume" e Fase 3 "Celular e plugins"; as seguintes renumeradas)*
+*Last updated: 2026-10-29 (ideia do domo/planetário anotada para depois); 2026-10-25 (inseridas depois do Automape: Fase 2 "Efeitos do Resolume" e Fase 3 "Celular e plugins"; as seguintes renumeradas)*
