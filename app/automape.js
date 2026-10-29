@@ -389,7 +389,7 @@ export class Automape {
     d.body.addEventListener('drop', (e) => { e.preventDefault(); const z = this.$('wDrop'); if (z) z.classList.remove('over'); const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f && f.type.startsWith('image/')) this.readFile(f); });
     this.go(step || 0);
   }
-  onClosed() { this.dlg = null; if (this.c.gridOn()) this.c.setGrid(false); }
+  onClosed() { this.dlg = null; if (this.c.gridOn() && this.ligouMalha) this.c.setGrid(false); this.ligouMalha = false; }   // a malha ligada pelo menu Saída fica
   close() { if (this.dlg) this.dlg.close(); }
 
   // ---------- passos ----------
@@ -422,9 +422,9 @@ export class Automape {
       { title: 'Ligue o projetor e mostre a malha', build(b) {
           b.appendChild(el('p', 'lead')).innerHTML = 'Com o projetor ligado e apontado para o lugar, aperte o botão. O projetor passa a mostrar uma <b>borda clara</b> e uma <b>malha fina</b>.';
           const bt = el('button', 'big' + (c.gridOn() ? ' on' : ' neon'), c.gridOn() ? '✓ Malha ligada no projetor' : 'Mostrar a malha no projetor'); bt.type = 'button'; bt.id = 'wGridBtn';
-          bt.onclick = () => { c.setGrid(!c.gridOn()); bt.classList.toggle('on', c.gridOn()); bt.classList.toggle('neon', !c.gridOn()); bt.textContent = c.gridOn() ? '✓ Malha ligada no projetor' : 'Mostrar a malha no projetor'; self.toast(c.gridOn() ? 'O projetor mostra a borda e a malha: agora fotografe' : 'Malha desligada'); };
+          bt.onclick = () => { if (!c.gridOn()) self.ligouMalha = true; c.setGrid(!c.gridOn()); bt.classList.toggle('on', c.gridOn()); bt.classList.toggle('neon', !c.gridOn()); bt.textContent = c.gridOn() ? '✓ Malha ligada no projetor' : 'Mostrar a malha no projetor'; self.toast(c.gridOn() ? 'O projetor mostra a borda e a malha: agora fotografe' : 'Malha desligada'); };
           b.appendChild(bt);
-          b.appendChild(el('div', 'anrow')).innerHTML = AN.card(AN.malha, 'o projetor acende a borda e a malha fina', true) + '<p>Olhe para a parede: a borda mostra até onde a luz vai, e a malha mostra como ela se deforma nas superfícies. A malha entra como uma camada por cima da composição (como o Test Card) e sai sozinha quando o Automape fecha.</p>';
+          b.appendChild(el('div', 'anrow')).innerHTML = AN.card(AN.malha, 'o projetor acende a borda e a malha fina', true) + '<p>Olhe para a parede: a borda mostra até onde a luz vai, e a malha mostra como ela se deforma nas superfícies. A malha cobre a área total de projeção de cada tela, por cima de tudo, e sai sozinha quando o Automape fecha (ou liga e desliga no menu Saída).</p>';
         }, tip: '<b>Por quê?</b> A foto precisa registrar o tamanho exato da imagem do projetor. Sem a borda, o Automape não sabe onde a luz termina; sem a malha, não sabe o que está torto.' },
       { title: 'Tire a foto', build(b) {
           b.appendChild(el('div', 'anrow')).innerHTML = AN.card(AN.foto, 'celular logo acima da lente, foto com a malha inteira', true) + '<p class="lead">Com o celular, fotografe a parede com a malha projetada.</p>';

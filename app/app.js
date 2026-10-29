@@ -505,22 +505,28 @@ async function snapshot(what) {
 function toggleTestCard() {
   const i = state.layers.findIndex(L => L.testCard); if (i >= 0) removeLayer(i);   // versões antigas punham uma camada "Test Card"
   state.testCard = !state.testCard; engine.testCard = state.testCard;
-  if (!state.testCard) helpers.clear();
-  render(); renderScreens();
+  syncOverlay(); render(); renderScreens();
 }
-function testCardHelpers() {
-  if (!state.testCard) return;
-  for (const sc of state.screens) { const h = window.__projHelpers[sc.id]; if (!h || !h.card || h.card.name !== sc.name || h.w !== sc.w || h.h !== sc.h) helpers.set(sc, { card: { name: sc.name, w: sc.w, h: sc.h } }); }
-}
-// Malha do Automape: uma camada por cima com a fonte Malha, ligada e desligada pelo assistente (como o Test Card)
+// Malha do Automape: a ÁREA TOTAL de projeção de cada tela (borda clara + malha fina cobrindo a janela de saída inteira,
+// sem passar pelos slices), desenhada pela janela de saída por cima de tudo. Liga e desliga a qualquer hora pelo menu
+// Saída ou pelo assistente do Automape; não é camada nem clipe.
 function setAutomapeGrid(on) {
-  const i = state.layers.findIndex(L => L.automapeGrid);
-  if (!on) { if (i >= 0) removeLayer(i); return; }
-  if (i >= 0) return;
-  const L = mkLayer('Malha do Automape'); L.automapeGrid = true; state.layers.unshift(L); if (state.sel) state.sel.l++;
-  const c = C.sourceClip('malha'); L.clips[0] = c; L.on = 0; render();
+  const i = state.layers.findIndex(L => L.automapeGrid); if (i >= 0) removeLayer(i);   // versões antigas punham uma camada
+  state.mesh = !!on; syncOverlay(); renderScreens();
 }
-const automapeGridOn = () => state.layers.some(L => L.automapeGrid);
+const automapeGridOn = () => !!state.mesh;
+// o que a janela de saída desenha por cima da imagem (Test Card: nome e tamanho da tela; malha: área total): mantém
+// os ajudantes de cada tela em dia com o estado e com o nome/tamanho da tela
+function syncOverlay() {
+  for (const sc of state.screens) {
+    const h = window.__projHelpers[sc.id] || {};
+    const want = { card: state.testCard ? { name: sc.name, w: sc.w, h: sc.h } : undefined, mesh: state.mesh ? { cells: 32 } : undefined };
+    if (JSON.stringify({ card: h.card, mesh: h.mesh }) === JSON.stringify(want) && (!h.card || (h.w === sc.w && h.h === sc.h))) continue;
+    const rest = { ...h }; delete rest.card; delete rest.mesh; delete rest.w; delete rest.h;
+    if (!want.card && !want.mesh) helpers.set(sc, Object.keys(rest).length ? rest : null);
+    else helpers.set(sc, { ...rest, ...want });
+  }
+}
 // O Automape criou o mapa: cada item vira máscara ou slice (4 cantos + máscara de entrada com o contorno) na primeira tela
 function automapeCreate(result) {
   const sc = state.screens[0]; if (!sc) return 0;
@@ -859,7 +865,7 @@ function openOutputs(quais) {
 }
 $('btnOut').onclick = () => openOutputs();
 function renderScreens() {
-  testCardHelpers();
+  syncOverlay();
   const list = $('scrList'); list.textContent = '';
   let on = 0;
   for (const sc of state.screens) {
@@ -1258,6 +1264,7 @@ const menuDefs = () => [
     { label: 'Automape…', fn: () => automape.open() }, '-',
     { label: 'Identificar telas', fn: () => { ao.identify(); if (!open) toast('Abra a saída para ver o nome em cada tela'); } },
     { label: 'Mostrar Test Card', check: !!state.testCard, fn: toggleTestCard },
+    { label: 'Mostrar malha do Automape (área total de projeção)', check: !!state.mesh, fn: () => setAutomapeGrid(!state.mesh) },
     { label: 'Instantâneo da composição (PNG)', fn: () => snapshot('comp') }]; } },
   { label: 'Atalhos', items: () => [{ label: 'Teclado…', fn: () => shortcutsDialog(SHORTCUTS) }, { label: 'MIDI: APC40 mkII…', fn: midiDialog }, { label: 'Usar a APC40', check: apc.enabled, fn: () => apc.setEnabled(!apc.enabled) }] },
   { label: 'Ver', items: () => [

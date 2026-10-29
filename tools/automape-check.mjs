@@ -34,8 +34,8 @@ check('clicar nele abre o assistente no passo 1', await ev(`!!document.querySele
 const next = async () => { r = await rectOf(D + '.dfoot button:nth-child(3)'); await click(r.x, r.y); await wait(150); };
 await next(); check('"Começar" vai ao passo 2 com o botão da malha pulsando', await ev(`${A}.step === 1 && document.querySelector('${D}#wGridBtn').classList.contains('neon')`));
 r = await rectOf(D + '#wGridBtn'); await click(r.x, r.y); await wait(300);
-const malha = JSON.parse(await ev("(()=>{ const P=window.projecionista; const px=P.probe([[0.52,0.52],[0.0078,0.5]]); return JSON.stringify({on:P.automapeGridOn(), camada:P.state.layers[0].automapeGrid===true, centro:px[0], borda:px[1]}); })()"));
-check('o botão liga a camada da malha e a saída mostra campo cinza com borda branca', malha.on && malha.camada && malha.centro[0] > 100 && malha.centro[0] < 170 && malha.borda[0] > 240, JSON.stringify(malha));
+const malha = JSON.parse(await ev("(()=>{ const P=window.projecionista; const h=window.__projHelpers[P.screens()[0].id]; return JSON.stringify({on:P.automapeGridOn(), semCamada:!P.state.layers.some(L=>L.automapeGrid), ajudante:!!(h&&h.mesh), estado:P.state.mesh===true}); })()"));
+check('o botão liga a malha da área total na saída, sem virar camada', malha.on && malha.semCamada && malha.ajudante && malha.estado, JSON.stringify(malha));
 await next(); check('passo 3: tire a foto (certo/errado + animação)', await ev(`${A}.step === 2 && document.querySelectorAll('${D}.wok svg').length === 2 && document.querySelectorAll('${D}.an.anbig svg animateTransform').length >= 1`));
 await next(); check('passo 4: mande a foto com três exemplos', await ev(`${A}.step === 3 && document.querySelectorAll('${D}.wsamples button').length === 3`));
 r = await rectOf(D + '#wSampleSala'); await click(r.x, r.y); await wait(1200);

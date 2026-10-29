@@ -547,7 +547,7 @@ module.exports = (win, app, laser) => {
         P.menubar.show(7); await S(50); R.menu=[...document.querySelectorAll('.menu .mi .lb')].map(e=>e.textContent).includes('Automape…'); P.menubar.close();
         A.open(); await S(120); R.aberto=!!q('#wStep') && q('#wStep').textContent==='Passo 1 de 7' && q('#wDots').children.length===7;
         A.go(1); await S(60); q('#wGridBtn').click(); await S(250);
-        const px=P.probe([[0.52,0.52],[0.0078,0.5]]); R.malha=[P.automapeGridOn(), P.state.layers[0].automapeGrid===true, q('#wGridBtn').classList.contains('on'), px[0][0]>100&&px[0][0]<170, px[1][0]>240];
+        const hm=window.__projHelpers[P.screens()[0].id]; R.malha=[P.automapeGridOn(), !P.state.layers.some(L=>L.automapeGrid), q('#wGridBtn').classList.contains('on'), !!(hm&&hm.mesh&&hm.mesh.cells===32), P.state.mesh===true];
         A.go(2); await S(30); R.passo3=document.querySelectorAll('.dlg.automape .wok svg').length===2;
         A.go(3); await S(30); R.exemplos=document.querySelectorAll('.dlg.automape .wsamples button').length===3;
         await A.loadSample('sala'); A.go(4); await S(250);

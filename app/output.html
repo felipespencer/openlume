@@ -78,6 +78,15 @@
           ctx.strokeStyle = '#ff3b3b'; ctx.lineWidth = 2;
           ctx.beginPath(); ctx.moveTo(0, h.cursor[1] * ky); ctx.lineTo(ov.width, h.cursor[1] * ky); ctx.moveTo(h.cursor[0] * kx, 0); ctx.lineTo(h.cursor[0] * kx, ov.height); ctx.stroke();
         }
+        if(h.mesh){
+          // área total de projeção: campo cinza, malha fina escura e borda clara a 10–20 px da beira (igual à fonte "malha")
+          var W = ov.width, H = ov.height, cells = h.mesh.cells || 32, rows = Math.max(1, Math.round(cells * H / W));
+          ctx.fillStyle = '#8a8a8a'; ctx.fillRect(0, 0, W, H);
+          ctx.fillStyle = '#5a5a5a';
+          for(var ci = 1; ci < cells; ci++){ ctx.fillRect(Math.round(ci * W / cells), 0, 3, H); }
+          for(var rj = 1; rj < rows; rj++){ ctx.fillRect(0, Math.round(rj * H / rows), W, 3); }
+          ctx.fillStyle = '#fff'; ctx.fillRect(10, 10, W - 20, 10); ctx.fillRect(10, H - 20, W - 20, 10); ctx.fillRect(10, 10, 10, H - 20); ctx.fillRect(W - 20, 10, 10, H - 20);
+        }
         if(h.card){
           ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(ov.width * 0.25, ov.height / 2 - 70, ov.width * 0.5, 140);
           ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = 'bold 64px Segoe UI, sans-serif';

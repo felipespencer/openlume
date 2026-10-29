@@ -24,8 +24,11 @@ const menuRows = async () => JSON.parse(await ev(`JSON.stringify([...document.qu
 const menus = () => ev(`document.querySelectorAll('.menuLayer').length`);
 const clipName = (li, c) => ev(`(${P}.state.layers[${li}].clips[${c}] || {}).name || ''`);
 
-// preparo: fecha o que estiver aberto; garante um clipe na casa 0 da camada 1
-await ev(`(() => { const p = ${P}; if (p.automape && p.automape.dlg) p.automape.close(); p.ao.hide(false); if (p.laser.open) p.laser.hide(); document.querySelectorAll('.dlgOver').forEach(d => d.remove()); p.menubar.close(); return 1; })()`);
+// preparo: fecha o que estiver aberto (diálogos com Esc de verdade: arrancar o .dlgOver do DOM deixaria o keydown de captura
+// do diálogo vivo, engolindo o Esc dos passos seguintes); garante um clipe na casa 0 da camada 1
+await ev(`(() => { const p = ${P}; if (p.automape && p.automape.dlg) p.automape.close(); p.ao.hide(false); if (p.laser.open) p.laser.hide(); p.menubar.close(); return 1; })()`);
+for (let i = 0; i < 5 && await ev(`document.querySelectorAll('.dlgOver').length`) > 0; i++) { await esc(); await wait(200); }
+await ev(`document.querySelectorAll('.dlgOver').forEach(d => d.remove()); 1`);
 const prep = JSON.parse(await ev(`(() => { const p = ${P}, st = p.state; const li = 1; if (!st.layers[li].clips[0]) p.putSource(li, 0, 'sinewave'); const vazia = st.layers[li].clips.findIndex(c => !c); p.render(); return JSON.stringify({ li, vazia }); })()`));
 await wait(200);
 { const t = await rectOf('#menubar'); await click(t.l + 40, t.y); await wait(150); await ev(`${P}.menubar.close(); 1`); }   // primeiro clique só acorda a janela
@@ -58,6 +61,8 @@ if (prep.vazia >= 0) {
 }
 // 3. Test Card: não é clipe, vai para a saída, nome da tela por cima, desliga limpo
 {
+  // telas padrão (um slice cheio): outro teste pode ter deixado a tela 1 cheia de slices e máscaras do Automape
+  await ev(`(() => { const p = ${P}; p.setScreens(p.M.defaultScreens(p.state.settings.w, p.state.settings.h)); return 1; })()`); await wait(200);
   const camadas = await ev(`${P}.state.layers.length`);
   await ev(`${P}.toggleTestCard(); 1`); await wait(150);
   // fora da cruz do centro (a linha y=0,5 é branca): barras 1 (amarela), 3 (verde) e 6 (azul)
