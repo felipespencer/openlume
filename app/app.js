@@ -819,9 +819,14 @@ const helpers = {
   set: (sc, h) => { if (h) window.__projHelpers[sc.id] = { ...h, w: sc.w, h: sc.h }; else delete window.__projHelpers[sc.id]; },
   clear: () => { window.__projHelpers = {}; },
 };
+// trocar o conjunto de telas (Saída avançada: Cancelar, desfazer, preset; abrir composição): as janelas de saída são
+// fechadas e reabertas para as telas que estavam no ar, casadas pela posição na lista (os ids mudam ao desserializar)
 function setScreens(list) {
+  const noAr = state.screens.map(sc => !!(sc.win && !sc.win.closed));
   for (const sc of state.screens) if (sc.win && !sc.win.closed) sc.win.close();
   state.screens = list; window.__projStreams = {}; window.__projCanvas = {}; renderScreens();
+  const reabrir = list.filter((sc, i) => noAr[i] && sc.enabled);
+  if (reabrir.length) setTimeout(() => openOutputs(reabrir), 150);
 }
 // trocar o monitor (ou janela) de uma tela: ajusta o tamanho e, se a saída estiver aberta, reabre nela
 function setScreenDevice(sc, v) {
@@ -829,10 +834,10 @@ function setScreenDevice(sc, v) {
   if (sc.win && !sc.win.closed) { sc.win.close(); sc.win = null; delete window.__projStreams[sc.id]; delete window.__projCanvas[sc.id]; setTimeout(openOutputs, 150); }
   renderScreens(); if (ao.open) ao.layout();
 }
-function openOutputs() {
+function openOutputs(quais) {
   let n = 0;
-  for (const sc of state.screens) {
-    if (!sc.enabled) continue;
+  for (const sc of (Array.isArray(quais) ? quais : state.screens)) {
+    if (!sc.enabled || !state.screens.includes(sc)) continue;
     if (sc.win && !sc.win.closed) { sc.win.focus(); n++; continue; }
     const cv = screenCanvas(sc);
     window.__projCanvas[sc.id] = cv;   // a saída desenha este canvas; o captureStream fica só de reserva
@@ -840,10 +845,10 @@ function openOutputs() {
     sc.win = window.open('output.html?screen=' + sc.id + '&display=' + encodeURIComponent(sc.device), 'proj_out_' + sc.id, 'width=960,height=540');
     n++;
   }
-  if (!n) toast('Nenhuma tela ligada. Abra a Saída avançada para ligar uma.');
+  if (!n && !Array.isArray(quais)) toast('Nenhuma tela ligada. Abra a Saída avançada para ligar uma.');
   renderScreens();
 }
-$('btnOut').onclick = openOutputs;
+$('btnOut').onclick = () => openOutputs();
 function renderScreens() {
   const list = $('scrList'); list.textContent = '';
   let on = 0;

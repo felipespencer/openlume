@@ -20,7 +20,7 @@ Milestone: v0.2 Automape e provas no equipamento (v0.2.0)
 Phase: 2 of 6 (Efeitos do Resolume) — Applying
 Plan: 02-01 — Tasks 0, 1 e 2 feitos; no checkpoint final (Felipe conferir o lote)
 Status: APPLY no checkpoint human-verify. Fase 1 (Automape) segue com 3 de 5 planos: 01-03 no branch `automape` esperando o Felipe ver; 01-04 e 01-05 depois.
-Last activity: 2026-10-25 (noite) — bancada funcionando; Threshold, Trails e Delay RGB iguais ao Resolume por quadro; selftest 71 APROVADO; relatório em tools/compare/saida/lote-01/RELATORIO.md
+Last activity: 2026-10-29 — Felipe testou no Dell G3 (release v0.2.0-beta.1, repo público): Delay RGB "funcionou". Retorno do checkpoint: (1) BUG, corrigido: na Saída avançada, Cancelar/Esc/Ctrl+Z/Ctrl+Y/preset chamavam setScreens, que fechava as janelas de saída sem reabrir ("desliga a tela e tenho que religar no botão"); agora setScreens reabre as telas que estavam no ar (tools/ao-check.mjs, 11 verificações por CDP; selftest 71 APROVADO). (2) "o avançado não tem Ctrl+Z": tem (ao.js key), o que ele viu foi a saída caindo ao desfazer; reconferir com ele. (3) Pede efeitos "aquarela" e "o que tira o fundo das pessoas" (recorte de pessoa por IA local, ONNX): candidatos ao lote 2; conferir na bancada qual é o nome deles no Resolume
 
 Progress:
 - Milestone: [██░░░░░░░░] 18%
@@ -62,6 +62,7 @@ PLAN ──▶ APPLY ──▶ UNIFY
 | 2026-10-25: no celular, o desenho é um CLIPE (camada própria, pads, vários desenhos); disparar refaz o traço no ritmo em que foi feito | Phase 3 | O clipe de desenho entra na grade como os outros (mover, Autopilot) |
 | 2026-10-25: efeitos de física entram como PLUGINS (pasta com `plugin.js`), não no código do programa; o celular é do programa, não plugin | Phase 3 | Sistema de plugins antes dos quatro plugins de física |
 
+| 2026-10-29 (checkpoint 02-01, teste no Dell G3): correção fora do plano em app.js setScreens/openOutputs(quais) para a saída não cair na Saída avançada; registrar no UNIFY. Pedidos para o lote 2: aquarela e recorte de pessoas | Phase 2 | tools/ao-check.mjs entra no kit de testes |
 | 2026-10-29: Felipe quer um PLANETÁRIO: projeção em domo com VÁRIOS projetores na borda, não olho de peixe; "deixar esse passo pra depois" | futuro | Anotado em ROADMAP.md (Ideias para um marco futuro); não entra no v0.2 |
 
 ### Deferred Issues
@@ -76,7 +77,7 @@ PLAN ──▶ APPLY ──▶ UNIFY
 
 | Blocker | Impact | Resolution Path |
 |---------|--------|-----------------|
-| Organização no GitHub ainda não criada | Repo segue privado, sem admin para colaboradores | Felipe cria a org (sugestão: `openlume-app`); eu transfiro o repo |
+| Organização no GitHub ainda não criada | Repo ficou PÚBLICO em 2026-10-29 (release v0.2.0-beta.1 para o Dell G3); colaboradores seguem sem admin | Felipe cria a org (sugestão: `openlume-app`); eu transfiro o repo |
 
 ## Boundaries (Active)
 
