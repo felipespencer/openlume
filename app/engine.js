@@ -29,7 +29,7 @@ precision highp float; in vec2 v; uniform sampler2D uTex; uniform float uOp; uni
 void main(){ vec4 c = texture(uTex, v); if (uPre < 0.5) c.rgb *= c.a; o = c * uOp; }`;
 
 // slice: posição em px da tela; luv é a coordenada local (0..1) dentro do recorte
-const SOFT_Y_UP = true;   // o uv local do slice cresce para cima (a máscara de entrada é lida com 1 - vLuv.y)
+const SOFT_Y_UP = false;   // o uv local do slice cresce para baixo, como a composição (conferido na saída real em 2026-10-30: com true o trecho caía na ponta errada)
 const VS_SLICE = `#version 300 es
 in vec2 aPos; in vec2 aLuv;
 uniform vec2 uScreen; uniform vec4 uIn; uniform float uRot; uniform vec2 uFlip; uniform vec2 uSrc;
