@@ -347,7 +347,7 @@ const ZOOM_MAX = 8;
 export class Automape {
   // ctx: { compW, compH, toast(msg), setGrid(on), gridOn(), create(result) → cria na Saída avançada e abre o editor, desktop }
   constructor(ctx) {
-    this.c = ctx; this.dlg = null; this.step = 0; this.tipSeen = false; this.UNDO = []; this.malhaSample = null;
+    this.c = ctx; this.dlg = null; this.step = 0; this.tipSeen = false; this.UNDO = []; this.REDO = []; this.malhaSample = null;
     this.S = this.freshState();
     this.SAMPLES = {
       predio: { label: 'fachada de prédio', info: 'State Office Building, Madison (EUA). Foto CC BY-SA 2.0, Wikimedia Commons; só para o exemplo.', mode: 'ai', output: 'masks', naming: 'window', shape: 'corners', detail: 80, minArea: 0.1, smooth: 3, frame: (w, h) => [[0, Math.round(h * 0.04)], [w, Math.round(h * 0.04)], [w, h], [0, h]] },
@@ -358,7 +358,8 @@ export class Automape {
     addEventListener('keydown', (e) => { if (!this.dlg) return; if (e.key === 'Escape') { const box = this.$('wPhotoBox'); if (box && box._drawing) { this.cancelDrawing(box); e.stopImmediatePropagation(); e.preventDefault(); } } }, true);
     addEventListener('keydown', (e) => {
       if (!this.dlg) return; const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.stopPropagation(); this.undo(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.stopPropagation(); if (e.shiftKey) this.redo(); else this.undo(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); e.stopPropagation(); this.redo(); return; }
       if (e.key === 'Delete' && this.editShape() && this.S.sel.has(this.S.editId)) { e.preventDefault(); this.toggleDrop(); }
     });
   }
@@ -374,7 +375,7 @@ export class Automape {
   // ---------- abrir e fechar ----------
   open(step) {
     if (this.dlg) { this.go(step || 0); return; }
-    this.S = this.freshState(); this.UNDO = [];
+    this.S = this.freshState(); this.UNDO = []; this.REDO = [];
     const d = openDialog({
       title: 'Automape', width: 800, cls: 'automape',
       build: (body) => { body.innerHTML = '<div id="wizHead"><span class="step" id="wStep"></span><span class="ttl" id="wTitle"></span><span class="dots" id="wDots"></span></div><div id="wizBody"></div><div class="wtip" id="wTip"></div>'; },
@@ -486,7 +487,7 @@ export class Automape {
   }
   loadPhoto(src, extra = {}) {
     const S = this.S;
-    S.items = []; S.sel = new Set(); S.editId = 0; S.editPt = -1; this.UNDO = [];
+    S.items = []; S.sel = new Set(); S.editId = 0; S.editPt = -1; this.UNDO = []; this.REDO = [];
     const wb = this.$('wPhotoBox'); if (wb) this.hideMiniTip(wb);
     S.photo = src; S.pw = src.naturalWidth || src.width; S.ph = src.naturalHeight || src.height;
     S.work = this.shrink(src); S.sample = extra.sample || ''; S.truth = extra.truth || null;
@@ -596,8 +597,10 @@ export class Automape {
   }
 
   // ---------- desfazer ----------
-  snapshot() { const S = this.S; this.UNDO.push({ items: JSON.parse(JSON.stringify(S.items)), sel: [...S.sel], editId: S.editId, editPt: S.editPt, actions: JSON.parse(JSON.stringify(S.actions)) }); if (this.UNDO.length > 50) this.UNDO.shift(); this.syncUndo(); }
-  undo() { const u = this.UNDO.pop(); if (!u) { this.toast('Nada para desfazer'); return; } const S = this.S; S.items = u.items; S.sel = new Set(u.sel); S.editId = u.editId; S.editPt = u.editPt; S.actions = u.actions; this.syncUndo(); this.render(); this.toast('Desfeito'); }
+  snapshot() { const S = this.S; this.UNDO.push({ items: JSON.parse(JSON.stringify(S.items)), sel: [...S.sel], editId: S.editId, editPt: S.editPt, actions: JSON.parse(JSON.stringify(S.actions)) }); this.REDO = []; if (this.UNDO.length > 50) this.UNDO.shift(); this.syncUndo(); }
+  undo() { const u = this.UNDO.pop(); if (!u) { this.toast('Nada para desfazer'); return; } const S = this.S; this.REDO.push({ items: JSON.parse(JSON.stringify(S.items)), sel: [...S.sel], editId: S.editId, editPt: S.editPt, actions: JSON.parse(JSON.stringify(S.actions)) }); S.items = u.items; S.sel = new Set(u.sel); S.editId = u.editId; S.editPt = u.editPt; S.actions = u.actions; this.syncUndo(); this.render(); this.toast('Desfeito'); }
+  // Ctrl+Shift+Z / Ctrl+Y: refaz o que o Ctrl+Z desfez (Felipe, 2026-10-30); uma mudança nova apaga o refazer
+  redo() { const u = this.REDO.pop(); if (!u) { this.toast('Nada para refazer'); return; } const S = this.S; this.UNDO.push({ items: JSON.parse(JSON.stringify(S.items)), sel: [...S.sel], editId: S.editId, editPt: S.editPt, actions: JSON.parse(JSON.stringify(S.actions)) }); S.items = u.items; S.sel = new Set(u.sel); S.editId = u.editId; S.editPt = u.editPt; S.actions = u.actions; this.syncUndo(); this.render(); this.toast('Refeito'); }
   syncUndo() { if (!this.dlg) return; this.dlg.body.querySelectorAll('[data-z="undo"]').forEach(b => b.disabled = !this.UNDO.length); }
 
   // ---------- desenho da foto ----------

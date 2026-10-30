@@ -57,6 +57,10 @@ check('arrastar um ponto move o ponto', Math.abs(p1[0] - sofa.p[0]) > 10, sofa.p
 await key('z', 'KeyZ', 90, 2); await wait(200);
 const pz = JSON.parse(await ev(`JSON.stringify(${A}.S.items.find(i => i.id === ${sofa.id}).poly[0])`));
 check('Ctrl+Z desfaz', Math.hypot(pz[0] - sofa.p[0], pz[1] - sofa.p[1]) < 0.5);
+await key('Z', 'KeyZ', 90, 10); await wait(200);   // Ctrl+Shift+Z refaz
+const pr = JSON.parse(await ev(`JSON.stringify(${A}.S.items.find(i => i.id === ${sofa.id}).poly[0])`));
+check('Ctrl+Shift+Z refaz o arrasto do ponto', Math.hypot(pr[0] - p1[0], pr[1] - p1[1]) < 0.5, p1.map(Math.round) + ' ↔ ' + pr.map(Math.round));
+await key('z', 'KeyZ', 90, 2); await wait(200);
 const tap = JSON.parse(await ev(`(() => { const s = ${A}.S.items.find(i => i.cls === 'tapete'); let x=0,y=0; for (const p of s.poly) { x+=p[0]; y+=p[1]; } return JSON.stringify({ id: s.id, c: [x/s.poly.length, y/s.poly.length], curved: s.curved }); })()`));
 check('o tapete já nasce curvo (a IA viu redondo)', tap.curved === true);
 [sx, sy] = await svgPt(tap.c); await click(sx, sy); await wait(200);

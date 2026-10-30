@@ -50,6 +50,8 @@ check('Ctrl+Z mantém a saída no ar', await noAr() === 1 && await janelasSaida(
 await key('y', 'KeyY', 89, 2); await wait(400);
 check('Ctrl+Y refaz', await ev(`${P}.screens()[0].items[0].name`) === 'teste-ao');
 check('Ctrl+Y mantém a saída no ar', await noAr() === 1, `outWins=${await noAr()}`);
+await key('z', 'KeyZ', 90, 2); await wait(300); await key('Z', 'KeyZ', 90, 10); await wait(300);
+check('Ctrl+Shift+Z também refaz na Saída avançada', await ev(`${P}.screens()[0].items[0].name`) === 'teste-ao', `nome=${await ev(`${P}.screens()[0].items[0].name`)}`);
 
 // setas: no modo Transformar movem o slice inteiro 1 px (Shift: 10 px); no modo Editar pontos movem o ponto selecionado
 {

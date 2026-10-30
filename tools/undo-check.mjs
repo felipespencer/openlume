@@ -46,6 +46,10 @@ await key('y', 'KeyY', 89, 2); await wait(600);
 const op2 = await ev(`${P}.state.layers[${li}].opacity`);
 check('Ctrl+Y refaz', Math.abs(op2 - op1) < 1e-9, op1 + ' ↔ ' + op2);
 await key('z', 'KeyZ', 90, 2); await wait(600);
+await key('Z', 'KeyZ', 90, 10); await wait(600);   // Ctrl+Shift+Z também refaz
+const opZ = await ev(`${P}.state.layers[${li}].opacity`);
+check('Ctrl+Shift+Z refaz', Math.abs(opZ - op1) < 1e-9, op1 + ' ↔ ' + opZ);
+await key('z', 'KeyZ', 90, 2); await wait(600);
 
 // 2. Delete numa casa selecionada e Ctrl+Z traz o clipe de volta
 await ev(`(() => { const p = ${P}; p.state.sel = { l: ${li}, c: ${col} }; p.state.selLayer = ${li}; p.render(); return 1; })()`);
