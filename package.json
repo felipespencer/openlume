@@ -1,7 +1,7 @@
 {
   "name": "openlume",
   "productName": "OpenLume",
-  "version": "0.2.0-beta.23",
+  "version": "0.2.0-beta.24",
   "description": "OpenLume: software livre de VJ e projeção mapeada, no jeito do Resolume",
   "license": "GPL-3.0",
   "main": "main.js",
