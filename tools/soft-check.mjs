@@ -107,6 +107,20 @@ await key('Delete', 'Delete', 46); await wait(200);
 g = await grads();
 check('Delete apaga o degradê livre selecionado e não o slice', g.length === 4 && g[0].auto && await ev(`${P}.screens()[1].items.length`) === 1, `n=${g.length}`);
 
+// 8b. seleção na sobreposição: o selecionado fica por cima; clique sem arrastar alterna para o que está embaixo; arrastar move o selecionado
+const stagePt = async (x, y) => JSON.parse(await ev(`(() => { const r = document.querySelector('#aoView svg').getBoundingClientRect(), k = ${P}.ao.scale; return JSON.stringify({ x: r.left + ${x} * k, y: r.top + ${y} * k }); })()`));
+const selName = async () => await ev(`(() => { const a = ${P}.ao; return a.sel && a.sel.item ? a.sel.screen.name : 'nenhum'; })()`);
+await ev(`(() => { const p = ${P}; p.ao.selG = -1; const sc = p.screens()[1]; p.ao.select(sc, sc.items[0]); return 1; })()`);
+{ const q = await stagePt(1810, 300); await click(q.x, q.y); }   // longe da linha do degradê (y 540), dentro dos dois recortes
+check('clique na sobreposição com o em pé selecionado passa a seleção para o deitado (que está atrás)', await selName() === 'Deitado', `sel=${await selName()}`);
+{ const q = await stagePt(1810, 300); await click(q.x, q.y); }
+check('outro clique no mesmo lugar volta para o em pé', await selName() === 'Em pé', `sel=${await selName()}`);
+{ const q = await stagePt(1810, 300); const x0 = +await ev(`${P}.screens()[1].items[0].in.x`); await drag(q.x, q.y, q.x + 40, q.y); const x1 = +await ev(`${P}.screens()[1].items[0].in.x`); const esc2 = await ev(`${P}.ao.scale`);
+  check('arrastar na sobreposição move o selecionado (em pé) e ele continua selecionado', await selName() === 'Em pé' && Math.abs(x1 - x0 - 40 / esc2) <= 2, `sel=${await selName()} dx=${x1 - x0} esperado≈${(40 / esc2).toFixed(0)}`);
+  await ev(`document.activeElement && document.activeElement.blur(); 1`); await key('z', 'KeyZ', 90, 2); await wait(300);
+  check('Ctrl+Z desfaz o arrasto (e os cliques de seleção não entraram no desfazer)', +await ev(`${P}.screens()[1].items[0].in.x`) === x0, `x=${await ev(`${P}.screens()[1].items[0].in.x`)}`); }
+await ev(`(() => { const p = ${P}; const sc = p.screens()[1]; p.ao.select(sc, sc.items[0]); p.ao.selG = -1; p.ao.refresh(); return 1; })()`);
+
 // 9. salvar/abrir preserva os ajustes
 await ev(`(() => { const p = ${P}, s = p.screens()[1].items[0]; s.soft.grads.push({ id: 999, edge: 'l', a: [300, 500], b: [0, 500], n1: 400, n2: 450, roundOn: false, round: 0.3 }); p.M.touch(s); return 1; })()`);
 const rt = JSON.parse(await ev(`(() => { const p = ${P}, M = p.M; const s2 = M.deserialize(M.serialize(p.screens())); const g = s2[1].items[0].soft.grads[0]; return JSON.stringify({ n: s2[1].items[0].soft.grads.length, g, round: s2[1].items[0].soft.round }); })()`));
@@ -117,8 +131,8 @@ check('serialize/deserialize preserva o degradê ajustado e o arredondado padrã
 for (let i = 0; i < 3 && await ev(`${P}.ao.open`); i++) { await key('Escape', 'Escape', 27); await wait(300); }
 check('Esc fecha a Saída avançada cancelando', !await ev(`${P}.ao.open`) && await manual() === 0, `open=${await ev(`${P}.ao.open`)} manual=${await manual()}`);
 
-// volta ao estado de antes
-await ev(`(() => { const p = ${P}; p.setScreens(p.M.deserialize(${JSON.stringify(antes)})); p.applySettings(Object.assign({}, p.state.settings, { w: 1920, h: 1080 })); return 1; })()`);
+// volta ao estado de antes (fechando as janelas de saída que as telas de teste abriram, para a próxima suíte começar limpa)
+await ev(`(() => { const p = ${P}; for (const w of p.outWins()) w.close(); p.setScreens(p.M.deserialize(${JSON.stringify(antes)})); p.applySettings(Object.assign({}, p.state.settings, { w: 1920, h: 1080 })); return 1; })()`);
 const falhas = results.filter(r => !r.ok).length;
 console.log(`\n${results.length} verificações, ${falhas} falha(s) — ${falhas ? 'REPROVADO' : 'APROVADO'}`);
 ws.close(); process.exit(falhas ? 1 : 0);

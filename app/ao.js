@@ -215,12 +215,21 @@ export class AdvancedOutput {
     if (this.tab === 'in') return this.screens().flatMap(sc => sc.enabled ? sc.items.filter(i => i.type === 'slice' && i.enabled).map(i => ({ screen: sc, item: i })) : []);
     const sc = this.curScreen(); return sc ? sc.items.filter(i => i.enabled).map(i => ({ screen: sc, item: i })) : [];
   }
+  // itens debaixo de um ponto do palco (na ordem do palco): retângulo de entrada com giro, contorno da saída ou polígono da máscara
+  hit(it, p) {
+    if (this.tab === 'in') { const l = inToLocal(it, p); return l[0] >= 0 && l[0] <= 1 && l[1] >= 0 && l[1] <= 1; }
+    const pts = it.type === 'slice' ? outlinePoints(it) : it.pts; let ins = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const a = pts[i], b = pts[j]; if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < (b[0] - a[0]) * (p[1] - a[1]) / (b[1] - a[1]) + a[0]) ins = !ins; }
+    return ins;
+  }
+  itemsAt(p) { return this.itemsOnStage().filter(o => this.hit(o.item, p)); }
   select(screen, item) { this.sel = { screen, item }; this.selPt = -1; this.selG = -1; this.syncTools(); if (this.tab === 'out') this.layout(); this.refresh(); }
 
   // ---------- desenho do palco ----------
   draw() {
     const svg = this.svg; svg.textContent = '';
-    const [W, H] = this.stageSize(), it = this.sel && this.sel.item, on = this.itemsOnStage(), k = 1 / this.scale;
+    const [W, H] = this.stageSize(), it = this.sel && this.sel.item, k = 1 / this.scale;
+    const on0 = this.itemsOnStage(), on = [...on0.filter(o => o.item !== it), ...on0.filter(o => o.item === it)];   // o selecionado por último: fica por cima, com as alças (Felipe, 2026-10-30: "quando pego numa slice seleciona a outra que tá atrás")
     if (this.led) { // grade de 8 px
       const d = []; for (let x = 0; x <= W; x += 8) d.push(`M${x},0V${H}`); for (let y = 0; y <= H; y += 8) d.push(`M0,${y}H${W}`);
       svg.appendChild(svgEl('path', { d: d.join(''), class: 'ledgrid' }));
@@ -335,15 +344,15 @@ export class AdvancedOutput {
     const t = e.target.closest('[data-k]'), k = t && t.dataset.k;
     if (!k) { if (this.sel) { this.sel = { screen: this.sel.screen, item: null }; this.selPt = -1; this.refresh(); } return; }
     const found = this.findItem(t.dataset.id) || this.sel;
-    if (found.item !== (this.sel && this.sel.item)) this.select(found.screen, found.item);
+    const wasSel = found.item === (this.sel && this.sel.item);
+    if (!wasSel) this.select(found.screen, found.item);
     const it = found.item;
     this.svg.setPointerCapture(e.pointerId);
     this.pushUndo();
-    const d = this.drag = { k, i: +t.dataset.i, it, last: p, start: p };
+    const d = this.drag = { k, i: +t.dataset.i, it, last: p, start: p, wasSel, moved: false };
     if (k[0] === 'g' && k.length <= 3) {   // alça de degradê: o automático vira ajustado na hora em que é tocado
       const g0 = this.grads(it)[d.i]; if (!g0) { this.drag = null; return; }
-      const g = M.adoptGrad(it, g0); g.on = true; this.selG = this.grads(it).indexOf(g);   // puxar uma alça liga a emenda
-      d.g = g; d.g0 = { a: [...g.a], b: [...g.b] }; d.lp = this.localPx(it, p);
+      this.selG = d.i; d.src = g0; d.g = null; d.g0 = { a: [...g0.a], b: [...g0.b] }; d.lp = this.localPx(it, p);   // só vira ajustado quando mexer de fato (clique parado só seleciona)
       this.draw(); this.renderProps(); return;
     }
     this.selG = -1;
@@ -356,7 +365,9 @@ export class AdvancedOutput {
     if (this.drawing) { this.draw(); return; }
     const d = this.drag; if (!d) { if (this.grid && this.tab === 'out') this.draw(); return; }
     const it = d.it, dx = p[0] - d.last[0], dy = p[1] - d.last[1];
-    if (d.g) {   // degradê: pontas, linha inteira ou comprimento da faixa, em pixels do recorte
+    if (Math.hypot(p[0] - d.start[0], p[1] - d.start[1]) * this.scale > 3) d.moved = true;
+    if (d.src) {   // degradê: pontas, linha inteira ou comprimento da faixa, em pixels do recorte
+      if (!d.g) { d.g = M.adoptGrad(it, d.src); d.g.on = true; this.selG = this.grads(it).indexOf(d.g); }   // puxar uma alça liga a emenda e a torna ajustada
       const g = d.g, lp = this.localPx(it, p), ddx = lp[0] - d.lp[0], ddy = lp[1] - d.lp[1];
       if (d.k === 'gA' || d.k === 'gM') g.a = [d.g0.a[0] + ddx, d.g0.a[1] + ddy];
       if (d.k === 'gB' || d.k === 'gM') g.b = [d.g0.b[0] + ddx, d.g0.b[1] + ddy];
@@ -393,7 +404,17 @@ export class AdvancedOutput {
     d.last = p;
     this.draw(); this.renderProps(); this.c.onChange();
   }
-  up(e) { if (this.drag) { this.drag = null; try { this.svg.releasePointerCapture(e.pointerId); } catch { } } }
+  up(e) {
+    const d = this.drag; if (!d) return;
+    this.drag = null; try { this.svg.releasePointerCapture(e.pointerId); } catch { }
+    if (d.moved || d.k !== 'body' || !d.wasSel) return;
+    // clique (sem arrastar) no corpo do item já selecionado, com outros embaixo do cursor: a seleção passa para o próximo,
+    // em roda; assim dá para pegar o slice que está atrás clicando na região em que os dois se sobrepõem
+    const under = this.itemsAt(d.start), i = under.findIndex(o => o.item === d.it);
+    if (under.length < 2 || i < 0) return;
+    const top = this.hist[this.hist.length - 1]; if (top && top.json === M.serialize(this.screens())) this.hist.pop();   // o clique não mudou nada: fora do desfazer
+    const nx = under[(i + 1) % under.length]; this.select(nx.screen, nx.item);
+  }
   dbl(e) {
     if (this.drawing) { this.finishDrawing(); return; }
     const t = e.target.closest('[data-k]');
