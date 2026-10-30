@@ -219,7 +219,7 @@ app.whenReady().then(async () => {
   // Servidor HTTP local (só 127.0.0.1): o YouTube embutido exige um referer http(s) (erro 153 sem ele), então a página yt.html é
   // servida daqui em vez do app://. Porta escolhida pelo sistema; a página pergunta por local:port.
   const http = require('http');
-  const LOCAL_PAGES = new Set(['/yt.html']);
+  const LOCAL_PAGES = new Set(['/yt.html', '/celular.html']);
   const localSrv = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://127.0.0.1'); const p = u.pathname;
     if (!LOCAL_PAGES.has(p)) { res.writeHead(404); res.end('não encontrado'); return; }
@@ -229,6 +229,37 @@ app.whenReady().then(async () => {
   localSrv.on('error', (e) => logLine('erro', 'servidor local: ' + (e.message || e)));
   localSrv.listen(0, '127.0.0.1', () => { localPort = localSrv.address().port; });
   ipcMain.handle('local:port', () => localPort);
+  // Celular como fonte: a página /celular (https na rede local, certificado próprio) manda a câmera por WebRTC para a janela.
+  // Sinalização mínima: o celular faz POST /celular/oferta com a oferta SDP e fica esperando a resposta; a janela responde por phone:answer.
+  const https = require('https'); const os = require('os');
+  const certFile = path.join(app.getPath('userData'), 'celular-cert.json'); let cert = null;
+  try { cert = JSON.parse(fs.readFileSync(certFile, 'utf8')); } catch { }
+  const lanIps = () => { const r = []; for (const l of Object.values(os.networkInterfaces())) for (const a of l) if (a.family === 'IPv4' && !a.internal) r.push(a.address); return r; };
+  if (!cert || !cert.ips || JSON.stringify(cert.ips) !== JSON.stringify(lanIps())) {
+    try { const sg = require('selfsigned'); const ips = lanIps(); const p = sg.generate([{ name: 'commonName', value: 'OpenLume' }], { days: 3650, keySize: 2048, extensions: [{ name: 'subjectAltName', altNames: [...ips, '127.0.0.1'].map(ip => ({ type: 7, ip })) }] }); cert = { key: p.private, cert: p.cert, ips }; fs.writeFileSync(certFile, JSON.stringify(cert)); } catch (e) { logLine('erro', 'certificado do celular: ' + (e.message || e)); }
+  }
+  const phoneOffers = new Map(); let phoneSeq = 0, phonePort = 0;
+  if (cert) {
+    const phoneSrv = https.createServer({ key: cert.key, cert: cert.cert }, (req, res) => {
+      const u = new URL(req.url, 'https://x'); const p = u.pathname;
+      if (req.method === 'GET' && (p === '/' || p === '/celular')) { fs.readFile(path.join(APP_DIR, 'celular.html'), (err, data) => { if (err) { res.writeHead(404); res.end(); return; } res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(data); }); return; }
+      if (req.method === 'POST' && p === '/celular/oferta') {
+        let body = ''; req.on('data', (d) => { body += d; if (body.length > 200000) req.destroy(); });
+        req.on('end', () => {
+          let o; try { o = JSON.parse(body); } catch { res.writeHead(400); res.end('{}'); return; }
+          const id = ++phoneSeq; phoneOffers.set(id, res); res.setTimeout(30000, () => { if (phoneOffers.delete(id)) { res.writeHead(504, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ erro: 'o OpenLume não respondeu' })); } });
+          for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed() && w.webContents.getURL().includes('index.html')) w.webContents.send('phone:offer', { id, sdp: String(o.sdp || ''), nome: String(o.nome || 'Celular'), ip: req.socket.remoteAddress });
+        }); return;
+      }
+      res.writeHead(404); res.end('não encontrado');
+    });
+    phoneSrv.on('error', (e) => logLine('erro', 'servidor do celular: ' + (e.message || e)));
+    phoneSrv.listen(0, '0.0.0.0', () => { phonePort = phoneSrv.address().port; });
+  }
+  // o certificado é nosso: janelas do próprio programa (teste automático) podem abrir a página do celular sem reclamar
+  app.on('certificate-error', (ev, _wc, url, _err, _c, cb) => { let ok = false; try { const u = new URL(url); ok = phonePort && +u.port === phonePort && (u.hostname === '127.0.0.1' || lanIps().includes(u.hostname)); } catch { } ev.preventDefault(); cb(ok); });
+  ipcMain.handle('phone:info', () => ({ port: phonePort, ips: lanIps(), urls: lanIps().map(ip => 'https://' + ip + ':' + phonePort + '/celular') }));
+  ipcMain.handle('phone:answer', (_e, id, sdp, erro) => { const res = phoneOffers.get(id); if (!res) return false; phoneOffers.delete(id); res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(sdp ? { sdp } : { erro: erro || 'recusado' })); return true; });
   ipcMain.handle('displays', () => displayList());
   // ---------- fonte "Captura": telas, janelas e páginas web ----------
   // a imagem chega à janela de controle por getUserMedia com chromeMediaSourceId (captura do Chromium)

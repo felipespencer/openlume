@@ -127,6 +127,26 @@ export async function cameraClip(deviceId, label) {
   try { const cv = document.createElement('canvas'); cv.width = 160; cv.height = Math.round(160 * c.h / c.w); cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height); c.thumb = cv.toDataURL('image/jpeg', 0.7); } catch { }
   return c;
 }
+// Celular como fonte: recebe a oferta WebRTC do celular (vinda pela página /celular do servidor local), responde e, quando o
+// vídeo chega, vira um clipe igual ao da câmera. Sem STUN/TURN: só a rede local. A resposta precisa ir ao celular ANTES do
+// vídeo começar, por isso em duas etapas: responder (sdp) e depois esperar o vídeo (clip()).
+export async function phoneAnswer(offer) {
+  const pc = new RTCPeerConnection({ iceServers: [] });
+  const got = new Promise((resolve) => { pc.ontrack = (ev) => resolve(ev.streams[0] || new MediaStream([ev.track])); });
+  await pc.setRemoteDescription({ type: 'offer', sdp: offer.sdp });
+  const ans = await pc.createAnswer(); await pc.setLocalDescription(ans);
+  await new Promise(r => { if (pc.iceGatheringState === 'complete') return r(); pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') r(); }; setTimeout(r, 3000); });
+  const clip = async () => {
+    const stream = await Promise.race([got, new Promise((_, rej) => setTimeout(() => rej(new Error('o celular não mandou vídeo')), 15000))]);
+    const c = base('camera', 'Celular' + (offer.ip ? ' ' + String(offer.ip).replace('::ffff:', '') : '')); c.phone = true; c.pc = pc; c.stream = stream;
+    const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.srcObject = stream; await v.play().catch(() => { });
+    await new Promise(r => { if (v.videoWidth) r(); else { v.onloadedmetadata = r; setTimeout(r, 4000); } });
+    c.el = v; c.w = v.videoWidth || 1280; c.h = v.videoHeight || 720;
+    try { const cv = document.createElement('canvas'); cv.width = 160; cv.height = Math.round(160 * c.h / c.w); cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height); c.thumb = cv.toDataURL('image/jpeg', 0.7); } catch { }
+    return c;
+  };
+  return { sdp: pc.localDescription.sdp, clip };
+}
 // captura de tela, janela ou página web: um vídeo ligado ao stream de captura do Chromium (como a câmera).
 // spec: { srcId, name } (tela ou janela da lista) ou { url, w, h } (página renderizada numa janela escondida do programa)
 const webUse = new Map();   // chave da página -> quantos clipes a usam (cópias compartilham a janela)

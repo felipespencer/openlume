@@ -1,0 +1,51 @@
+<!doctype html>
+<!-- Página que o celular abre (https://IP:porta/celular) para mandar a câmera dele ao OpenLume, como se fosse uma webcam.
+     Tudo fica na rede local: a câmera vai por WebRTC direto do celular para a janela do OpenLume; o servidor só troca a
+     oferta e a resposta (sem STUN/TURN: candidatos locais bastam). Sem Node, sem framework. -->
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>OpenLume · câmera do celular</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b0b0d;color:#eee;font:16px system-ui,sans-serif}
+  body{display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px;box-sizing:border-box}
+  h1{font-size:18px;margin:6px 0 0;color:#8ff0c8}
+  video{width:100%;max-width:520px;background:#000;border-radius:8px;aspect-ratio:16/9;object-fit:cover}
+  button{font:inherit;padding:14px 22px;border:0;border-radius:10px;background:#19d49a;color:#0b0b0d;font-weight:700}
+  button.sec{background:#2a2d35;color:#eee}
+  #st{color:#aaa;min-height:1.4em;text-align:center}
+  .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+</style></head>
+<body>
+  <h1>OpenLume · câmera do celular</h1>
+  <video id="v" autoplay muted playsinline></video>
+  <div class="row"><button id="go">Enviar câmera</button><button id="flip" class="sec">Trocar câmera</button></div>
+  <div id="st">Toque em "Enviar câmera". A imagem vai para a casa escolhida no OpenLume.</div>
+<script>
+  const $ = (id) => document.getElementById(id), st = (t) => { $('st').textContent = t; };
+  let facing = 'user', stream = null, pc = null;
+  async function camera() {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }, audio: false });
+    $('v').srcObject = stream; return stream;
+  }
+  async function enviar() {
+    try {
+      $('go').disabled = true; st('Ligando a câmera…');
+      const s = await camera();
+      if (pc) pc.close();
+      pc = new RTCPeerConnection({ iceServers: [] });
+      s.getTracks().forEach(t => pc.addTrack(t, s));
+      pc.onconnectionstatechange = () => { st(pc.connectionState === 'connected' ? 'No ar no OpenLume. Pode deixar esta tela aberta.' : 'Conexão: ' + pc.connectionState); if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') $('go').disabled = false; };
+      const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
+      await new Promise(r => { if (pc.iceGatheringState === 'complete') return r(); pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') r(); }; setTimeout(r, 3000); });
+      st('Chamando o OpenLume…');
+      const r = await fetch('/celular/oferta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sdp: pc.localDescription.sdp, nome: navigator.userAgent.slice(0, 40) }) });
+      if (!r.ok) throw new Error('o OpenLume não respondeu (' + r.status + ')');
+      const a = await r.json(); if (!a.sdp) throw new Error(a.erro || 'sem resposta');
+      await pc.setRemoteDescription({ type: 'answer', sdp: a.sdp });
+      try { if (navigator.wakeLock) await navigator.wakeLock.request('screen'); } catch { }
+    } catch (e) { st('Não deu: ' + (e.message || e)); $('go').disabled = false; }
+  }
+  $('go').onclick = enviar;
+  if (new URLSearchParams(location.search).get('auto') === '1') enviar();   // ?auto=1: começa sozinho (teste automático)
+  $('flip').onclick = async () => { facing = facing === 'user' ? 'environment' : 'user'; if (pc && pc.connectionState === 'connected') { const s = await camera(); const sender = pc.getSenders().find(x => x.track && x.track.kind === 'video'); if (sender) await sender.replaceTrack(s.getVideoTracks()[0]); } else if (stream) await camera(); };
+</script>
+</body></html>

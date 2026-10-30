@@ -162,6 +162,28 @@ async function putCapture(li, col, cap) {
   if (cap.web && !cap.url) { const url = await askText('Página web', 'Endereço', 'https://'); if (!url || url === 'https://') return; cap = { url: /^https?:\/\//.test(url) ? url : 'https://' + url, w: 1920, h: 1080 }; }
   try { const c = await C.captureClip(cap); if (cap.youtube) c.name = 'YouTube ' + cap.youtube; putClip(li, col, c); } catch (e) { toast('Captura: ' + e.message); }
 }
+// celular como fonte: mostra o endereço, espera a oferta WebRTC do celular e põe o clipe na casa escolhida
+let phoneWait = null;   // { li, col } da casa que espera um celular
+async function putPhone(li, col) {
+  if (!D || !D.phone) { toast('Só na versão de computador'); return; }
+  const info = await D.phone.info();
+  if (!info.port || !info.urls.length) { toast('O servidor do celular não subiu (sem rede local?)'); return; }
+  phoneWait = { li, col };
+  openDialog({ title: 'Celular como câmera', buttons: [{ label: 'Fechar', primary: true }], build: (body) => {
+    body.append(el('p', 'dtext', 'No celular, na mesma rede Wi-Fi, abra este endereço e toque em "Enviar câmera":'));
+    for (const u of info.urls) body.appendChild(el('p', 'dtext big', u));
+    body.append(el('p', 'dtext', 'O navegador vai avisar que o certificado é do próprio OpenLume: aceite (Avançado → continuar). A imagem entra na casa escolhida assim que o celular ligar.'));
+  } });
+}
+if (D && D.phone) D.phone.onOffer(async (o) => {
+  try {
+    const { sdp, clip } = await C.phoneAnswer(o);
+    await D.phone.answer(o.id, sdp);
+    const c = await clip();
+    const alvo = phoneWait || (state.sel ? { li: state.sel.l, col: state.sel.c } : { li: state.selLayer, col: 0 }); phoneWait = null;
+    putClip(alvo.li, alvo.col, c); toast('Celular ligado: ' + c.name);
+  } catch (e) { try { await D.phone.answer(o.id, null, e.message); } catch { } toast('Celular: ' + e.message); }
+});
 function putLaserClip(li, col, frame) { putClip(li, col, C.laserClip(frame, laser.thumbSvg(frame))); }
 // soltar qualquer coisa numa casa
 function dropInto(li, col, d, files, ctrl) {
@@ -173,6 +195,7 @@ function dropInto(li, col, d, files, ctrl) {
   if (d.lasermirror) return putClip(li, col, C.laserMirrorClip());
   if (d.camera) return putCamera(li, col, d.camera);
   if (d.capture) return putCapture(li, col, d.capture);
+  if (d.phone) return putPhone(li, col);
   if (d.laser) return putLaserClip(li, col, d.laser);
   if (d.effect) { const c = state.layers[li].clips[col]; if (c) { c.fx.push(mkFx(d.effect)); render(); } return; }
   if (d.afx) { const c = state.layers[li].clips[col]; if (c && c.kind === 'video') { c.afx.push(mkAudioFx(d.afx)); C.rebuildAudioFx(c); render(); } else toast('Efeito de áudio só entra em clipe de vídeo'); return; }
@@ -1366,7 +1389,7 @@ loop();
 render();
 
 // usado pelo teste automático (tools/selftest-main.js); não é interface de usuário
-window.projecionista = { frames: () => loop.total || 0, undo: undoComp, redo: redoComp, markUndo, hist, recordingToClip, automape, setAutomapeGrid, automapeGridOn, menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, addDeck, switchDeck, removeDeck, duplicateDeck, newGroup, setLayerGroup, removeGroup, duplicateGroup, addLayerToGroup, fadeTo, bpm: state.bpm, tapBpm: (t) => tap(state.bpm, t), pending: () => pending.length, apc, stepClip, EFFECTS, audio, mkAudioFx, seg, applyProjectors, projectorWizard, autosave, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
+window.projecionista = { putPhone, frames: () => loop.total || 0, undo: undoComp, redo: redoComp, markUndo, hist, recordingToClip, automape, setAutomapeGrid, automapeGridOn, menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, addDeck, switchDeck, removeDeck, duplicateDeck, newGroup, setLayerGroup, removeGroup, duplicateGroup, addLayerToGroup, fadeTo, bpm: state.bpm, tapBpm: (t) => tap(state.bpm, t), pending: () => pending.length, apc, stepClip, EFFECTS, audio, mkAudioFx, seg, applyProjectors, projectorWizard, autosave, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
   probe: (pts) => engine.probe(state.layers, pts),
   probeScreen: (sc, pts) => engine.probeScreen(sc, state.layers, state.screens, pts),
   serialize: () => serializeComposition(state, laser, COLS), load: loadComposition, reset: resetComposition,

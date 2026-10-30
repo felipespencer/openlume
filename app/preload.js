@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('projDesktop', {
   quit: () => ipcRenderer.invoke('app:quit'),
   info: () => ipcRenderer.invoke('app:info'),
   localPort: () => ipcRenderer.invoke('local:port'),
+  // celular como fonte: endereço para o celular abrir, ofertas WebRTC que chegam e a resposta
+  phone: { info: () => ipcRenderer.invoke('phone:info'), onOffer: (fn) => ipcRenderer.on('phone:offer', (_e, o) => fn(o)), answer: (id, sdp, erro) => ipcRenderer.invoke('phone:answer', id, sdp, erro) },
   // Background Removal nativo: pede a porta ao processo principal; ela chega à página por window.postMessage (ports)
   segPort: () => { ipcRenderer.once('seg:port', (e) => { window.postMessage({ type: 'seg:port' }, '*', e.ports); }); ipcRenderer.send('seg:port'); },
   // caminho no disco de um arquivo solto na janela (para salvar a composição por caminho)
