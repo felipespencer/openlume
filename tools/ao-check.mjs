@@ -39,8 +39,10 @@ check('abrir a Saída avançada mantém a saída', await noAr() === 1, `outWins=
 
 // muda algo (renomeia o slice com registro de desfazer) e desfaz com Ctrl+Z real
 await ev(`(() => { const p = ${P}; p.ao.pushUndo(); p.screens()[0].items[0].name = 'teste-ao'; p.ao.refresh(); return 1; })()`);
+await ev(`${P}.outWins()[0].__marcaAoCheck = 1; 1`);   // marca a janela de saída: depois do Ctrl+Z tem de ser a MESMA (sem fechar e reabrir, que pisca o projetor)
 await ev(`document.activeElement && document.activeElement.blur(); 1`);
 await key('z', 'KeyZ', 90, 2); await wait(400);
+check('Ctrl+Z não fecha e reabre a janela de saída (sem piscar)', await ev(`(() => { const w = ${P}.outWins()[0]; return !!(w && w.__marcaAoCheck); })()`), `janela trocada`);
 check('Ctrl+Z na Saída avançada desfaz', await ev(`${P}.screens()[0].items[0].name`) === nomeAntes, `nome=${await ev(`${P}.screens()[0].items[0].name`)}`);
 check('Ctrl+Z mantém a saída no ar', await noAr() === 1 && await janelasSaida() === 1, `outWins=${await noAr()} janelas=${await janelasSaida()}`);
 

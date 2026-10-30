@@ -871,13 +871,26 @@ const helpers = {
   set: (sc, h) => { if (h) window.__projHelpers[sc.id] = { ...h, w: sc.w, h: sc.h }; else delete window.__projHelpers[sc.id]; },
   clear: () => { window.__projHelpers = {}; },
 };
-// trocar o conjunto de telas (Saída avançada: Cancelar, desfazer, preset; abrir composição): as janelas de saída são
-// fechadas e reabertas para as telas que estavam no ar, casadas pela posição na lista (os ids mudam ao desserializar)
+// trocar o conjunto de telas (Saída avançada: Cancelar, desfazer, preset; abrir composição) SEM derrubar a saída
+// (Felipe, 2026-10-30: "quando dou Ctrl+Z no avançado ele pisca a tela"): a tela nova entra DENTRO do objeto da tela que já
+// existe na mesma posição da lista (mesmo id, mesma janela de saída, mesmo canvas adotado pela janela), e só o conteúdo
+// (nome, itens, cor, opacidade) é trocado. A janela só fecha e reabre quando muda o dispositivo ou o tamanho, ou quando
+// a tela some da lista.
 function setScreens(list) {
-  const noAr = state.screens.map(sc => !!(sc.win && !sc.win.closed));
-  for (const sc of state.screens) if (sc.win && !sc.win.closed) sc.win.close();
-  state.screens = list; window.__projStreams = {}; window.__projCanvas = {}; renderScreens();
-  const reabrir = list.filter((sc, i) => noAr[i] && sc.enabled);
+  const old = state.screens, out = [], reabrir = [];
+  list.forEach((n, i) => {
+    const o = old[i], aberta = !!(o && o.win && !o.win.closed);
+    if (o && o.device === n.device && o.w === n.w && o.h === n.h) {
+      o.name = n.name; o.enabled = n.enabled; o.opacity = n.opacity; o.color = n.color; o.items = n.items; o.rev = (o.rev || 0) + 1;
+      if (!n.enabled && aberta) { o.win.close(); o.win = null; delete window.__projStreams[o.id]; delete window.__projCanvas[o.id]; }
+      out.push(o);
+    } else {
+      if (aberta) { o.win.close(); o.win = null; delete window.__projStreams[o.id]; delete window.__projCanvas[o.id]; if (n.enabled) reabrir.push(n); }
+      out.push(n);
+    }
+  });
+  for (let i = list.length; i < old.length; i++) { const o = old[i]; if (o.win && !o.win.closed) o.win.close(); delete window.__projStreams[o.id]; delete window.__projCanvas[o.id]; }
+  state.screens = out; renderScreens();
   if (reabrir.length) setTimeout(() => openOutputs(reabrir), 150);
 }
 // trocar o monitor (ou janela) de uma tela: ajusta o tamanho e, se a saída estiver aberta, reabre nela
