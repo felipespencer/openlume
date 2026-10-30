@@ -499,6 +499,32 @@ export class Engine {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     this.copyTo(this.prevFbo.t, W, H);
   }
+  // Quadro de um clipe reduzido a w×h, lido da placa (para o recorte de pessoa): a textura do clipe já está na placa para o
+  // render, então um passe de cópia + readPixels custa ~2 ms, contra ~24 ms do createImageBitmap do <video> na thread principal
+  // (que ainda derrubava a composição de 30 para 24 qps). Linhas saem de cima para baixo, como o getImageData.
+  // A leitura é ASSÍNCRONA (readPixels num buffer PIXEL_PACK + fence): o readPixels direto esperava a placa terminar tudo o que
+  // estava na fila (9 a 17 ms parado, mais quanto mais máscaras por segundo). beginReadClipFrame enfileira; pollReadClipFrame
+  // devolve os pixels quando a placa acabou, ou null se ainda não.
+  beginReadClipFrame(c, w, h) {
+    const gl = this.gl, e = this.tex.get(c.id), tex = e ? e.t : this.texFor(c);   // usa o quadro que o render já subiu; só sobe de novo se nunca subiu
+    let f = this.readFbo; if (!f || f.w !== w || f.h !== h) { if (f) { gl.deleteFramebuffer(f.fb); gl.deleteTexture(f.t); } f = this.readFbo = this.fbo(w, h); }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, f.fb); this.copyInto(tex, w, h, true);
+    const pbo = gl.createBuffer(); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pbo); gl.bufferData(gl.PIXEL_PACK_BUFFER, w * h * 4, gl.STREAM_READ);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, 0); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
+    return { sync, pbo, w, h, t0: performance.now() };
+  }
+  pollReadClipFrame(r) {
+    const gl = this.gl; if (!r || !r.sync) return null;
+    const st = gl.clientWaitSync(r.sync, 0, 0);
+    if (st === gl.TIMEOUT_EXPIRED) return null;
+    gl.deleteSync(r.sync); r.sync = null;
+    const buf = new Uint8Array(r.w * r.h * 4);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, r.pbo); gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, buf); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null); gl.deleteBuffer(r.pbo);
+    return buf;
+  }
+  cancelReadClipFrame(r) { const gl = this.gl; if (!r) return; if (r.sync) gl.deleteSync(r.sync); if (r.pbo) gl.deleteBuffer(r.pbo); r.sync = null; r.pbo = null; }
   copyInto(tex, w, h, opaque) {
     const gl = this.gl;
     gl.viewport(0, 0, w, h); gl.disable(gl.BLEND);

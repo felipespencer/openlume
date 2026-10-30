@@ -1,5 +1,11 @@
-MODNet com backbone HRNet_W18 (PaddleSeg Matting), modelo modnet-hrnet_w18.onnx
+MODNet com backbone HRNet_W18 (PaddleSeg Matting), em dois grafos de tamanho fixo:
+modnet-hrnet_w18-480.onnx (Qualidade Media, 480x480) e modnet-hrnet_w18-640.onnx (Alta, 640x640).
 Origem: pacote de inferencia oficial https://paddleseg.bj.bcebos.com/matting/models/deploy/modnet-hrnet_w18.zip
-convertido com paddle2onnx 1.3.1 (opset 13). Licenca Apache 2.0 (LICENSE.txt, do PaddleSeg).
-Entrada 'img' 1x3xHxW RGB normalizada ((x/255-0.5)/0.5), H e W multiplos de 32; saida 'sigmoid_2.tmp_0' 1x1xHxW (alfa).
-E o modelo do Model Quality High do Background Removal do Resolume 7.28 (eles usam 640x640).
+convertido com paddle2onnx 1.3.1 (opset 13) para modnet-hrnet_w18.onnx (dinamico), e depois fixado em cada
+tamanho com onnxsim 0.8.1 (tools/modelos/modnet-fixo.py): o grafo dinamico calculava o tamanho de cada Resize com
+Shape/Slice/Cast/Concat, que o onnxruntime roda na CPU com uma sincronizacao GPU<->CPU em cada um; fixo, tudo roda na
+placa (DirectML): 480 de 49 para 28 ms, 640 de 60 para 35 ms, mascara identica (diferenca 1e-5). fp16 nao acelerou no DirectML.
+Licenca Apache 2.0 (LICENSE.txt, do PaddleSeg).
+Entrada 'img' 1x3xNxN RGB normalizada ((x/255-0.5)/0.5); saida 'sigmoid_2.tmp_0' 1x1xNxN (alfa).
+E o modelo do Model Quality High do Background Removal do Resolume 7.28 (eles usam 640x640); na bancada o 480 foi o que
+mais bateu com o Medium deles.

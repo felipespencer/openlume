@@ -231,9 +231,11 @@ onmessage = async (ev) => {
     nativePort.postMessage({ type: 'hello' }); return;
   }
   if (msg.type === 'run' && msg.native && nativePort && nativeOk) {   // nativo: só os pixels RGBA, já no tamanho do modelo
-    const { bitmap, W, H } = msg; if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-    c2d.drawImage(bitmap, 0, 0, W, H); bitmap.close(); const rgba = c2d.getImageData(0, 0, W, H).data;
-    nativePort.postMessage({ type: 'run', id: msg.id, rgba: new Uint8Array(rgba.buffer), W, H, kind: msg.kind, ratio: msg.ratio, params: msg.params, reset: msg.reset }); return;   // por cópia: a porta do Electron não transfere ArrayBuffer
+    const { bitmap, W, H } = msg; const tw0 = performance.now(); let rgba;
+    if (msg.rgba) rgba = msg.rgba;   // já veio pronto da placa
+    else { if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; } c2d.drawImage(bitmap, 0, 0, W, H); bitmap.close(); rgba = c2d.getImageData(0, 0, W, H).data; }
+    postMessage({ type: 'wt', ms: performance.now() - tw0 });
+    nativePort.postMessage({ type: 'run', id: msg.id, fx: msg.fx, rgba: new Uint8Array(rgba.buffer), W, H, kind: msg.kind, ratio: msg.ratio, params: msg.params, reset: msg.reset }); return;   // por cópia: a porta do Electron não transfere ArrayBuffer
   }
   if (msg.type === 'drop' && nativePort) nativePort.postMessage(msg);
   if (msg.type === 'hello') { let adapter = null; try { const a = GPU && await navigator.gpu.requestAdapter(); adapter = a ? (a.info ? a.info.vendor + '/' + a.info.architecture : 'sem info') : 'nenhum'; } catch (e) { adapter = 'erro ' + e.message; } postMessage({ type: 'ready', gpu: GPU, adapter }); return; }

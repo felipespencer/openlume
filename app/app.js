@@ -96,7 +96,10 @@ engine.compTransform = IDENT_TR();
 // a composição salva os efeitos e a transformação que moram no motor (antes compFx saía vazio no arquivo)
 Object.defineProperty(state, 'compFx', { get: () => engine.compFx, enumerable: false }); Object.defineProperty(state, 'compTransform', { get: () => engine.compTransform, enumerable: false });
 engine.groups = state.groups; engine.xfade = state.xfade; engine.beat = state.bpm; C.setBeatClock(state.bpm);
-const seg = new Segmenter(engine.gl); let segErrShown = '';
+const seg = new Segmenter(engine); let segErrShown = '';
+// o worker e o processo nativo do recorte sobem logo depois do programa abrir (e aquecem os modelos no DirectML), para o
+// Background Removal recortar desde o primeiro quadro em vez de ficar ~5 s sem máscara (Felipe, 2026-10-30)
+setTimeout(() => { try { seg.start(); } catch (e) { console.warn('recorte: não subiu na abertura', e); } }, 2000);
 const audio = new AudioEngine(); C.setAudioEngine(audio); state.audioSettings = audio.settings; state.bpm.audio = audio.levels;   // a FFT entra nas animações pelo relógio
 const monCanvas = document.createElement('canvas'); monCanvas.width = COMP_W; monCanvas.height = COMP_H;
 $('outScr').appendChild(monCanvas);
