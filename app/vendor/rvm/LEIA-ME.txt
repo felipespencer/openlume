@@ -1,0 +1,5 @@
+RVM - Robust Video Matting (Peter Lin et al., 2021), modelo rvm_mobilenetv3_fp32.onnx
+https://github.com/PeterL1n/RobustVideoMatting (release v1.0.0)
+Licenca GPL-3.0 (LICENSE.txt), a mesma do OpenLume.
+Entradas: src 1x3xHxW RGB em 0..1; r1i..r4i (memoria do quadro anterior; comece com [1,1,1,1] = 0); downsample_ratio [1].
+Saidas: fgr 1x3xHxW, pha 1x1xHxW (alfa), r1o..r4o (memoria para o proximo quadro). Usado em 640x360 com ratio 0,5.
