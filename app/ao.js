@@ -133,12 +133,17 @@ export class AdvancedOutput {
     $('aoInfo').textContent = `Composição ${this.c.compW}×${this.c.compH}`;
     $('aoStage').classList.toggle('panning', this.pan);
   }
+  // Identificar telas: por 3 s cada saída mostra o nome e o tamanho da tela no centro e, para cada slice, o contorno com o
+  // nome no canto de cima (Felipe, 2026-10-30: o nome do slice caía em cima do nome da tela, no mesmo ponto). Os outros
+  // ajudantes (grade, malha, Test Card) ficam como estavam e voltam sozinhos.
   identify() {
+    const prev = window.__projHelpers || {};
     for (const sc of this.screens()) {
-      const slices = sc.items.filter(i => i.type === 'slice' && i.enabled).map(s => { const r = M.outRect(s); return { name: s.name, x: r.x + r.w / 2, y: r.y + r.h / 2 }; });
-      this.c.helpers.set(sc, { identify: { name: sc.name, slices } });
+      const slices = sc.items.filter(i => i.type === 'slice' && i.enabled).map(s => { const r = M.outRect(s); return { name: s.name, x: r.x, y: r.y, w: r.w, h: r.h, outline: outlinePoints(s) }; });
+      this.c.helpers.set(sc, { ...(prev[sc.id] || {}), identify: { name: sc.name, size: sc.w + ' × ' + sc.h, slices } });
     }
-    clearTimeout(this.identT); this.identT = setTimeout(() => this.c.helpers.clear(), 3000);
+    clearTimeout(this.identT);
+    this.identT = setTimeout(() => { for (const sc of this.screens()) { const h = { ...(window.__projHelpers[sc.id] || {}) }; delete h.identify; delete h.w; delete h.h; this.c.helpers.set(sc, Object.keys(h).length ? h : null); } }, 3000);
   }
   key(e) {
     if (!this.open || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
