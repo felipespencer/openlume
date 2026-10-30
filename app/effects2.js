@@ -26,7 +26,7 @@ export const MORE = [
     glsl: `vec4 fx(vec2 uv){ vec4 c = tex(uv); vec3 c0 = un(c);
       vec2 mt = 0.75 / vec2(textureSize(uPrev, 0)); float acc = 0.0, ws = 0.0;
       for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) { vec2 o = vec2(float(i), float(j)) * mt; vec2 p = clamp(uv + o, 0.0, 1.0);
-        vec3 ci = un(tex(p)); float dc = length(ci - c0) * 14.0; float w = exp(-dc * dc - float(i * i + j * j) * 0.12);
+        vec3 ci = un(tex(p)); float dc = length(ci - c0) * 24.0; float w = exp(-dc * dc - float(i * i + j * j) * 0.12);
         acc += w * texture(uPrev, p).r; ws += w; }
       float m = acc / max(ws, 1e-5);
       if (invert > 0.5) m = 1.0 - m;
