@@ -11,7 +11,7 @@
 // A cor sai do shader já multiplicada pela opacidade (premultiplicada), o que deixa os
 // modos de mistura corretos só com blendFunc.
 import { tessellate } from './warp.js';
-import { softWidths, softGrads, gradRadius, allSlices } from './screens.js';
+import { softWidths, softGradsOn, gradRadius, allSlices } from './screens.js';
 import { effectById, EFFECT_HELPERS } from './effects.js';
 import { sourceById } from './sources.js';
 import { FS_MIX, mixerCode, normMixer, hexRgb, hexRgba, MIXER_OPT, mixerColor } from './mixers.js';
@@ -593,7 +593,7 @@ export class Engine {
       gl.uniform2f(P.u.uBC, s.color.bright, s.color.contrast);
       gl.uniform3f(P.u.uRGB, s.color.r, s.color.g, s.color.b);
       // degradês de emenda (até 8): A→B em pixels do recorte; o uv local cresce para baixo, como a composição
-      const gs = s.soft.on ? softGrads(s, all).slice(0, 8) : [];
+      const gs = s.soft.on ? softGradsOn(s, all) : [];
       gl.uniform1i(P.u.uUseSoft, s.soft.on ? 1 : 0); gl.uniform1i(P.u.uNG, gs.length); gl.uniform2f(P.u.uInSize, s.in.w, s.in.h);
       if (gs.length) {
         const GA = new Float32Array(32), GB = new Float32Array(32);

@@ -223,7 +223,9 @@ button.gh:hover{ color:var(--txt); background:var(--bg3); }
 #aoView svg .gmid{ stroke:transparent; stroke-width:14; vector-effect:non-scaling-stroke; cursor:move; }
 #aoView svg .hd.man{ stroke:var(--warn); } #aoView svg .hd.ga{ fill:var(--teal); } #aoView svg .hd.ga.man{ fill:var(--warn); }
 #aoView svg .gname{ fill:var(--teal); pointer-events:none; } #aoView svg .gname.man{ fill:var(--warn); }
-#aoProps .glist{ width:100%; display:flex; flex-direction:column; gap:1px; } #aoProps .grow{ display:flex; gap:6px; align-items:center; padding:3px 6px; cursor:pointer; border-radius:3px; }
+#aoView svg .gband.off, #aoView svg .gline.off, #aoView svg .hd.off, #aoView svg .gname.off{ opacity:.3; } #aoView svg .gband.off{ fill:none; }
+#aoProps .grow .ck{ width:16px; height:16px; display:inline-flex; color:var(--rd); cursor:pointer; flex:none; } #aoProps .grow .ck svg{ width:14px; height:14px; } #aoProps .grow .ck.on{ color:var(--teal); } #aoProps .grow.off .nm{ color:var(--dim); }
+#aoProps .glist{ display:flex; flex-direction:column; gap:1px; margin:3px 7px 4px; } #aoProps .grow{ display:flex; gap:6px; align-items:center; padding:3px 6px; cursor:pointer; border-radius:3px; }
 #aoProps .grow:hover{ background:var(--bg3); } #aoProps .grow.cur{ background:var(--rh); box-shadow:inset 2px 0 0 var(--teal); } #aoProps .grow .nm{ flex:1; } #aoProps .grow .tag{ font-size:10px; color:var(--teal); } #aoProps .grow .tag.man{ color:var(--warn); } #aoProps .grow .x{ color:var(--dim); } #aoProps .grow .x:hover{ color:#fff; }
 #aoView svg .mask, #aoView svg .inmask{ fill:#f5d742; fill-opacity:.12; stroke:#f5d742; stroke-width:1; stroke-dasharray:5 4; vector-effect:non-scaling-stroke; cursor:move; }
 #aoView svg .mname{ fill:#f5d742; }

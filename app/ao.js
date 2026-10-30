@@ -273,7 +273,7 @@ export class AdvancedOutput {
   drawGrads(item) {
     const k = 1 / this.scale, svg = this.svg, w = item.in.w, h = item.in.h, L2 = (p) => localToIn(item, [p[0] / w, p[1] / h]);
     this.grads(item).forEach((g, i) => {
-      const cls = (i === this.selG ? ' cur' : '') + (g.auto ? '' : ' man'), at = (kk) => ({ 'data-k': kk, 'data-i': i, 'data-id': item.id });
+      const cls = (i === this.selG ? ' cur' : '') + (g.auto ? '' : ' man') + (g.on === false ? ' off' : ''), at = (kk) => ({ 'data-k': kk, 'data-i': i, 'data-id': item.id });
       const dx = g.b[0] - g.a[0], dy = g.b[1] - g.a[1], Ln = Math.hypot(dx, dy) || 1, px = -dy / Ln, py = dx / Ln, mx = (g.a[0] + g.b[0]) / 2, my = (g.a[1] + g.b[1]) / 2;
       svg.appendChild(svgEl('polygon', { points: M.gradOutline(g).map(p => L2(p).join(',')).join(' '), class: 'gband' + cls }));
       const A = L2(g.a), B = L2(g.b), N1 = L2([mx + px * g.n1, my + py * g.n1]), N2 = L2([mx - px * g.n2, my - py * g.n2]);
@@ -282,13 +282,13 @@ export class AdvancedOutput {
       svg.appendChild(svgEl('circle', { cx: A[0], cy: A[1], r: 6 * k, class: 'hd ga' + cls, ...at('gA') }));
       svg.appendChild(svgEl('rect', { x: B[0] - 5 * k, y: B[1] - 5 * k, width: 10 * k, height: 10 * k, class: 'hd' + cls, ...at('gB') }));
       for (const [kk, m] of [['gN1', N1], ['gN2', N2]]) svg.appendChild(svgEl('polygon', { points: `${m[0]},${m[1] - 7 * k} ${m[0] + 7 * k},${m[1]} ${m[0]},${m[1] + 7 * k} ${m[0] - 7 * k},${m[1]}`, class: 'hd' + cls, ...at(kk) }));
-      const t = svgEl('text', { x: A[0] + 9 * k, y: A[1] - 9 * k, class: 'gname' + cls }); t.textContent = g.auto ? 'automático' : 'ajustado'; svg.appendChild(t);
+      const t = svgEl('text', { x: A[0] + 9 * k, y: A[1] - 9 * k, class: 'gname' + cls }); t.textContent = g.on === false ? 'desligado' : g.auto ? 'automático' : 'ajustado'; svg.appendChild(t);
     });
   }
   removeGrad() {
     const s = this.sel && this.sel.item; if (!s || s.type !== 'slice') return;
     const g = this.grads(s)[this.selG]; if (!g || g.auto) return;
-    this.pushUndo(); s.soft.grads = s.soft.grads.filter(x => x !== g); M.touch(s); this.selG = -1; this.c.onChange(); this.draw(); this.renderProps();
+    this.pushUndo(); s.soft.grads = s.soft.grads.filter(x => x !== g); M.touch(s); if (!g.edge) this.selG = -1; this.c.onChange(); this.draw(); this.renderProps();
   }
   // alças do Transformar, como no Resolume: círculo com quadrado nos cantos, quadrado no meio dos lados
   drawHandles(r, item) {
@@ -342,7 +342,7 @@ export class AdvancedOutput {
     const d = this.drag = { k, i: +t.dataset.i, it, last: p, start: p };
     if (k[0] === 'g' && k.length <= 3) {   // alça de degradê: o automático vira ajustado na hora em que é tocado
       const g0 = this.grads(it)[d.i]; if (!g0) { this.drag = null; return; }
-      const g = M.adoptGrad(it, g0); this.selG = this.grads(it).indexOf(g);
+      const g = M.adoptGrad(it, g0); g.on = true; this.selG = this.grads(it).indexOf(g);   // puxar uma alça liga a emenda
       d.g = g; d.g0 = { a: [...g.a], b: [...g.b] }; d.lp = this.localPx(it, p);
       this.draw(); this.renderProps(); return;
     }
@@ -499,18 +499,20 @@ export class AdvancedOutput {
   // degradês da emenda: lista, pontos, trecho, arredondado e "Voltar ao automático"
   gradProps(P, s) {
     const gs = this.grads(s), refresh = () => { M.touch(s); this.c.onChange(); this.draw(); this.renderProps(); };
-    P.appendChild(this.phead('Degradês da emenda', 'Degradês da emenda|Cada emenda é um degradê com alça na imagem, como no Illustrator: bolinha = brilho inteiro, quadrado = zero, losangos = trecho da faixa. O automático põe um por vizinho; mexeu numa alça, ele vira ajustado.'));
+    P.appendChild(this.phead('Degradês da emenda', 'Degradês da emenda|Quatro emendas por slice, uma por borda, mais os degradês livres. Cada uma é um degradê com alça na imagem, como no Illustrator: bolinha = brilho inteiro, quadrado = zero, losangos = trecho da faixa. Com vizinho o automático liga e posiciona; sem vizinho fica desligada, pronta para ligar. Mexeu numa alça, vira ajustado.'));
     const list = el('div', 'glist');
     gs.forEach((g, i) => {
-      const row = el('div', 'grow' + (i === this.selG ? ' cur' : ''));
-      row.append(el('span', 'nm', M.gradName(g, i)), el('span', 'tag' + (g.auto ? '' : ' man'), g.auto ? 'automático' : 'ajustado'));
-      if (!g.auto) { const x = el('span', 'x', '✕'); x.title = 'Apagar'; x.onclick = (ev) => { ev.stopPropagation(); this.selG = i; this.removeGrad(); }; row.appendChild(x); }
+      const row = el('div', 'grow' + (i === this.selG ? ' cur' : '') + (g.on === false ? ' off' : ''));
+      const on = g.on !== false, ck = el('label', 'ck' + (on ? ' on' : '')); ck.innerHTML = on ? ICON.item : ICON.itemOff; ck.title = on ? 'Desligar esta emenda' : 'Ligar esta emenda';
+      ck.onclick = (ev) => { ev.stopPropagation(); this.pushUndo(); const m = M.adoptGrad(s, g); m.on = !on; this.selG = this.grads(s).indexOf(m); refresh(); };
+      row.append(ck, el('span', 'nm', M.gradName(g, i)), el('span', 'tag' + (g.auto ? '' : ' man'), !on ? 'desligado' : g.auto ? 'automático' : 'ajustado'));
+      if (!g.auto && !g.edge) { const x = el('span', 'x', '✕'); x.title = 'Apagar'; x.onclick = (ev) => { ev.stopPropagation(); this.selG = i; this.removeGrad(); }; row.appendChild(x); }
       row.onclick = () => { this.selG = i; this.draw(); this.renderProps(); };
       list.appendChild(row);
     });
     const add = el('button', 'wide', '+ Adicionar degradê'); add.type = 'button';
-    add.onclick = () => { this.pushUndo(); const w = s.in.w, h = s.in.h, rd = s.soft.round; s.soft.grads.push({ id: M.nextId(), edge: null, a: [Math.round(w * 0.3), Math.round(h / 2)], b: [0, Math.round(h / 2)], n1: Math.round(h / 4), n2: Math.round(h / 4), roundOn: rd.on, round: rd.r }); this.selG = this.grads(s).length - 1; refresh(); };
-    P.appendChild(this.prow('', '', list)); P.appendChild(add);
+    add.onclick = () => { this.pushUndo(); const w = s.in.w, h = s.in.h, rd = s.soft.round; s.soft.grads.push({ id: M.nextId(), edge: null, on: true, a: [Math.round(w * 0.3), Math.round(h / 2)], b: [0, Math.round(h / 2)], n1: Math.round(h / 4), n2: Math.round(h / 4), roundOn: rd.on, round: rd.r }); this.selG = this.grads(s).length - 1; refresh(); };
+    P.appendChild(list); P.appendChild(add);
     const g = gs[this.selG]; if (!g) return;
     const edit = (fn) => (v) => { const m = M.adoptGrad(s, g); fn(m, v); this.selG = this.grads(s).indexOf(m); M.touch(s); };
     P.appendChild(this.pnum('Começo X', 'Começo|Ponto de brilho inteiro (bolinha), em pixels do recorte.', g.a[0], { min: -99999, max: 99999, step: 1 }, edit((m, v) => { m.a[0] = v; })));
@@ -522,7 +524,7 @@ export class AdvancedOutput {
     // arredondado: no automático é o padrão do slice (vale para todos os automáticos); no ajustado é dele
     P.appendChild(this.pcheck('Arredondar', 'Arredondar|Arredonda os cantos da faixa do lado da projeção; na beirada do projetor fica reto.', g.roundOn, v => { if (g.auto) s.soft.round.on = v; else g.roundOn = v; M.touch(s); }));
     P.appendChild(this.pnum('Raio', 'Raio|Tamanho do arredondado, em % de metade do lado menor da faixa.', Math.round((g.round || 0) * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 50 }, v => { if (g.auto) s.soft.round.r = v / 100; else g.round = v / 100; M.touch(s); }));
-    if (!g.auto && g.edge) { const back = el('button', 'wide', 'Voltar ao automático'); back.type = 'button'; back.onclick = () => { this.pushUndo(); s.soft.grads = s.soft.grads.filter(x => x !== g); this.selG = -1; refresh(); }; P.appendChild(back); }
+    if (!g.auto && g.edge) { const back = el('button', 'wide', 'Voltar ao automático'); back.type = 'button'; back.onclick = () => { this.pushUndo(); s.soft.grads = s.soft.grads.filter(x => x !== g); refresh(); }; P.appendChild(back); }
   }
   colorRows(P, c) {
     P.appendChild(this.pnum('Brilho', 'Brilho|Compensa projetores diferentes entre si.', Math.round((c.bright - 1) * 100), { min: -100, max: 100, step: 1, bar: true, reset: 0 }, v => { c.bright = 1 + v / 100; }));

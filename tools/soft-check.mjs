@@ -21,8 +21,8 @@ const click = async (x, y) => { await mouse('mouseMoved', x, y, 0); await mouse(
 const arrow = (name, shift = false, alt = false) => key(name, name, { ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40 }[name], (shift ? 8 : 0) | (alt ? 1 : 0));
 const results = []; const check = (name, ok, info = '') => { results.push({ name, ok }); console.log((ok ? 'OK    ' : 'FALHA ') + name + (info ? '  — ' + info : '')); };
 const P = 'window.projecionista';
-const rect = async (sel) => JSON.parse(await ev(`(() => { const e = document.querySelector('${sel}'); if (!e) return 'null'; const r = e.getBoundingClientRect(); return JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }); })()`));
-const grads = async () => JSON.parse(await ev(`JSON.stringify(${P}.ao.grads(${P}.screens()[1].items[0]).map(g => ({ auto: !!g.auto, edge: g.edge, a: g.a.map(Math.round), b: g.b.map(Math.round), n1: Math.round(g.n1), n2: Math.round(g.n2) })))`));
+const rect = async (sel) => JSON.parse(await ev(`(() => { const e = document.querySelector('${sel}'); if (!e) return 'null'; if (e.closest('#aoProps')) e.scrollIntoView({ block: 'center' }); const r = e.getBoundingClientRect(); return JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }); })()`));
+const grads = async () => JSON.parse(await ev(`JSON.stringify(${P}.ao.grads(${P}.screens()[1].items[0]).map(g => ({ auto: !!g.auto, on: g.on !== false, edge: g.edge, a: g.a.map(Math.round), b: g.b.map(Math.round), n1: Math.round(g.n1), n2: Math.round(g.n2) })))`));
 const manual = async () => +await ev(`${P}.screens()[1].items[0].soft.grads.length`);
 
 // preparo: diálogos fechados com Esc de verdade; composição 2880×1920 com cor sólida; deitado 1920×1080 + em pé 1080×1920 lado a lado, soft edge nos dois
@@ -37,21 +37,21 @@ const lum = async (si, x, y) => { const q = JSON.parse(await ev(`JSON.stringify(
 
 // 1. automático: um degradê por vizinho, só no trecho
 let g = await grads();
-check('automático cria um degradê na borda esquerda do em pé, no trecho do deitado', g.length === 1 && g[0].auto && g[0].edge === 'l' && g[0].a[0] === 220 && g[0].b[0] === 0 && g[0].a[1] === 540 && g[0].n1 === 540, JSON.stringify(g));
+check('quatro emendas por slice: a esquerda do em pé ligada pelo automático no trecho do deitado, as outras três desligadas', g.length === 4 && g[0].auto && g[0].on && g[0].edge === 'l' && g[0].a[0] === 220 && g[0].b[0] === 0 && g[0].a[1] === 540 && g[0].n1 === 540 && g[1].edge === 'r' && !g[1].on && !g[2].on && !g[3].on, JSON.stringify(g));
 check('a saída do em pé escurece na borda dentro do trecho e fica inteira fora dele', await lum(1, 0.03, 0.25) < 90 && await lum(1, 0.03, 0.9) === 255 && await lum(1, 0.5, 0.5) === 255, `dentro=${await lum(1, 0.03, 0.25)} fora=${await lum(1, 0.03, 0.9)}`);
 check('a saída do deitado escurece na borda direita', await lum(0, 0.985, 0.5) < 90 && await lum(0, 0.5, 0.5) === 255, `borda=${await lum(0, 0.985, 0.5)}`);
 
 // 2. abre a Saída avançada na aba Entrada com o em pé selecionado: as alças aparecem
 await ev(`(() => { const p = ${P}; p.ao.show(); p.ao.setTab('in'); const sc = p.screens()[1]; p.ao.select(sc, sc.items[0]); return 1; })()`); await wait(400);
 const n = async (k) => +await ev(`document.querySelectorAll('#aoView svg [data-k=${k}]').length`);
-check('alças do degradê na aba Entrada: bolinha, quadrado, dois losangos e a linha', await n('gA') === 1 && await n('gB') === 1 && await n('gN1') === 1 && await n('gN2') === 1 && await n('gM') === 1, `gA=${await n('gA')} gB=${await n('gB')} gN1=${await n('gN1')} gM=${await n('gM')}`);
-check('painel lista o degradê como automático', await ev(`document.querySelectorAll('#aoProps .grow').length`) === 1 && await ev(`document.querySelector('#aoProps .grow .tag').textContent`) === 'automático');
+check('alças das quatro emendas na aba Entrada: bolinha, quadrado, dois losangos e a linha de cada uma', await n('gA') === 4 && await n('gB') === 4 && await n('gN1') === 4 && await n('gN2') === 4 && await n('gM') === 4, `gA=${await n('gA')} gB=${await n('gB')} gN1=${await n('gN1')} gM=${await n('gM')}`);
+check('painel lista as quatro: esquerda automática, as outras desligadas', await ev(`document.querySelectorAll('#aoProps .grow').length`) === 4 && await ev(`[...document.querySelectorAll('#aoProps .grow .tag')].map(t => t.textContent).join(',')`) === 'automático,desligado,desligado,desligado');
 
 // 3. arrasta a bolinha (A) para a direita com mouse real: vira ajustado, A anda, o automático some
 const A = await rect('#aoView svg [data-k=gA]'); const esc = await ev(`${P}.ao.scale`);
 await drag(A.x, A.y, A.x + 40, A.y);
 g = await grads();
-check('arrastar a bolinha vira o degradê em ajustado (soft.grads) e o automático da borda some', await manual() === 1 && g.length === 1 && !g[0].auto && g[0].edge === 'l', JSON.stringify(g));
+check('arrastar a bolinha vira a emenda esquerda em ajustada (soft.grads); continuam quatro', await manual() === 1 && g.length === 4 && !g[0].auto && g[0].on && g[0].edge === 'l', JSON.stringify(g[0]));
 check('a bolinha andou em pixels do recorte (40 px de tela ÷ escala)', Math.abs(g[0].a[0] - (220 + 40 / esc)) <= 2 && g[0].b[0] === 0, `a.x=${g[0].a[0]} esperado≈${(220 + 40 / esc).toFixed(0)}`);
 check('painel marca ajustado e oferece Voltar ao automático', await ev(`document.querySelector('#aoProps .grow .tag').textContent`) === 'ajustado' && await ev(`[...document.querySelectorAll('#aoProps button')].some(b => b.textContent === 'Voltar ao automático')`));
 check('a saída acompanha: a emenda ficou mais larga (mais escuro a 3% da largura)', await lum(1, 0.03, 0.25) < 61, `lum=${await lum(1, 0.03, 0.25)}`);
@@ -73,6 +73,15 @@ await drag(M0.x, M0.y, M0.x, M0.y + 20);
 g = await grads();
 check('arrastar a linha move A e B juntos', Math.abs(g[0].a[1] - (a0[1] + 20 / esc)) <= 2 && Math.abs(g[0].b[1] - (b0[1] + 20 / esc)) <= 2 && g[0].a[0] === a0[0] && g[0].b[0] === b0[0], JSON.stringify(g[0]));
 
+// 5b. ligar a emenda direita (sem vizinho) pela caixinha da lista: vira ajustada e a saída escurece na borda direita; desligar volta
+{ const r = JSON.parse(await ev(`(() => { const c = document.querySelectorAll('#aoProps .grow .ck')[1]; c.scrollIntoView({ block: 'center' }); const r = c.getBoundingClientRect(); return JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2 }); })()`)); await click(r.x, r.y); }
+g = await grads();
+check('ligar a emenda direita na lista: ajustada, ligada, 10% de largura, e a saída escurece na borda direita', g[1].edge === 'r' && g[1].on && !g[1].auto && g[1].a[0] === 972 && g[1].b[0] === 1080 && await manual() === 2 && await lum(1, 0.985, 0.5) < 90, `g=${JSON.stringify(g[1])} lum=${await lum(1, 0.985, 0.5)}`);
+{ const r = JSON.parse(await ev(`(() => { const c = document.querySelectorAll('#aoProps .grow .ck')[1]; c.scrollIntoView({ block: 'center' }); const r = c.getBoundingClientRect(); return JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2 }); })()`)); await click(r.x, r.y); }
+g = await grads();
+check('desligar de novo: a borda direita volta a ficar inteira', !g[1].on && await lum(1, 0.985, 0.5) === 255, `lum=${await lum(1, 0.985, 0.5)}`);
+await ev(`(() => { const p = ${P}, s = p.screens()[1].items[0]; s.soft.grads = s.soft.grads.filter(x => x.edge !== 'r'); p.M.touch(s); p.ao.selG = 0; p.ao.refresh(); return 1; })()`);
+
 // 6. setas: movem o fim (B) 1 px, Shift 10 px, Alt leva A junto
 const bx = g[0].b[0], ax = g[0].a[0];
 await arrow('ArrowRight'); await wait(100); await arrow('ArrowRight', true); await wait(100);
@@ -85,17 +94,18 @@ check('Alt+seta move começo e fim juntos', g[0].b[0] === bx + 10 && g[0].a[0] =
 // 7. Voltar ao automático
 const vb = await rect('#aoProps button:nth-last-of-type(1)');
 const vbOk = await ev(`[...document.querySelectorAll('#aoProps button')].find(b => b.textContent === 'Voltar ao automático') ? 1 : 0`);
-if (vbOk) { const r = JSON.parse(await ev(`(() => { const b = [...document.querySelectorAll('#aoProps button')].find(b => b.textContent === 'Voltar ao automático'); const r = b.getBoundingClientRect(); return JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2 }); })()`)); await click(r.x, r.y); }
+if (vbOk) { const r = JSON.parse(await ev(`(() => { const b = [...document.querySelectorAll('#aoProps button')].find(b => b.textContent === 'Voltar ao automático'); b.scrollIntoView({ block: 'center' }); const r = b.getBoundingClientRect(); return JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2 }); })()`)); await click(r.x, r.y); }
 check('Voltar ao automático apaga o ajuste e o automático volta', await manual() === 0 && (await grads())[0].auto && (await grads())[0].a[0] === 220, `manual=${await manual()} a=${JSON.stringify((await grads())[0].a)}`);
+await ev(`${P}.ao.selG = -1; ${P}.ao.refresh(); 1`);
 
 // 8. + Adicionar degradê cria um livre; Delete apaga o selecionado
-{ const r = JSON.parse(await ev(`(() => { const b = [...document.querySelectorAll('#aoProps button')].find(b => b.textContent === '+ Adicionar degradê'); const r = b.getBoundingClientRect(); return JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2 }); })()`)); await click(r.x, r.y); }
+{ const r = JSON.parse(await ev(`(() => { const b = [...document.querySelectorAll('#aoProps button')].find(b => b.textContent === '+ Adicionar degradê'); b.scrollIntoView({ block: 'center' }); const r = b.getBoundingClientRect(); return JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2 }); })()`)); await click(r.x, r.y); }
 g = await grads();
-check('+ Adicionar degradê cria um degradê livre (sem borda) além do automático', g.length === 2 && g[1].edge === null && !g[1].auto && await ev(`${P}.ao.selG`) === 1, JSON.stringify(g));
+check('+ Adicionar degradê cria um degradê livre (sem borda) depois das quatro bordas', g.length === 5 && g[4].edge === null && !g[4].auto && g[4].on && await ev(`${P}.ao.selG`) === 4, JSON.stringify(g[4]));
 await ev(`document.activeElement && document.activeElement.blur(); 1`);
 await key('Delete', 'Delete', 46); await wait(200);
 g = await grads();
-check('Delete apaga o degradê selecionado e não o slice', g.length === 1 && g[0].auto && await ev(`${P}.screens()[1].items.length`) === 1, JSON.stringify(g));
+check('Delete apaga o degradê livre selecionado e não o slice', g.length === 4 && g[0].auto && await ev(`${P}.screens()[1].items.length`) === 1, `n=${g.length}`);
 
 // 9. salvar/abrir preserva os ajustes
 await ev(`(() => { const p = ${P}, s = p.screens()[1].items[0]; s.soft.grads.push({ id: 999, edge: 'l', a: [300, 500], b: [0, 500], n1: 400, n2: 450, roundOn: false, round: 0.3 }); p.M.touch(s); return 1; })()`);
