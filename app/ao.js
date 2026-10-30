@@ -496,7 +496,7 @@ export class AdvancedOutput {
       // soft edge: cabeçalho com a caixa, parâmetros quando ligado
       const ck = el('label', 'ck' + (s.soft.on ? ' on' : '')); ck.innerHTML = s.soft.on ? ICON.item : ICON.itemOff;
       ck.onclick = () => { this.pushUndo(); s.soft.on = !s.soft.on; M.touch(s); this.c.onChange(); this.refresh(); };
-      P.appendChild(this.phead('Soft Edge', 'Soft Edge|Liga a emenda onde dois projetores se sobrepõem. A largura vem da sobreposição dos recortes na composição.', ck));
+      P.appendChild(this.phead('Soft Edge', 'Soft Edge|Liga a emenda onde dois projetores se sobrepõem. A largura vem da sobreposição dos recortes na composição, e a rampa fica só no trecho da borda onde o outro projetor está.', ck));
       if (s.soft.on) {
         P.appendChild(this.pnum('Potência', 'Potência|Inclinação da curva da emenda.', s.soft.power, { min: 0.5, max: 5, step: 0.1, dec: 1, bar: true, reset: 2 }, v => { s.soft.power = v; }));
         P.appendChild(this.pnum('Luminância', 'Luminância|Brilho do meio da curva da emenda.', s.soft.lum, { min: 0, max: 1, step: 0.01, dec: 2, bar: true, reset: 0.5 }, v => { s.soft.lum = v; }));

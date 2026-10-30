@@ -29,6 +29,7 @@ precision highp float; in vec2 v; uniform sampler2D uTex; uniform float uOp; uni
 void main(){ vec4 c = texture(uTex, v); if (uPre < 0.5) c.rgb *= c.a; o = c * uOp; }`;
 
 // slice: posição em px da tela; luv é a coordenada local (0..1) dentro do recorte
+const SOFT_Y_UP = true;   // o uv local do slice cresce para cima (a máscara de entrada é lida com 1 - vLuv.y)
 const VS_SLICE = `#version 300 es
 in vec2 aPos; in vec2 aLuv;
 uniform vec2 uScreen; uniform vec4 uIn; uniform float uRot; uniform vec2 uFlip; uniform vec2 uSrc;
@@ -47,6 +48,7 @@ precision highp float;
 in vec2 vUv; in vec2 vLuv; out vec4 o;
 uniform sampler2D uTex; uniform vec2 uBC; uniform vec3 uRGB;
 uniform int uUseSoft; uniform vec4 uSoft; uniform vec3 uSoftP; uniform vec3 uGamma;
+uniform vec4 uSoftLR; uniform vec4 uSoftTB;   // trecho da borda onde a emenda vale: (esq y0,y1, dir y0,y1) e (cima x0,x1, baixo x0,x1), no uv local
 uniform int uUseMask; uniform sampler2D uMask;
 float ramp(float x){
   float s = step(0.5, x);
@@ -58,10 +60,11 @@ void main(){
   c.rgb = mix(vec3(0.5) * c.a, c.rgb * uBC.x, uBC.y) + uRGB * c.a;
   if (uUseSoft != 0) {
     float f = 1.0;
-    if (uSoft.x > 0.0) f *= ramp(clamp(vLuv.x / uSoft.x, 0.0, 1.0));
-    if (uSoft.y > 0.0) f *= ramp(clamp((1.0 - vLuv.x) / uSoft.y, 0.0, 1.0));
-    if (uSoft.z > 0.0) f *= ramp(clamp(vLuv.y / uSoft.z, 0.0, 1.0));
-    if (uSoft.w > 0.0) f *= ramp(clamp((1.0 - vLuv.y) / uSoft.w, 0.0, 1.0));
+    // cada rampa só vale no trecho da borda onde o outro projetor está (fora dele a borda fica inteira)
+    if (uSoft.x > 0.0 && vLuv.y >= uSoftLR.x && vLuv.y <= uSoftLR.y) f *= ramp(clamp(vLuv.x / uSoft.x, 0.0, 1.0));
+    if (uSoft.y > 0.0 && vLuv.y >= uSoftLR.z && vLuv.y <= uSoftLR.w) f *= ramp(clamp((1.0 - vLuv.x) / uSoft.y, 0.0, 1.0));
+    if (uSoft.z > 0.0 && vLuv.x >= uSoftTB.x && vLuv.x <= uSoftTB.y) f *= ramp(clamp(vLuv.y / uSoft.z, 0.0, 1.0));
+    if (uSoft.w > 0.0 && vLuv.x >= uSoftTB.z && vLuv.x <= uSoftTB.w) f *= ramp(clamp((1.0 - vLuv.y) / uSoft.w, 0.0, 1.0));
     // o nível de preto só sobe fora da faixa de emenda, para casar o preto dos dois projetores
     c.rgb = max(c.rgb, vec3(uSoftP.z) * step(0.99, f) * c.a);
     c.rgb *= pow(vec3(f), 1.0 / uGamma);
@@ -106,7 +109,7 @@ export class Engine {
     const gl = this.gl = canvas.getContext('webgl2', { alpha: false, antialias: false, premultipliedAlpha: true, preserveDrawingBuffer: true });
     if (!gl) throw new Error('WebGL2 indisponível');
     this.progLayer = this.program(VS_LAYER, FS_LAYER, ['uScale', 'uPos', 'uRot', 'uAspect', 'uOp', 'uPre', 'uTex']);
-    this.progSlice = this.program(VS_SLICE, FS_SLICE, ['uScreen', 'uIn', 'uRot', 'uFlip', 'uSrc', 'uTex', 'uBC', 'uRGB', 'uUseSoft', 'uSoft', 'uSoftP', 'uGamma', 'uUseMask', 'uMask']);
+    this.progSlice = this.program(VS_SLICE, FS_SLICE, ['uScreen', 'uIn', 'uRot', 'uFlip', 'uSrc', 'uTex', 'uBC', 'uRGB', 'uUseSoft', 'uSoft', 'uSoftP', 'uGamma', 'uSoftLR', 'uSoftTB', 'uUseMask', 'uMask']);
     this.progScreen = this.program(VS_QUAD, FS_SCREEN, ['uTex', 'uMask', 'uUseMask', 'uBC', 'uRGB', 'uOp']);
     this.progCopy = this.program(VS_QUAD, FS_COPY, ['uTex', 'uOpaque']);
     this.progMix = this.program(VS_QUAD, FS_MIX, ['uA', 'uB', 'uK', 'uTrans', 'uMode', 'uColor', 'uSmooth', 'uTime', 'uRes', 'uSeed']);
@@ -583,6 +586,9 @@ export class Engine {
       const sw = softWidths(s, all);
       gl.uniform1i(P.u.uUseSoft, s.soft.on ? 1 : 0);
       gl.uniform4f(P.u.uSoft, sw.l, sw.r, sw.t, sw.b);
+      // trechos: a conta do modelo é com y para baixo (composição); o uv local do slice tem y para cima (SOFT_Y_UP)
+      const yy = (s2) => SOFT_Y_UP ? [1 - s2[1], 1 - s2[0]] : s2; const L = yy(sw.lS), R = yy(sw.rS);
+      gl.uniform4f(P.u.uSoftLR, L[0], L[1], R[0], R[1]); gl.uniform4f(P.u.uSoftTB, sw.tS[0], sw.tS[1], sw.bS[0], sw.bS[1]);
       gl.uniform3f(P.u.uSoftP, s.soft.power, s.soft.lum, s.soft.black / 255);
       gl.uniform3f(P.u.uGamma, s.soft.gamma[0], s.soft.gamma[1], s.soft.gamma[2]);
       if (s.inMask) {

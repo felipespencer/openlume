@@ -110,27 +110,31 @@ export function rotateOut(slice, deg) {
 }
 
 // ---------- soft edge ----------
-// Largura da emenda em cada borda do slice, em fração do retângulo de entrada. Um slice
-// tem emenda numa borda quando outro slice com soft edge ligado, da mesma fonte, cobre
-// aquela borda em boa parte do seu comprimento. Giro é ignorado nesta conta.
+// Emenda em cada borda do slice: largura (fração do retângulo de entrada) e o trecho da borda onde ela vale
+// (fração ao longo da borda, 0..1 no sentido x ou y da composição). Um slice tem emenda numa borda quando outro slice
+// com soft edge ligado, da mesma fonte, cobre aquela borda — em qualquer comprimento: a rampa fica só no trecho
+// sobreposto (um projetor em pé encostado num deitado emenda só onde os dois se encontram). Giro é ignorado nesta conta.
 export function softWidths(slice, all) {
-  const r = { l: 0, r: 0, t: 0, b: 0 };
+  const r = { l: 0, r: 0, t: 0, b: 0, lS: [0, 1], rS: [0, 1], tS: [0, 1], bS: [0, 1] };
   if (!slice.soft.on) return r;
-  const A = slice.in;
+  const A = slice.in; const span = (cur, a, b) => cur[2] ? [Math.min(cur[0], a), Math.max(cur[1], b), 1] : [a, b, 1];   // união dos trechos (marca que já tem um)
+  let lS = [0, 1, 0], rS = [0, 1, 0], tS = [0, 1, 0], bS = [0, 1, 0];
   for (const o of all) {
     if (o === slice || o.type !== 'slice' || !o.enabled || !o.soft.on || o.source !== slice.source) continue;
     const B = o.in;
     const ix0 = Math.max(A.x, B.x), ix1 = Math.min(A.x + A.w, B.x + B.w), iy0 = Math.max(A.y, B.y), iy1 = Math.min(A.y + A.h, B.y + B.h);
     if (ix1 <= ix0 || iy1 <= iy0) continue;
-    if (iy1 - iy0 > A.h * 0.5) {
-      if (ix0 <= A.x + 1 && ix1 < A.x + A.w) r.l = Math.max(r.l, (ix1 - A.x) / A.w);
-      if (ix1 >= A.x + A.w - 1 && ix0 > A.x) r.r = Math.max(r.r, (A.x + A.w - ix0) / A.w);
-    }
-    if (ix1 - ix0 > A.w * 0.5) {
-      if (iy0 <= A.y + 1 && iy1 < A.y + A.h) r.t = Math.max(r.t, (iy1 - A.y) / A.h);
-      if (iy1 >= A.y + A.h - 1 && iy0 > A.y) r.b = Math.max(r.b, (A.y + A.h - iy0) / A.h);
-    }
+    const sy0 = (iy0 - A.y) / A.h, sy1 = (iy1 - A.y) / A.h, sx0 = (ix0 - A.x) / A.w, sx1 = (ix1 - A.x) / A.w;
+    // a emenda vai no sentido em que a sobreposição é fina: uma faixa alta e estreita emenda esquerda/direita, uma faixa
+    // larga e baixa emenda cima/baixo (um quadrado no canto, as duas). Assim um projetor em pé encostado num deitado não
+    // ganha uma emenda de baixo só porque a faixa encosta no pé dele.
+    const hr = (ix1 - ix0) / A.w, vr = (iy1 - iy0) / A.h, lr = hr <= vr + 1e-6, tb = vr <= hr + 1e-6;
+    if (lr && ix0 <= A.x + 1 && ix1 < A.x + A.w) { r.l = Math.max(r.l, (ix1 - A.x) / A.w); lS = span(lS, sy0, sy1); }
+    if (lr && ix1 >= A.x + A.w - 1 && ix0 > A.x) { r.r = Math.max(r.r, (A.x + A.w - ix0) / A.w); rS = span(rS, sy0, sy1); }
+    if (tb && iy0 <= A.y + 1 && iy1 < A.y + A.h) { r.t = Math.max(r.t, (iy1 - A.y) / A.h); tS = span(tS, sx0, sx1); }
+    if (tb && iy1 >= A.y + A.h - 1 && iy0 > A.y) { r.b = Math.max(r.b, (A.y + A.h - iy0) / A.h); bS = span(bS, sx0, sx1); }
   }
+  r.lS = lS.slice(0, 2); r.rS = rS.slice(0, 2); r.tS = tS.slice(0, 2); r.bS = bS.slice(0, 2);
   return r;
 }
 export const allSlices = (screens) => screens.flatMap(s => s.enabled ? s.items.filter(i => i.type === 'slice') : []);
