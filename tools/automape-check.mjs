@@ -9,7 +9,9 @@ const ws = new WebSocket(page.webSocketDebuggerUrl); await new Promise(r => ws.o
 let id = 0; const waits = new Map();
 ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && waits.has(d.id)) { waits.get(d.id)(d); waits.delete(d.id); } };
 const send = (method, params = {}) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
-await send('Page.bringToFront'); await send('Emulation.setFocusEmulationEnabled', { enabled: true });   // sem foco de teclado (outra janela na frente), o Chromium descarta as teclas do CDP; a emulação de foco não depende do Windows
+await send('Page.bringToFront'); await send('Emulation.setFocusEmulationEnabled', { enabled: true });
+// a primeira tecla depois de uso pesado às vezes se perde: um Shift de aquecimento antes de qualquer tecla que importa
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Shift', code: 'ShiftLeft', windowsVirtualKeyCode: 16 }); await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Shift', code: 'ShiftLeft', windowsVirtualKeyCode: 16 });   // sem foco de teclado (outra janela na frente), o Chromium descarta as teclas do CDP; a emulação de foco não depende do Windows
 const ev = async (expr) => { const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); if (r.result.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description || r.result.exceptionDetails.text); return r.result.result.value; };
 const mouse = (type, x, y, extra = {}) => send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1, ...extra });
 const drag = async (x0, y0, x1, y1, mods = 0) => { await mouse('mouseMoved', x0, y0, { buttons: 0 }); await mouse('mousePressed', x0, y0, { modifiers: mods }); for (let i = 1; i <= 10; i++) await mouse('mouseMoved', x0 + (x1 - x0) * i / 10, y0 + (y1 - y0) * i / 10, { modifiers: mods }); await mouse('mouseReleased', x1, y1, { modifiers: mods }); };

@@ -8,7 +8,7 @@ const HUE = (key, label, def) => P(key, label, def, 0, 1);
 // mesma forma do LIST de effects.js (não dá para importar de lá: effects.js importa este arquivo)
 const LIST = (key, label, opts, ropts, def = 0) => ({ key, label, def, opts, ropts, min: 0, max: opts.length - 1, step: 1, unit: '' });
 export const MORE = [
-  { id: 'backgroundremoval', name: 'Background Removal', desc: 'Tira o fundo e deixa só a pessoa, para webcam ou qualquer clipe (mesmos controles e presets do Resolume 7.28). Qualidade Baixa: PP-HumanSeg, leve; Média e Alta: RVM, transparência de verdade com memória entre quadros (precisam de WebGPU). Dica: ponha antes do Transform.', mask: true,
+  { id: 'backgroundremoval', name: 'Background Removal', desc: 'Tira o fundo e deixa só a pessoa, para webcam ou qualquer clipe: os mesmos controles, presets e modelos do Resolume 7.28. Qualidade Baixa: PP-HumanSeg 192; Média: PP-MattingV2 512; Alta: MODNet-HRNet 640 (os dois últimos rodam na placa de vídeo pelo DirectML). Dica: ponha antes do Transform.', mask: true,
     params: [P('refine', 'Refinar borda', 0.5, 0, 1), P('soft', 'Borda suave', 0.5, 0, 1), P('fill', 'Fechar buracos', 1, 0, 1, 1), P('hard', 'Máscara dura', 0, 0, 1, 1), P('specks', 'Filtrar pontinhos', 0.1, 0, 1), P('tsmooth', 'Suavidade no tempo', 0.1, 0, 1), LIST('mode', 'Modo', ['Alfa', 'Máscara'], ['Alpha', 'Mask']), P('invert', 'Inverter', 0, 0, 1, 1), LIST('quality', 'Qualidade do modelo', ['Baixa', 'Média', 'Alta'], ['Low', 'Medium', 'High'], 1)],
     // os 7 presets do Resolume (valores lidos pela API dele)
     presets: [

@@ -1,0 +1,5 @@
+MODNet com backbone HRNet_W18 (PaddleSeg Matting), modelo modnet-hrnet_w18.onnx
+Origem: pacote de inferencia oficial https://paddleseg.bj.bcebos.com/matting/models/deploy/modnet-hrnet_w18.zip
+convertido com paddle2onnx 1.3.1 (opset 13). Licenca Apache 2.0 (LICENSE.txt, do PaddleSeg).
+Entrada 'img' 1x3xHxW RGB normalizada ((x/255-0.5)/0.5), H e W multiplos de 32; saida 'sigmoid_2.tmp_0' 1x1xHxW (alfa).
+E o modelo do Model Quality High do Background Removal do Resolume 7.28 (eles usam 640x640).

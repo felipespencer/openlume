@@ -9,12 +9,12 @@ export class Segmenter {
     this.native = false;   // vira true quando o processo nativo (onnxruntime-node + DirectML, pela porta do preload) responde
     this.size = 192; this.fps = 30;                                                                   // Baixa
     this.rvm = { 1: { W: 640, H: 384 }, 2: { W: 960, H: 544 }, ratio: 0.5, fps: 15 };                // WebGPU (reserva): Média, Alta (largura e altura múltiplas de 32: o grafo remendado exige)
-    this.nat = { modnet: { W: 512, H: 512 }, rvm: { W: 960, H: 544 }, fps: 30 };                      // nativo: Média = MODNet 512², Alta = RVM 960×544 (base 480×272)
+    this.nat = { ppmatting: { W: 512, H: 512 }, modnet_hrnet: { W: 640, H: 640 }, fps: 30 };          // nativo: Média = PP-MattingV2 512², Alta = MODNet-HRNet 640² (os modelos do Resolume 7.28)
     this.nextId = 1; this.pending = new Map(); this.worker = null;
   }
   quality(f) { return f.params ? Math.round(f.params.quality ?? 1) : 1; }
   // que modelo roda para este efeito: nativo → fast / modnet / rvm; WebGPU → fast / precise (RVM)
-  kindOf(f) { const q = this.quality(f); if (this.native) return q <= 0 ? 'fast' : q === 1 ? 'modnet' : 'rvm'; return q >= 1 && this.gpu && !this.noPrecise ? 'precise' : 'fast'; }
+  kindOf(f) { const q = this.quality(f); if (this.native) return q <= 0 ? 'fast' : q === 1 ? 'ppmatting' : 'modnet_hrnet'; return q >= 1 && this.gpu && !this.noPrecise ? 'precise' : 'fast'; }
   dims(kind, q) { if (kind === 'fast') return [this.size, this.size]; if (kind === 'precise') { const d = this.rvm[Math.max(1, Math.min(2, q))]; return [d.W, d.H]; } const d = this.nat[kind]; return [d.W, d.H]; }
   fpsOf(kind) { return this.native ? this.nat.fps : kind === 'precise' ? this.rvm.fps : this.fps; }
   start() {

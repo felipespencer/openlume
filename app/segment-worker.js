@@ -225,7 +225,7 @@ onmessage = async (ev) => {
   if (msg.type === 'hello') { let adapter = null; try { const a = GPU && await navigator.gpu.requestAdapter(); adapter = a ? (a.info ? a.info.vendor + '/' + a.info.architecture : 'sem info') : 'nenhum'; } catch (e) { adapter = 'erro ' + e.message; } postMessage({ type: 'ready', gpu: GPU, adapter }); return; }
   if (msg.type === 'drop') { const e = st.get(msg.id); if (e) { dropRec(e); e.pend = null; st.delete(msg.id); } return; }
   if (msg.type !== 'run') return;
-  if (msg.kind === 'modnet' || msg.kind === 'rvm') msg.kind = 'precise';   // sem o nativo, o RVM pela WebGPU faz as vezes
+  if (msg.kind !== 'fast' && msg.kind !== 'precise') msg.kind = 'precise';   // sem o nativo, o RVM pela WebGPU faz as vezes das qualidades Média e Alta
   if (busy) { msg.bitmap.close(); postMessage({ type: 'skip', id: msg.id }); return; }
   busy = true;
   try {

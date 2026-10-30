@@ -1,8 +1,9 @@
 // Processo nativo do Background Removal (utilityProcess do Electron): roda os modelos no onnxruntime-node com
 // DirectML, direto na placa de vídeo, como o Resolume faz. Fala com a janela por uma MessagePort.
 //   Qualidade Baixa — PP-HumanSeg (PaddleSeg, Apache 2.0, vendor/pphumanseg): 192×192, fundo/pessoa.
-//   Média — MODNet (Apache 2.0, vendor/modnet): 512×512, transparência de verdade, sem memória.
-//   Alta — RVM, Robust Video Matting (GPL-3.0, vendor/rvm): 960×544, transparência com memória entre quadros.
+//   Média — PP-MattingV2 (PaddleSeg, Apache 2.0, vendor/ppmattingv2): 512×512, o modelo do Medium do Resolume.
+//   Alta — MODNet-HRNet_W18 (PaddleSeg, Apache 2.0, vendor/modnet-hrnet): 640×640, o modelo do High do Resolume.
+//   (RVM, vendor/rvm, fica para a reserva pela WebGPU na janela.)
 // Recebe o quadro já no tamanho do modelo como RGBA (Uint8), devolve a máscara 0..255 já limpa, na ordem do
 // efeito do Resolume 7.28: máscara dura, suavidade no tempo (com portão de movimento), fechar buracos
 // (inundação), filtrar pontinhos (componentes conexos), borda suave (desfoque), refinar borda (erosão e
@@ -14,7 +15,8 @@ try { ort = require('onnxruntime-node'); } catch (e) { ortErr = e.message || Str
 const VENDOR = path.join(__dirname, 'vendor');
 const MODELS = {
   fast: { file: path.join(VENDOR, 'pphumanseg', 'pphumanseg.onnx'), k: 1 / 127.5, b: -1 },
-  modnet: { file: path.join(VENDOR, 'modnet', 'modnet.onnx'), k: 1 / 127.5, b: -1 },
+  ppmatting: { file: path.join(VENDOR, 'ppmattingv2', 'ppmattingv2-stdc1-human_512.onnx'), k: 1 / 127.5, b: -1 },
+  modnet_hrnet: { file: path.join(VENDOR, 'modnet-hrnet', 'modnet-hrnet_w18.onnx'), k: 1 / 127.5, b: -1 },
   rvm: { file: path.join(VENDOR, 'rvm', 'rvm_mobilenetv3_fp32.onnx'), k: 1 / 255, b: 0 },
 };
 const sess = {}; const loading = {}; const failed = {};
