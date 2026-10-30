@@ -18,7 +18,10 @@ const MODELS = {
   // MODNet-HRNet em dois grafos de tamanho FIXO (onnxsim, tools/modelos/modnet-fixo.py): o grafo dinâmico calculava o tamanho de
   // cada Resize com Shape/Slice/Cast/Concat, e o onnxruntime punha esses 104 nós na CPU, com uma sincronização GPU↔CPU em cada um;
   // fixo, tudo roda na placa: 480² de 49 para 28 ms, 640² de 60 para 35 ms (mesma máscara, diferença 1e-5)
-  modnet_hrnet_480: { file: path.join(VENDOR, 'modnet-hrnet', 'modnet-hrnet_w18-480.onnx'), k: 1 / 127.5, b: -1 },
+  // Média = PP-MattingV2 512² (grafo de entrada fixa). Bancada de 2026-10-30 com 8 quadros da webcam do Felipe (braços levantados,
+  // mãos perto da borda) contra o Medium do Resolume: PP-MattingV2 8,6/255, MODNet 480 14,4 (perde os braços), RVM 11,3.
+  // A bancada anterior, num quadro parado só com ombros, tinha apontado o MODNet; era um caso só.
+  ppmattingv2: { file: path.join(VENDOR, 'ppmattingv2', 'ppmattingv2-stdc1-human_512.onnx'), k: 1 / 127.5, b: -1 },
   modnet_hrnet_640: { file: path.join(VENDOR, 'modnet-hrnet', 'modnet-hrnet_w18-640.onnx'), k: 1 / 127.5, b: -1 },
   rvm: { file: path.join(VENDOR, 'rvm', 'rvm_mobilenetv3_fp32.onnx'), k: 1 / 255, b: 0 },
 };
@@ -100,7 +103,7 @@ function send(m, transfer) { if (port) port.postMessage(m, transfer || []); }
 let warmed = false;
 async function warm() {
   if (warmed || !ort) return; warmed = true;
-  for (const [kind, n] of [['fast', 192], ['modnet_hrnet_480', 480], ['modnet_hrnet_640', 640]]) {
+  for (const [kind, n] of [['fast', 192], ['ppmattingv2', 512], ['modnet_hrnet_640', 640]]) {
     try {
       if (!sess[kind]) { if (failed[kind]) continue; await load(kind); if (!sess[kind]) continue; }
       while (busy) await new Promise(r => setTimeout(r, 50));

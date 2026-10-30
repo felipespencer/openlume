@@ -10,12 +10,12 @@ export class Segmenter {
     this.native = false;   // vira true quando o processo nativo (onnxruntime-node + DirectML, pela porta do preload) responde
     this.size = 192; this.fps = 30;                                                                   // Baixa
     this.rvm = { 1: { W: 640, H: 384 }, 2: { W: 960, H: 544 }, ratio: 0.5, fps: 15 };                // WebGPU (reserva): Média, Alta (largura e altura múltiplas de 32: o grafo remendado exige)
-    this.nat = { modnet_hrnet: { 1: { W: 480, H: 480 }, 2: { W: 640, H: 640 } }, fps: 45 };   // cadência dos pedidos: acima dos 30 do vídeo porque o tick (30 Hz) com a trava de 1/fps dava só ~24; os pedidos em voo (3) é que limitam           // nativo: Média = MODNet-HRNet 480², Alta = MODNet-HRNet 640² (na bancada foi o que mais bateu com o Medium e o High do Resolume 7.28)
+    this.nat = { ppmattingv2: { 1: { W: 512, H: 512 } }, modnet_hrnet: { 2: { W: 640, H: 640 } }, fps: 32 };   // nativo: Média = PP-MattingV2 512², Alta = MODNet-HRNet 640² (os modelos do Medium e do High do Resolume 7.28; bancada de 2026-10-30 com 8 quadros do Felipe)   // cadência dos pedidos: acima dos 30 do vídeo porque o tick (30 Hz) com a trava de 1/fps dava só ~24; os pedidos em voo (3) é que limitam           // nativo: Média = MODNet-HRNet 480², Alta = MODNet-HRNet 640² (na bancada foi o que mais bateu com o Medium e o High do Resolume 7.28)
     this.nextId = 1; this.pending = new Map(); this.worker = null;
   }
   quality(f) { return f.params ? Math.round(f.params.quality ?? 1) : 1; }
   // que modelo roda para este efeito: nativo → fast / modnet / rvm; WebGPU → fast / precise (RVM)
-  kindOf(f) { const q = this.quality(f); if (this.native) return q <= 0 ? 'fast' : 'modnet_hrnet'; return q >= 1 && this.gpu && !this.noPrecise ? 'precise' : 'fast'; }
+  kindOf(f) { const q = this.quality(f); if (this.native) return q <= 0 ? 'fast' : q === 1 ? 'ppmattingv2' : 'modnet_hrnet'; return q >= 1 && this.gpu && !this.noPrecise ? 'precise' : 'fast'; }
   dims(kind, q) { if (kind === 'fast') return [this.size, this.size]; const qq = Math.max(1, Math.min(2, q)); if (kind === 'precise') { const d = this.rvm[qq]; return [d.W, d.H]; } const d = this.nat[kind][qq]; return [d.W, d.H]; }
   fpsOf(kind) { return this.native ? this.nat.fps : kind === 'precise' ? this.rvm.fps : this.fps; }
   start() {
