@@ -17,10 +17,10 @@ mapeamento de nível profissional.
 ## Current Position
 
 Milestone: v0.2 Automape e provas no equipamento (v0.2.0)
-Phase: 2 of 7 (Efeitos do Resolume) — In progress (1 plano fechado); Fase 7 (Saída avançada) em planejamento
-Plan: 02-01 — complete (SUMMARY em .paul/phases/02-efeitos-do-resolume/02-01-SUMMARY.md)
-Status: Ready for next PLAN. Felipe pediu (2026-10-30, "não quero me perder"): fechar o 02-01 e abrir um plano próprio para a Saída avançada; os pedidos novos entram lá. Fase 1 (Automape) segue com 3 de 5 planos: 01-03 no branch `automape` esperando o Felipe ver; 01-04 e 01-05 depois.
-Last activity: 2026-10-30 — UNIFY do 02-01 (checkpoint fechado por uso: 22 betas sem reclamação do lote 1). Histórico do checkpoint, 2026-10-29 — Felipe testou no Dell G3 (release v0.2.0-beta.1, repo público): Delay RGB "funcionou". Retorno do checkpoint: (1) BUG, corrigido: na Saída avançada, Cancelar/Esc/Ctrl+Z/Ctrl+Y/preset chamavam setScreens, que fechava as janelas de saída sem reabrir ("desliga a tela e tenho que religar no botão"); agora setScreens reabre as telas que estavam no ar (tools/ao-check.mjs, 11 verificações por CDP; selftest 71 APROVADO). (2) "o avançado não tem Ctrl+Z": tem (ao.js key), o que ele viu foi a saída caindo ao desfazer; reconferir com ele. (3) Pede efeitos "aquarela" e "o que tira o fundo das pessoas" (recorte de pessoa por IA local, ONNX): candidatos ao lote 2; conferir na bancada qual é o nome deles no Resolume
+Phase: 7 of 7 (Saída avançada) — Planning (Fase 2 segue com 1 plano fechado e 02-02 a planejar)
+Plan: 07-01 created, awaiting approval (trilha standard: 2 tarefas + checkpoint)
+Status: PLAN created, ready for APPLY. Felipe pediu (2026-10-30, "não quero me perder"): fechar o 02-01 e abrir um plano próprio para a Saída avançada; os pedidos novos entram lá. Fase 1 (Automape) segue com 3 de 5 planos: 01-03 no branch `automape` esperando o Felipe ver; 01-04 e 01-05 depois.
+Last activity: 2026-10-30 — Created .paul/phases/07-saida-avancada/07-01-PLAN.md (alças do degradê na aba Saída + registro das betas 18–22). Antes: UNIFY do 02-01 (checkpoint fechado por uso: 22 betas sem reclamação do lote 1). Histórico do checkpoint, 2026-10-29 — Felipe testou no Dell G3 (release v0.2.0-beta.1, repo público): Delay RGB "funcionou". Retorno do checkpoint: (1) BUG, corrigido: na Saída avançada, Cancelar/Esc/Ctrl+Z/Ctrl+Y/preset chamavam setScreens, que fechava as janelas de saída sem reabrir ("desliga a tela e tenho que religar no botão"); agora setScreens reabre as telas que estavam no ar (tools/ao-check.mjs, 11 verificações por CDP; selftest 71 APROVADO). (2) "o avançado não tem Ctrl+Z": tem (ao.js key), o que ele viu foi a saída caindo ao desfazer; reconferir com ele. (3) Pede efeitos "aquarela" e "o que tira o fundo das pessoas" (recorte de pessoa por IA local, ONNX): candidatos ao lote 2; conferir na bancada qual é o nome deles no Resolume
 
 Progress:
 - Milestone: [██░░░░░░░░] 20%
@@ -33,7 +33,7 @@ Progress:
 Current loop state:
 ```
 PLAN ──▶ APPLY ──▶ UNIFY
-  ✓        ✓        ✓     [02-01 fechado em 2026-10-30 — próximo: /paul:plan 07-01 (Saída avançada)]
+  ✓        ○        ○     [07-01 criado, esperando aprovação do Felipe]
 ```
 
 ## Accumulated Context
@@ -90,9 +90,9 @@ PLAN ──▶ APPLY ──▶ UNIFY
 ## Session Continuity
 
 Last session: 2026-10-30 (tarde)
-Stopped at: UNIFY do 02-01 feito (SUMMARY criado), branch `efeitos-resolume`, beta.22 instalada e publicada. Antes disso: APPLY do 02-01 no checkpoint final (human-verify), commitado. Tasks 0, 1 e 2 feitas: bancada funcionando (Spout + API REST + CDP), Threshold/Trails/Delay RGB medidos no Resolume e refeitos iguais por quadro (relatório com números em tools/compare/saida/lote-01/RELATORIO.md, fora do git; resumo em tools/compare/README.md). De quebra: cor com alfa nos efeitos (COLOR(..., true) → vec4, controle de alfa no painel) e correção do shader de camada que premultiplicava duas vezes (uPre). Selftest 71 APROVADO. Desvios anteriores (misturas "Principais" + Chroma Key, Transport, fonte Captura) continuam a registrar no UNIFY.
-Next action: /paul:plan para o 07-01 (Saída avançada: registrar o que já entrou — emendas por degradê, quatro por slice, seleção — e planejar o que falta: alças na aba Saída e o que o Felipe pedir). Depois, 02-02 (próximo lote de efeitos: Tilt Shift refeito, Acuarela e os 17 do 7.28 que faltam).
-Resume file: .paul/phases/02-efeitos-do-resolume/02-01-SUMMARY.md
+Stopped at: Plan 07-01 criado (Saída avançada). Antes: UNIFY do 02-01 feito (SUMMARY criado), branch `efeitos-resolume`, beta.22 instalada e publicada. Antes disso: APPLY do 02-01 no checkpoint final (human-verify), commitado. Tasks 0, 1 e 2 feitas: bancada funcionando (Spout + API REST + CDP), Threshold/Trails/Delay RGB medidos no Resolume e refeitos iguais por quadro (relatório com números em tools/compare/saida/lote-01/RELATORIO.md, fora do git; resumo em tools/compare/README.md). De quebra: cor com alfa nos efeitos (COLOR(..., true) → vec4, controle de alfa no painel) e correção do shader de camada que premultiplicava duas vezes (uPre). Selftest 71 APROVADO. Desvios anteriores (misturas "Principais" + Chroma Key, Transport, fonte Captura) continuam a registrar no UNIFY.
+Next action: Felipe aprova o 07-01 (ou pede mudança) → /paul:apply .paul/phases/07-saida-avancada/07-01-PLAN.md. Depois, 02-02 (próximo lote de efeitos: Tilt Shift refeito, Acuarela e os 17 do 7.28 que faltam).
+Resume file: .paul/phases/07-saida-avancada/07-01-PLAN.md
 Resume context: Resolume: API em 127.0.0.1:8080; Saída avançada Screen 1 = Spout "Arena - Screen 1". ARMADILHAS desta máquina: o Resolume congela de vez em quando (API responde, Spout some, monitor preto) — reiniciar só o Arena resolve (ele abre com o aviso "Wire integration is missing", é só Continue); clipe H.264 a 60 fps congela nele; a marca d'água do demo passa pela captura (compare.mjs já captura duas vezes); o Resolume rende a ~30 fps aqui. OpenLume: `location.reload()` NÃO recarrega os módulos (cache do app://), é preciso reabrir o Electron; o diálogo "Projetores" abre ao iniciar (botão Pular). Clipes de teste em tools/compare/clips (rampa, alfa.png, quadA/B/C.png, andando.mp4 a 375 px/s).
 
 ---
