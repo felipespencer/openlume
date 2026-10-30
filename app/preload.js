@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('projDesktop', {
   onCloseRequested: (fn) => ipcRenderer.on('app:closeRequested', () => fn()),
   quit: () => ipcRenderer.invoke('app:quit'),
   info: () => ipcRenderer.invoke('app:info'),
+  // Background Removal nativo: pede a porta ao processo principal; ela chega à página por window.postMessage (ports)
+  segPort: () => { ipcRenderer.once('seg:port', (e) => { window.postMessage({ type: 'seg:port' }, '*', e.ports); }); ipcRenderer.send('seg:port'); },
   // caminho no disco de um arquivo solto na janela (para salvar a composição por caminho)
   pathOf: (file) => { try { return webUtils.getPathForFile(file) || ''; } catch { return ''; } },
   fs: { roots: () => ipcRenderer.invoke('fs:roots'), list: (dir) => ipcRenderer.invoke('fs:list', dir) },

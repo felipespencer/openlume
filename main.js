@@ -1,7 +1,7 @@
 // OpenLume — processo principal (Electron).
 // Serve a pasta app/ por um esquema próprio (app://projecionista/), abre a janela de controle
 // e põe cada janela de saída no monitor que a tela pede.
-const { app, crashReporter, BrowserWindow, Menu, protocol, net, session, screen, ipcMain, shell, desktopCapturer } = require('electron');
+const { app, crashReporter, BrowserWindow, Menu, protocol, net, session, screen, ipcMain, shell, desktopCapturer, utilityProcess, MessageChannelMain } = require('electron');
 let fechando = false;   // a página já confirmou o fechamento (ou o app está saindo): o X fecha de verdade
 const { Readable } = require('node:stream');
 const { spawn } = require('node:child_process');
@@ -322,6 +322,17 @@ app.whenReady().then(async () => {
   app.on('before-quit', () => { fechando = true; laser.disconnect(); });
 
   const win = createMain();
+  // Background Removal nativo: um utilityProcess roda os modelos no onnxruntime-node com DirectML (como o Resolume);
+  // a janela pede a porta (seg:port) e fala direto com ele, sem passar pelo processo principal
+  let segProc = null;
+  ipcMain.on('seg:port', (e) => {
+    try {
+      if (!segProc) { segProc = utilityProcess.fork(path.join(__dirname, 'app', 'seg-native.js'), [], { serviceName: 'OpenLume segmentação' }); segProc.on('exit', () => { segProc = null; }); }
+      const { port1, port2 } = new MessageChannelMain();
+      segProc.postMessage({ type: 'port' }, [port1]);
+      e.sender.postMessage('seg:port', null, [port2]);
+    } catch (err) { logLine('erro', 'seg nativo: ' + (err.message || err)); }
+  });
   laser.on('status', (s) => { if (!win.isDestroyed()) win.webContents.send('laser:status', s); });
   laser.on('error', (m) => { if (!win.isDestroyed()) win.webContents.send('laser:error', m); });
   if (process.env.PROJ_TEST) require('./tools/selftest-main.js')(win, app, laser);

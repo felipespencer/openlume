@@ -208,12 +208,24 @@ function post(e, prob, W, H, p) {
   return mask;
 }
 
-let busy = false;
+let busy = false, nativePort = null, nativeOk = false;
 onmessage = async (ev) => {
   const msg = ev.data;
+  if (msg.type === 'port') {   // porta para o processo nativo (onnxruntime-node + DirectML): as respostas dele vão direto para a janela
+    nativePort = ev.ports[0];
+    nativePort.onmessage = (e2) => { const r = e2.data; if (!r) return; if (r.type === 'ready') { nativeOk = !!r.ok; postMessage({ type: 'native', ok: nativeOk, ep: r.ep, err: r.err }); return; } postMessage(r, r.mask ? [r.mask.buffer] : []); };
+    nativePort.postMessage({ type: 'hello' }); return;
+  }
+  if (msg.type === 'run' && msg.native && nativePort && nativeOk) {   // nativo: só os pixels RGBA, já no tamanho do modelo
+    const { bitmap, W, H } = msg; if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    c2d.drawImage(bitmap, 0, 0, W, H); bitmap.close(); const rgba = c2d.getImageData(0, 0, W, H).data;
+    nativePort.postMessage({ type: 'run', id: msg.id, rgba: new Uint8Array(rgba.buffer), W, H, kind: msg.kind, ratio: msg.ratio, params: msg.params, reset: msg.reset }); return;   // por cópia: a porta do Electron não transfere ArrayBuffer
+  }
+  if (msg.type === 'drop' && nativePort) nativePort.postMessage(msg);
   if (msg.type === 'hello') { let adapter = null; try { const a = GPU && await navigator.gpu.requestAdapter(); adapter = a ? (a.info ? a.info.vendor + '/' + a.info.architecture : 'sem info') : 'nenhum'; } catch (e) { adapter = 'erro ' + e.message; } postMessage({ type: 'ready', gpu: GPU, adapter }); return; }
   if (msg.type === 'drop') { const e = st.get(msg.id); if (e) { dropRec(e); e.pend = null; st.delete(msg.id); } return; }
   if (msg.type !== 'run') return;
+  if (msg.kind === 'modnet' || msg.kind === 'rvm') msg.kind = 'precise';   // sem o nativo, o RVM pela WebGPU faz as vezes
   if (busy) { msg.bitmap.close(); postMessage({ type: 'skip', id: msg.id }); return; }
   busy = true;
   try {

@@ -1,0 +1,4 @@
+MODNet - Trimap-Free Portrait Matting (Ke et al., 2020), modelo modnet.onnx (backbone MobileNetV2)
+Origem: https://huggingface.co/Xenova/modnet (onnx/model.onnx), conversao do oficial https://github.com/ZHKKKe/MODNet
+Licenca Apache 2.0 (LICENSE.txt). Entrada 'input' 1x3xHxW RGB normalizada ((x/255-0.5)/0.5), H e W multiplos de 32; saida 'output' 1x1xHxW (alfa).
+Usado em 512x512 (qualidade Media); e o mesmo tipo de modelo do Background Removal do Resolume 7.28.
