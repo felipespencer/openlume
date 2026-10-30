@@ -195,6 +195,9 @@ function createMain() {
 }
 
 app.whenReady().then(async () => {
+  // Isolamento de origem (COOP/COEP): libera SharedArrayBuffer, e com ele o WebAssembly com várias threads (segmentação
+  // de pessoa 3-4× mais rápida). 'credentialless' deixa carregar imagem/vídeo de outros sites, só sem cookies.
+  const withIsolation = (r) => { const h = new Headers(r.headers); h.set('Cross-Origin-Opener-Policy', 'same-origin'); h.set('Cross-Origin-Embedder-Policy', 'credentialless'); h.set('Cross-Origin-Resource-Policy', 'same-origin'); return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h }); };
   protocol.handle('app', (req) => {
     const u = new URL(req.url);
     let p = decodeURIComponent(u.pathname);
@@ -203,7 +206,7 @@ app.whenReady().then(async () => {
     const file = path.join(APP_DIR, p);
     if (u.host !== 'projecionista' || !ALLOWED.test(p) || !file.startsWith(APP_DIR) || !fs.existsSync(file))
       return new Response('não encontrado', { status: 404 });
-    return net.fetch(pathToFileURL(file).toString());
+    return net.fetch(pathToFileURL(file).toString()).then(withIsolation);
   });
   const OK = new Set(['media', 'midi', 'midiSysex', 'fullscreen', 'window-management']);
   session.defaultSession.setPermissionRequestHandler((_wc, perm, cb) => cb(OK.has(perm)));

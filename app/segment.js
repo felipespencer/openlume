@@ -3,10 +3,12 @@
 // por WebAssembly. É o mesmo modelo que o Resolume traz no Background Removal (ai-models/
 // human-segmentation/onnx/human_segmentation_pphumanseg.onnx). O quadro do clipe vai para
 // 192×192, o modelo devolve fundo/pessoa, e a máscara entra no efeito "Background Removal"
-// como textura (no slot uPrev). Roda em paralelo ao desenho, a até ~15 vezes por segundo.
+// como textura (no slot uPrev). Roda em paralelo ao desenho, a até ~30 vezes por segundo. Cada máscara nova é
+// misturada com a anterior (média que esquece aos poucos) para o contorno não tremer entre quadros; a borda
+// fina é refinada no shader do efeito, guiada pela própria imagem.
 export class Segmenter {
   constructor(gl) {
-    this.gl = gl; this.session = null; this.loading = null; this.busy = false; this.err = ''; this.size = 192; this.fps = 15; this.runs = 0;
+    this.gl = gl; this.session = null; this.loading = null; this.busy = false; this.err = ''; this.size = 192; this.fps = 30; this.runs = 0; this.ms = 0; this.blend = 0.55;
     this.canvas = document.createElement('canvas'); this.canvas.width = this.canvas.height = this.size;
     this.c2d = this.canvas.getContext('2d', { willReadFrequently: true });
   }
@@ -15,7 +17,8 @@ export class Segmenter {
     this.loading = (async () => {
       try {
         const ort = window.ort; if (!ort) throw new Error('onnxruntime-web não carregou');
-        ort.env.wasm.numThreads = 1; ort.env.wasm.wasmPaths = new URL('vendor/ort/', location.href).href;   // caminho absoluto: o carregador faz import() dele
+        ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 2)) : 1; ort.env.wasm.wasmPaths = new URL('vendor/ort/', location.href).href;   // caminho absoluto: o carregador faz import() dele
+        ort.env.wasm.proxy = true;   // o modelo roda num worker: ~65 ms por rodada fora da thread do desenho (senão a composição cai de 30 para 14 qps)
         this.session = await ort.InferenceSession.create('vendor/pphumanseg/pphumanseg.onnx', { executionProviders: ['wasm'] });
       } catch (e) { this.err = 'Tirar o fundo: ' + (e.message || e); }
     })();
@@ -38,10 +41,16 @@ export class Segmenter {
       const d = ctx.getImageData(0, 0, S, S).data, n = S * S, t = new Float32Array(3 * n);
       for (let i = 0; i < n; i++) { t[i] = d[i * 4] / 127.5 - 1; t[n + i] = d[i * 4 + 1] / 127.5 - 1; t[2 * n + i] = d[i * 4 + 2] / 127.5 - 1; }
       const ort = window.ort, feeds = {}; feeds[this.session.inputNames[0]] = new ort.Tensor('float32', t, [1, 3, S, S]);
+      const t0 = performance.now();
       const out = await this.session.run(feeds); const o = out[this.session.outputNames[0]], data = o.data;
-      const mask = new Uint8Array(n);
-      if (o.dims.length === 4 && o.dims[1] === 2) for (let i = 0; i < n; i++) mask[i] = Math.round(255 / (1 + Math.exp(data[i] - data[n + i])));   // (fundo, pessoa) como logits → probabilidade de pessoa
-      else for (let i = 0; i < n; i++) mask[i] = Math.round(Math.min(1, Math.max(0, data[i])) * 255);
+      this.ms += (performance.now() - t0 - this.ms) * 0.2;
+      const prob = new Float32Array(n);
+      if (o.dims.length === 4 && o.dims[1] === 2) for (let i = 0; i < n; i++) prob[i] = 1 / (1 + Math.exp(data[i] - data[n + i]));   // (fundo, pessoa) como logits → probabilidade de pessoa
+      else for (let i = 0; i < n; i++) prob[i] = Math.min(1, Math.max(0, data[i]));
+      // suavização no tempo: mistura com a máscara anterior do mesmo clipe (zera quando o clipe muda)
+      let acc = f._maskAcc; if (!acc || f._maskSrc !== c) { acc = f._maskAcc = prob; f._maskSrc = c; }
+      else { const k = this.blend; for (let i = 0; i < n; i++) acc[i] += (prob[i] - acc[i]) * k; }
+      const mask = new Uint8Array(n); for (let i = 0; i < n; i++) mask[i] = Math.round(acc[i] * 255);
       this.upload(f, mask); this.runs++; this.err = '';
       return true;
     } catch (e) { this.err = 'Tirar o fundo: ' + (e.message || e); return false; }
