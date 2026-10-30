@@ -10,6 +10,7 @@ const LIST = (key, label, opts, ropts, def = 0) => ({ key, label, def, opts, rop
 export const MORE = [
   { id: 'backgroundremoval', name: 'Background Removal', desc: 'Tira o fundo e deixa só a pessoa, para webcam ou qualquer clipe: os mesmos controles, presets e modelos do Resolume 7.28. Qualidade Baixa: PP-HumanSeg 192; Média: PP-MattingV2 512; Alta: MODNet-HRNet 640 (os dois últimos rodam na placa de vídeo pelo DirectML). Dica: ponha antes do Transform.', mask: true,
     params: [P('refine', 'Refinar borda', 0.5, 0, 1), P('soft', 'Borda suave', 0.5, 0, 1), P('fill', 'Fechar buracos', 1, 0, 1, 1), P('hard', 'Máscara dura', 0, 0, 1, 1), P('specks', 'Filtrar pontinhos', 0.1, 0, 1), P('tsmooth', 'Suavidade no tempo', 0.1, 0, 1), LIST('mode', 'Modo', ['Alfa', 'Máscara'], ['Alpha', 'Mask']), P('invert', 'Inverter', 0, 0, 1, 1), LIST('quality', 'Qualidade do modelo', ['Baixa', 'Média', 'Alta'], ['Low', 'Medium', 'High'], 1)],
+    rparams: { 'Refine Edge': 'refine', 'Soft Edge': 'soft', 'Fill Holes': 'fill', 'Hard Mask': 'hard', 'Filter Specks': 'specks', 'Temporal Smoothness': 'tsmooth', Mode: 'mode', Invert: 'invert', 'Model Quality': 'quality' },
     // os 7 presets do Resolume (valores lidos pela API dele)
     presets: [
       { name: 'Light-Weight', params: { refine: 0.411, soft: 1, fill: 1, hard: 0, specks: 1, tsmooth: 0, mode: 0, invert: 0, quality: 0 } },

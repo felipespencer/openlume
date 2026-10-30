@@ -153,6 +153,7 @@ export class Browser {
     const D = this.c.desktop;
     if (D && D.capture) {
       if (this.match('Página web')) mk('Página web…', 'Abre um endereço num navegador escondido dentro do OpenLume e projeta a página: sites, vídeos, visualizadores, a sua aba.', { capture: { web: true } });
+      if (this.match('YouTube')) mk('YouTube (URL)…', 'Cole o endereço de um vídeo ou live do YouTube: ele toca num navegador escondido e vira um clipe, sem baixar nada.', { capture: { youtube: true } });
       try { this.captures = await D.capture.sources(); } catch { this.captures = []; }
       for (const s of this.captures) { const name = (s.kind === 'screen' ? 'Tela: ' : 'Janela: ') + s.name; if (this.match(name)) mk(name, s.kind === 'screen' ? 'O monitor inteiro, ao vivo.' : 'A janela de um programa, ao vivo. Para uma aba do navegador, arraste a aba para uma janela só dela.', { capture: { srcId: s.id, name: s.name } }); }
     } else list.appendChild(el('div', 'vazio', 'Só na versão de computador.'));

@@ -1,0 +1,12 @@
+<!doctype html>
+<!-- Página escondida que embute um vídeo do YouTube (fonte "YouTube (URL)"): o player precisa estar dentro de um iframe com uma
+     página por cima, senão o YouTube recusa (erro 152). Parâmetros: ?v=ID -->
+<html lang="pt-BR"><head><meta charset="utf-8"><title>OpenLume · YouTube</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}iframe{position:absolute;inset:0;width:100%;height:100%;border:0}</style></head>
+<body><script>
+  const q = new URLSearchParams(location.search), id = (q.get('v') || '').replace(/[^\w-]/g, '');
+  const f = document.createElement('iframe');
+  f.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&mute=1&controls=0&rel=0&loop=1&playlist=' + id + '&modestbranding=1&iv_load_policy=3&playsinline=1&enablejsapi=1';
+  f.allow = 'autoplay; encrypted-media; picture-in-picture'; f.referrerPolicy = 'strict-origin-when-cross-origin';
+  document.body.appendChild(f);
+</script></body></html>

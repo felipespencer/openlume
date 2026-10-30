@@ -149,9 +149,18 @@ function putText(li, col, text) { const c = C.textClip(text); putClip(li, col, c
 async function putCamera(li, col, cam) { try { putClip(li, col, await C.cameraClip(cam.id, cam.label)); } catch (e) { toast('Câmera: ' + e.message); } }
 const dropClip = (c) => { engine.drop(c.id); if (c.player) { c.player.close(); c.player = null; } C.freeClip(c); };
 // captura de tela/janela, ou página web (pergunta o endereço)
+// endereço do YouTube → id do vídeo (watch?v=, youtu.be/, shorts/, live/, embed/)
+const youtubeId = (s) => { const m = String(s).trim().match(/(?:v=|youtu\.be\/|shorts\/|live\/|embed\/)([\w-]{11})/) || String(s).trim().match(/^([\w-]{11})$/); return m ? m[1] : null; };
 async function putCapture(li, col, cap) {
+  if (cap.youtube && !cap.url) {
+    const s = await askText('YouTube', 'Endereço do vídeo ou da live', 'https://www.youtube.com/watch?v='); if (!s) return;
+    const id = youtubeId(s); if (!id) { toast('Não achei o id do vídeo nesse endereço'); return; }
+    // o player embutido, sem controles, em loop; começa mudo porque o navegador escondido não deixa som (o áudio vem pela sua mesa, não daqui)
+    const port = D && D.localPort ? await D.localPort() : 0; if (!port) { toast('Servidor local do OpenLume não subiu'); return; }
+    cap = { url: 'http://127.0.0.1:' + port + '/yt.html?v=' + id, w: 1920, h: 1080, youtube: id };   // yt.html embute o player num iframe, servida por http (o YouTube recusa embed solto ou sem referer http: erros 152 e 153)
+  }
   if (cap.web && !cap.url) { const url = await askText('Página web', 'Endereço', 'https://'); if (!url || url === 'https://') return; cap = { url: /^https?:\/\//.test(url) ? url : 'https://' + url, w: 1920, h: 1080 }; }
-  try { putClip(li, col, await C.captureClip(cap)); } catch (e) { toast('Captura: ' + e.message); }
+  try { const c = await C.captureClip(cap); if (cap.youtube) c.name = 'YouTube ' + cap.youtube; putClip(li, col, c); } catch (e) { toast('Captura: ' + e.message); }
 }
 function putLaserClip(li, col, frame) { putClip(li, col, C.laserClip(frame, laser.thumbSvg(frame))); }
 // soltar qualquer coisa numa casa

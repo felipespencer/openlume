@@ -25,6 +25,8 @@ const noAr = async () => +await ev(`${P}.outWins().length`);
 const janelasSaida = async () => (await (await fetch(base + '/json')).json()).filter(p => p.type === 'page' && p.url.includes('output.html')).length;
 
 // preparo: fecha diálogos, põe a tela 1 em janela e abre a saída
+// diálogos abertos (ex.: Projetores no arranque) fecham com Esc DE VERDADE: arrancar o .dlgOver do DOM deixa o keydown de captura do diálogo vivo, que engole o próximo Esc
+for (let i = 0; i < 5 && await ev(`document.querySelectorAll('.dlgOver').length`) > 0; i++) { await key('Escape', 'Escape', 27); await wait(200); }
 await ev(`(() => { const p = ${P}; if (p.automape && p.automape.dlg) p.automape.close(); p.ao.hide(false); if (p.laser.open) p.laser.hide(); document.querySelectorAll('.dlgOver').forEach(d => d.remove()); return 1; })()`);
 await ev(`(() => { const p = ${P}; const sc = p.screens()[0]; sc.device = 'window'; sc.enabled = true; p.openOutputs(); return 1; })()`);
 await wait(900);

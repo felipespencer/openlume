@@ -164,7 +164,7 @@ function post(e, prob, W, H, p) {
       for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) { const j = yy * w + xx, a = s[j] >= 0.5, b = before[j] >= 0.5; if (a === b) continue; const v = a ? 1 : 0, i = 2 * yy * W + 2 * xx; m[i] = v; m[i + 1] = v; m[i + W] = v; m[i + W + 1] = v; }
     } else { if (p.fill) fillHoles(m, W, H); if (p.specks > 0) filterSpecks(m, W, H, p.specks); }
   }
-  const rSoft = Math.round(p.soft * H * 0.012), rRef = Math.round(p.refine * H * 0.015);         // raios na resolução da máscara: borda suave 0,5 ≈ 6 px em 1080p
+  const rSoft = Math.round(p.soft * H * 0.006), rRef = Math.round(p.refine * H * 0.008);         // raios na resolução da máscara, calibrados na bancada contra o Resolume (o Soft Edge 1,0 deles ≈ 3 px em 1080p)
   if (rSoft > 0 || rRef > 0) {
     if (W >= 400) {   // grande: desfoque e erosão/dilatação na metade; só a mudança volta para a máscara inteira (o detalhe fino fica)
       const w = W >> 1, h = H >> 1, s0 = down2(m, W, H), s1 = Float32Array.from(s0);

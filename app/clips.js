@@ -135,7 +135,7 @@ const pageName = (url) => 'Página: ' + url.replace(/^https?:\/\//, '').slice(0,
 export async function captureClip(spec) {
   const D = window.projDesktop;
   if (!D || !D.capture) throw new Error('captura só na versão de computador');
-  const cap = { srcId: spec.srcId || '', srcName: spec.name || '', url: spec.url || '', w: spec.w || 1920, h: spec.h || 1080, key: spec.key || '' };
+  const cap = { srcId: spec.srcId || '', srcName: spec.name || '', url: spec.url || '', w: spec.w || 1920, h: spec.h || 1080, key: spec.key || '', youtube: spec.youtube || '' };
   let id = cap.srcId;
   if (cap.url) { cap.key = cap.key || ('web' + (++webSeq) + '-' + Date.now()); id = await D.capture.webOpen(cap.key, cap.url, cap.w, cap.h); webUse.set(cap.key, (webUse.get(cap.key) || 0) + 1); }
   else if (!id) {   // tela/janela guardada numa composição: o id muda a cada sessão, acha pelo nome
@@ -252,7 +252,7 @@ export function serializeClip(c) {
   if (c.kind === 'source') { o.source = c.source; o.params = c.params; }
   if (c.kind === 'text') o.text = c.text;
   if (c.kind === 'camera') { o.deviceId = c.deviceId; }
-  if (c.kind === 'capture') o.cap = { srcName: c.cap.srcName, url: c.cap.url, w: c.cap.w, h: c.cap.h };
+  if (c.kind === 'capture') o.cap = { srcName: c.cap.srcName, url: c.cap.url, w: c.cap.w, h: c.cap.h, youtube: c.cap.youtube || undefined };
   if (c.kind === 'laser') o.laserId = c.laserId;
   return o;
 }
@@ -264,7 +264,11 @@ export async function deserializeClip(o, ctx) {
     else if (o.kind === 'source') c = sourceClip(o.source);
     else if (o.kind === 'text') c = textClip(o.text && o.text.content);
     else if (o.kind === 'camera') { c = await cameraClip(o.deviceId, o.name); }
-    else if (o.kind === 'capture') { c = await captureClip({ name: o.cap && o.cap.srcName, url: o.cap && o.cap.url, w: o.cap && o.cap.w, h: o.cap && o.cap.h }); }
+    else if (o.kind === 'capture') {
+      let url = o.cap && o.cap.url, yt = o.cap && o.cap.youtube;
+      if (yt) { const D = window.projDesktop; const port = D && D.localPort ? await D.localPort() : 0; url = 'http://127.0.0.1:' + port + '/yt.html?v=' + yt; }   // a porta do servidor local muda a cada abertura
+      c = await captureClip({ name: o.cap && o.cap.srcName, url, w: o.cap && o.cap.w, h: o.cap && o.cap.h, youtube: yt }); if (yt) c.name = 'YouTube ' + yt;
+    }
     else if (o.kind === 'laser' && ctx && ctx.laserClip) { c = ctx.laserClip(o.laserId); }
     else if (o.kind === 'lasermirror') c = laserMirrorClip();
   } catch (e) { if (ctx && ctx.toast) ctx.toast('Não abriu ' + o.name + ': ' + e.message); return null; }

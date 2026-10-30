@@ -206,7 +206,8 @@ app.whenReady().then(async () => {
     const file = path.join(APP_DIR, p);
     if (u.host !== 'projecionista' || !ALLOWED.test(p) || !file.startsWith(APP_DIR) || !fs.existsSync(file))
       return new Response('não encontrado', { status: 404 });
-    return net.fetch(pathToFileURL(file).toString()).then(withIsolation);
+    // o isolamento só na janela de controle (index.html e o que ela carrega); páginas escondidas (yt.html) embutem iframes de outros sites, e o COEP os bloquearia
+    return net.fetch(pathToFileURL(file).toString()).then(r => p === '/yt.html' ? r : withIsolation(r));
   });
   const OK = new Set(['media', 'midi', 'midiSysex', 'fullscreen', 'window-management']);
   session.defaultSession.setPermissionRequestHandler((_wc, perm, cb) => cb(OK.has(perm)));
@@ -215,6 +216,19 @@ app.whenReady().then(async () => {
   // cada abertura começa limpa: a versão do disco é sempre a que roda
   try { await session.defaultSession.clearCache(); } catch {}
 
+  // Servidor HTTP local (só 127.0.0.1): o YouTube embutido exige um referer http(s) (erro 153 sem ele), então a página yt.html é
+  // servida daqui em vez do app://. Porta escolhida pelo sistema; a página pergunta por local:port.
+  const http = require('http');
+  const LOCAL_PAGES = new Set(['/yt.html']);
+  const localSrv = http.createServer((req, res) => {
+    const u = new URL(req.url, 'http://127.0.0.1'); const p = u.pathname;
+    if (!LOCAL_PAGES.has(p)) { res.writeHead(404); res.end('não encontrado'); return; }
+    fs.readFile(path.join(APP_DIR, p), (err, data) => { if (err) { res.writeHead(404); res.end(); return; } res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(data); });
+  });
+  let localPort = 0;
+  localSrv.on('error', (e) => logLine('erro', 'servidor local: ' + (e.message || e)));
+  localSrv.listen(0, '127.0.0.1', () => { localPort = localSrv.address().port; });
+  ipcMain.handle('local:port', () => localPort);
   ipcMain.handle('displays', () => displayList());
   // ---------- fonte "Captura": telas, janelas e páginas web ----------
   // a imagem chega à janela de controle por getUserMedia com chromeMediaSourceId (captura do Chromium)
@@ -232,7 +246,7 @@ app.whenReady().then(async () => {
       // a janela precisa estar num monitor para o Windows compor o conteúdo (fora da tela sai branca): fica no canto do monitor principal,
       // invisível (opacidade 0), sem foco, sem receber cliques e fora da barra de tarefas
       const o = opts && typeof opts === 'object' ? opts : {};
-      win = new BrowserWindow({ show: true, x: 0, y: 0, width: w, height: h, frame: false, skipTaskbar: true, focusable: false, resizable: false, movable: false, opacity: 0, ...o, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false, ...(o.wp || {}) } });
+      win = new BrowserWindow({ show: true, x: 0, y: 0, width: w, height: h, frame: false, skipTaskbar: true, focusable: false, resizable: false, movable: false, opacity: 0, ...o, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required', ...(o.wp || {}) } });
       win.setIgnoreMouseEvents(true); win.setOpacity(process.env.PROJ_WEB_OPACITY != null ? +process.env.PROJ_WEB_OPACITY : 0);   // PROJ_WEB_OPACITY: só para depurar a captura
       win.webContents.setAudioMuted(true);
       win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
