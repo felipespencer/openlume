@@ -601,7 +601,7 @@ function render() {
     b.onclick = () => triggerColumn(c);
     g.appendChild(b);
   }
-  { const sc = el('div', 'gh sceneH', 'Cena'); sc.title = 'Nona coluna, como na APC40: o botão de cada linha (Scene Launch) seleciona a camada'; g.appendChild(sc); }
+  { const sc = el('div', 'gh sceneH', 'Layer'); sc.title = 'Nona coluna, como na APC40: o botão de cada linha (Scene Launch) seleciona a layer (camada)'; g.appendChild(sc); }
   let lastG = null;
   state.layers.forEach((L, li) => {
     const grp = groupOf(L);
