@@ -88,6 +88,7 @@ export class Panels {
       h.append(by, nm, up, x); P.appendChild(h);
       if (f.bypass) return;
       P.appendChild(this.pnum('Opacidade', def.name + ' · Opacidade|Quanto do efeito entra: 0 % é a imagem sem o efeito.', Math.round((f.opacity ?? 1) * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 100 }, v => { f.opacity = v / 100; }));
+      if (def.presets) P.appendChild(this.pselect('Preset', def.name + ' · Preset|Conjuntos de valores prontos, os mesmos do Resolume. Escolher um troca todos os controles abaixo.', [['', '—'], ...def.presets.map(x => [x.name, x.name])], f.preset || '', v => { const pr = def.presets.find(x => x.name === v); if (pr) { for (const p of def.params) f.params[p.key] = pr.params[p.key] ?? p.def; } f.preset = v; this.render(); }));
       for (const p of def.params) this.paramRows(P, f, p, def.name + ' · ' + p.label + '|' + def.desc);
     });
     const dz = el('div', 'dropzone', list.length ? 'Solte outro efeito aqui' : 'Solte um efeito aqui'); dz.dataset.help = 'Soltar efeito|Arraste do painel Efeitos.';

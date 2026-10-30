@@ -8,17 +8,30 @@ const HUE = (key, label, def) => P(key, label, def, 0, 1);
 // mesma forma do LIST de effects.js (não dá para importar de lá: effects.js importa este arquivo)
 const LIST = (key, label, opts, ropts, def = 0) => ({ key, label, def, opts, ropts, min: 0, max: opts.length - 1, step: 1, unit: '' });
 export const MORE = [
-  { id: 'backgroundremoval', name: 'Background Removal', desc: 'Tira o fundo e deixa só a pessoa, para webcam ou qualquer clipe. Modelo preciso: RVM (transparência de verdade, cabelo, memória entre quadros; precisa de WebGPU). Desligado: PP-HumanSeg, o mesmo do Resolume, mais leve.', mask: true, params: [P('rvm', 'Modelo preciso (RVM)', 1, 0, 1, 1), P('threshold', 'Limiar', 0.5, 0, 1), P('soft', 'Suavidade', 0.15, 0, 0.5), P('invert', 'Inverter', 0, 0, 1, 1), P('shrink', 'Encolher', 0, -0.3, 0.3, 0.01), P('edge', 'Borda', 0.6, 0, 1)],
-    // A máscara vem do modelo pequena (192×192 ou 640×360); em vez de só esticá-la, cada pixel junta a máscara dos vizinhos pesando pela
-    // semelhança de cor com a imagem (filtro bilateral conjunto): o contorno gruda na borda real da pessoa. "Borda" 0 desliga.
-    glsl: `vec4 fx(vec2 uv){ vec4 c = tex(uv); vec3 c0 = un(c); float m;
-      if (edge <= 0.0) m = texture(uPrev, clamp(uv, 0.0, 1.0)).r;
-      else { vec2 mt = (0.35 + 0.65 * edge) / vec2(textureSize(uPrev, 0)); float sc = 1.0 / (0.03 + 0.10 * (1.0 - edge)), acc = 0.0, ws = 0.0;
-        for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) { vec2 o = vec2(float(i), float(j)) * mt; vec2 p = clamp(uv + o, 0.0, 1.0);
-          vec3 ci = un(tex(p)); float dc = length(ci - c0) * sc; float w = exp(-dc * dc - float(i * i + j * j) * 0.12);
-          acc += w * texture(uPrev, p).r; ws += w; }
-        m = acc / max(ws, 1e-5); }
-      m = smoothstep(threshold + shrink - soft, threshold + shrink + soft, m); if (invert > 0.5) m = 1.0 - m; return c * m; }` },
+  { id: 'backgroundremoval', name: 'Background Removal', desc: 'Tira o fundo e deixa só a pessoa, para webcam ou qualquer clipe (mesmos controles e presets do Resolume 7.28). Qualidade Baixa: PP-HumanSeg, leve; Média e Alta: RVM, transparência de verdade com memória entre quadros (precisam de WebGPU). Dica: ponha antes do Transform.', mask: true,
+    params: [P('refine', 'Refinar borda', 0.5, 0, 1), P('soft', 'Borda suave', 0.5, 0, 1), P('fill', 'Fechar buracos', 1, 0, 1, 1), P('hard', 'Máscara dura', 0, 0, 1, 1), P('specks', 'Filtrar pontinhos', 0.1, 0, 1), P('tsmooth', 'Suavidade no tempo', 0.1, 0, 1), LIST('mode', 'Modo', ['Alfa', 'Máscara'], ['Alpha', 'Mask']), P('invert', 'Inverter', 0, 0, 1, 1), LIST('quality', 'Qualidade do modelo', ['Baixa', 'Média', 'Alta'], ['Low', 'Medium', 'High'], 1)],
+    // os 7 presets do Resolume (valores lidos pela API dele)
+    presets: [
+      { name: 'Light-Weight', params: { refine: 0.411, soft: 1, fill: 1, hard: 0, specks: 1, tsmooth: 0, mode: 0, invert: 0, quality: 0 } },
+      { name: 'Low-Light', params: { refine: 0.1, soft: 0.6, fill: 0, hard: 0, specks: 0.4, tsmooth: 0.8, mode: 0, invert: 0, quality: 0 } },
+      { name: 'Moving Subject', params: { refine: 0.3, soft: 0.8, fill: 1, hard: 0, specks: 0.1, tsmooth: 0.5, mode: 0, invert: 0, quality: 1 } },
+      { name: 'Multiple Subjects', params: { refine: 0.5, soft: 0.2, fill: 1, hard: 0, specks: 0.05, tsmooth: 0.7, mode: 0, invert: 0, quality: 0 } },
+      { name: 'Music Video', params: { refine: 0.502, soft: 1, fill: 1, hard: 0, specks: 0, tsmooth: 0.4, mode: 0, invert: 0, quality: 0 } },
+      { name: 'Static Subject', params: { refine: 0.2, soft: 0.5, fill: 1, hard: 0, specks: 0.2, tsmooth: 0.8, mode: 0, invert: 0, quality: 1 } },
+      { name: 'Webcam', params: { refine: 0.5, soft: 0.8, fill: 0, hard: 0, specks: 0.6, tsmooth: 0.95, mode: 0, invert: 0, quality: 1 } },
+    ],
+    // A máscara chega pequena (192×192, 640×384 ou 896×512), já limpa pelo worker. Aqui ela é esticada com refino guiado
+    // pela imagem (upsampling bilateral conjunto, como o do Resolume): cada pixel junta a máscara dos vizinhos pesando pela
+    // semelhança de cor, e o contorno gruda na borda real da pessoa.
+    glsl: `vec4 fx(vec2 uv){ vec4 c = tex(uv); vec3 c0 = un(c);
+      vec2 mt = 0.75 / vec2(textureSize(uPrev, 0)); float acc = 0.0, ws = 0.0;
+      for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) { vec2 o = vec2(float(i), float(j)) * mt; vec2 p = clamp(uv + o, 0.0, 1.0);
+        vec3 ci = un(tex(p)); float dc = length(ci - c0) * 14.0; float w = exp(-dc * dc - float(i * i + j * j) * 0.12);
+        acc += w * texture(uPrev, p).r; ws += w; }
+      float m = acc / max(ws, 1e-5);
+      if (invert > 0.5) m = 1.0 - m;
+      if (mode > 0.5) return vec4(vec3(m), 1.0);
+      return c * m; }` },
   { id: 'addsubtract', name: 'Add Subtract', desc: 'Soma ou tira um tanto de cada canal de cor.', params: [P('r', 'Vermelho', 0, -1, 1), P('g', 'Verde', 0, -1, 1), P('b', 'Azul', 0, -1, 1)],
     glsl: `vec4 fx(vec2 uv){ vec4 c = tex(uv); return pre(un(c) + vec3(r, g, b), c.a); }` },
   { id: 'automask', name: 'Auto Mask', desc: 'O brilho da própria imagem vira a transparência dela.', params: [P('invert', 'Inverter', 0, 0, 1, 1), P('gain', 'Ganho', 1, 0.2, 4, 0.05)],

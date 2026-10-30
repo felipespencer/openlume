@@ -1,21 +1,23 @@
 // Tirar o fundo da webcam (ou de qualquer clipe): segmentação de pessoa com modelos públicos em ONNX rodando
-// no onnxruntime-web. Dois modelos, escolhidos no efeito "Background Removal":
-//   rápido  — PP-HumanSeg (PaddleSeg, Apache 2.0, vendor/pphumanseg), o mesmo do Resolume: quadro em 192×192,
-//             devolve fundo/pessoa; cada máscara é misturada com a anterior para o contorno não tremer.
-//   preciso — RVM, Robust Video Matting (GPL-3.0, vendor/rvm): quadro em 640×360, devolve transparência de
-//             verdade (cabelo, borda fina) e carrega memória entre quadros (r1..r4), que fica na GPU.
-// Com WebGPU os dois rodam na placa de vídeo, fora da thread do desenho; sem WebGPU só o rápido existe, em
-// WebAssembly num worker com várias threads. A máscara vai para o efeito como textura (slot uPrev); a borda
-// fina é refinada no shader do efeito, guiada pela própria imagem.
+// no onnxruntime-web. O efeito "Background Removal" tem os controles do Resolume 7.28; "Qualidade do modelo":
+//   Baixa — PP-HumanSeg (PaddleSeg, Apache 2.0, vendor/pphumanseg), o mesmo do Resolume: quadro em 192×192,
+//           devolve fundo/pessoa.
+//   Média / Alta — RVM, Robust Video Matting (GPL-3.0, vendor/rvm): quadro em 640×384 ou 896×512, devolve
+//           transparência de verdade (cabelo, borda fina) e carrega memória entre quadros (r1..r4), que fica na GPU.
+// Com WebGPU os modelos rodam na placa de vídeo, fora da thread do desenho; sem WebGPU só a Baixa existe, em
+// WebAssembly num worker com várias threads. Depois do modelo, num worker (segment-post.js), na ordem do Resolume:
+// máscara dura, suavidade no tempo, fechar buracos, filtrar pontinhos, borda suave, refinar borda. A máscara vai para
+// o efeito como textura (slot uPrev) e é esticada no shader com refino guiado pela própria imagem.
 export class Segmenter {
   constructor(gl) {
     this.gl = gl; this.sess = {}; this.loading = {}; this.busy = false; this.err = ''; this.runs = 0; this.ms = 0;
-    this.gpu = !!navigator.gpu; this.noPrecise = false; this.avisou = false; this.envSet = false;
-    this.size = 192; this.fps = 30; this.blend = 0.55;                      // rápido
-    this.rvm = { W: 640, H: 360, ratio: 0.5, fps: 15 };                     // preciso
+    this.gpu = !!navigator.gpu; this.noPrecise = false; this.avisou = false; this.envSet = false; this.loadFailed = false;
+    this.size = 192; this.fps = 30;                                          // Baixa
+    this.rvm = { 1: { W: 640, H: 384 }, 2: { W: 896, H: 512 }, ratio: 0.5, fps: 15 };   // Média, Alta (largura e altura múltiplas de 32: o grafo remendado exige)
     this.canvas = document.createElement('canvas'); this.c2d = this.canvas.getContext('2d', { willReadFrequently: true });
   }
-  kindOf(f) { return f.params && f.params.rvm >= 0.5 && this.gpu && !this.noPrecise ? 'precise' : 'fast'; }
+  quality(f) { return f.params ? Math.round(f.params.quality ?? 1) : 1; }
+  kindOf(f) { return this.quality(f) >= 1 && this.gpu && !this.noPrecise ? 'precise' : 'fast'; }
   setupEnv(ort) {
     if (this.envSet) return; this.envSet = true;
     ort.env.wasm.wasmPaths = new URL('vendor/ort/', location.href).href;   // caminho absoluto: o carregador faz import() dele
@@ -39,8 +41,8 @@ export class Segmenter {
         }
         this.err = '';
       } catch (e) {
-        if (kind === 'precise') { this.noPrecise = true; this.err = 'Modelo preciso não abriu (' + (e.message || e) + '); usando o rápido'; }
-        else this.err = 'Tirar o fundo: ' + (e.message || e);
+        if (kind === 'precise') { this.noPrecise = true; this.err = 'Modelo de qualidade Média/Alta não abriu (' + (e.message || e) + '); usando a Baixa'; }
+        else { this.loadFailed = true; this.err = 'Tirar o fundo: ' + (e.message || e); }
       }
       finally { this.loading[kind] = null; }
     })();
@@ -68,38 +70,49 @@ export class Segmenter {
     const src = this.frameOf(c); if (!src) return false;
     this.busy = true;
     try {
-      const t0 = performance.now();
+      const t0 = performance.now(); let prob, W, H;
       if (kind === 'precise') {
-        const ort = window.ort, { W, H, ratio } = this.rvm;
+        const ort = window.ort, q = Math.max(1, Math.min(2, this.quality(f))); ({ W, H } = this.rvm[q]);
         let st = f._rvm;
-        if (!st || st.src !== c) {   // começo (ou clipe trocado): memória zerada
+        if (!st || st.src !== c || st.q !== q) {   // começo, clipe trocado ou tamanho trocado: memória zerada
           if (st) this.dropRvm(st);
-          st = f._rvm = { src: c, rec: {} };
+          st = f._rvm = { src: c, q, rec: {} };
           for (const k of ['r1i', 'r2i', 'r3i', 'r4i']) st.rec[k] = new ort.Tensor('float32', new Float32Array([0]), [1, 1, 1, 1]);
         }
-        const out = await sess.run({ src: this.tensor(src, W, H, 1 / 255, 0), downsample_ratio: new ort.Tensor('float32', new Float32Array([ratio]), [1]), ...st.rec });
+        const out = await sess.run({ src: this.tensor(src, W, H, 1 / 255, 0), downsample_ratio: new ort.Tensor('float32', new Float32Array([this.rvm.ratio]), [1]), ...st.rec });
         for (const k of ['r1i', 'r2i', 'r3i', 'r4i']) if (st.rec[k].dispose) st.rec[k].dispose();
         st.rec = { r1i: out.r1o, r2i: out.r2o, r3i: out.r3o, r4i: out.r4o }; if (out.fgr.dispose) out.fgr.dispose();
-        const pd = out.pha.data, n = W * H, mask = new Uint8Array(n);
-        for (let i = 0; i < n; i++) mask[i] = pd[i] * 255 + 0.5;
-        this.upload(f, mask, W, H);
+        prob = Float32Array.from(out.pha.data);
       } else {
-        const S = this.size, n = S * S;
-        const feeds = {}; feeds[sess.inputNames[0]] = this.tensor(src, S, S, 1 / 127.5, -1);
+        W = H = this.size; const n = W * H;
+        const feeds = {}; feeds[sess.inputNames[0]] = this.tensor(src, W, H, 1 / 127.5, -1);
         const out = await sess.run(feeds); const o = out[sess.outputNames[0]], data = o.data;
-        const prob = new Float32Array(n);
+        prob = new Float32Array(n);
         if (o.dims.length === 4 && o.dims[1] === 2) for (let i = 0; i < n; i++) prob[i] = 1 / (1 + Math.exp(data[i] - data[n + i]));   // (fundo, pessoa) como logits → probabilidade de pessoa
         else for (let i = 0; i < n; i++) prob[i] = Math.min(1, Math.max(0, data[i]));
-        // suavização no tempo: mistura com a máscara anterior do mesmo clipe (zera quando o clipe muda)
-        let acc = f._maskAcc; if (!acc || f._maskSrc !== c) { acc = f._maskAcc = prob; f._maskSrc = c; }
-        else { const k = this.blend; for (let i = 0; i < n; i++) acc[i] += (prob[i] - acc[i]) * k; }
-        const mask = new Uint8Array(n); for (let i = 0; i < n; i++) mask[i] = acc[i] * 255 + 0.5;
-        this.upload(f, mask, S, S);
       }
+      // o worker limpa a máscara enquanto o modelo já roda o próximo quadro; se ainda não devolveu a anterior, este quadro é pulado
+      if (!f._postBusy) { f._postBusy = true; this.post(f, c, prob.buffer.byteLength === prob.length * 4 && prob.byteOffset === 0 ? prob : Float32Array.from(prob), W, H).then((mask) => { f._postBusy = false; if (mask) this.upload(f, mask, W, H); }); }
       this.ms += (performance.now() - t0 - this.ms) * 0.2; this.runs++; this.err = '';
       return true;
     } catch (e) { this.err = 'Tirar o fundo: ' + (e.message || e); return false; }
     finally { this.busy = false; }
+  }
+  // depois do modelo, no worker (segment-post.js): suavidade no tempo, fechar buracos, filtrar pontinhos → máscara 0..255
+  post(f, c, prob, W, H) {
+    if (!this.worker) {
+      this.worker = new Worker(new URL('./segment-post.js', import.meta.url), { type: 'module' }); this.waits = new Map(); this.nextId = 1;
+      this.worker.onmessage = (ev) => { const w = this.waits.get(ev.data.id); if (w) { this.waits.delete(ev.data.id); w(ev.data.mask); } };
+      this.worker.onerror = (e) => { this.err = 'Tirar o fundo (worker): ' + (e.message || e); for (const w of this.waits.values()) w(null); this.waits.clear(); };
+      this.worker.onmessageerror = () => { for (const w of this.waits.values()) w(null); this.waits.clear(); };
+    }
+    if (!f._segId) f._segId = this.nextId++;
+    const reset = f._maskSrc !== c; f._maskSrc = c;
+    const p = f.params || {};
+    return new Promise((resolve) => {
+      this.waits.set(f._segId, resolve);
+      this.worker.postMessage({ id: f._segId, prob, W, H, tsmooth: Math.min(0.98, Math.max(0, p.tsmooth ?? 0)), fill: p.fill >= 0.5, specks: Math.max(0, p.specks || 0), hard: p.hard >= 0.5, soft: Math.max(0, p.soft || 0), refine: Math.max(0, p.refine || 0), reset }, [prob.buffer]);
+    });
   }
   dropRvm(st) { for (const k in st.rec) if (st.rec[k] && st.rec[k].dispose) st.rec[k].dispose(); st.rec = {}; }
   upload(f, mask, W, H) {
@@ -121,8 +134,8 @@ export class Segmenter {
       for (const f of [...(c.fx || []), ...(L.fx || [])]) {
         if (f.id !== 'backgroundremoval' || f.bypass) continue;
         const kind = this.kindOf(f);
-        if (f.params && f.params.rvm >= 0.5 && !this.gpu && !this.avisou) { this.avisou = true; this.err = 'Modelo preciso precisa de WebGPU; usando o rápido'; }
-        if (!this.sess[kind]) { if (!this.loading[kind] && !this.loadFailed) this.load(kind).then(() => { if (!this.sess[kind] && kind === 'fast') this.loadFailed = true; }); continue; }
+        if (this.quality(f) >= 1 && !this.gpu && !this.avisou) { this.avisou = true; this.err = 'Qualidade Média/Alta precisa de WebGPU; usando a Baixa'; }
+        if (!this.sess[kind]) { if (!this.loading[kind] && !this.loadFailed) this.load(kind); continue; }
         const fps = kind === 'precise' ? this.rvm.fps : this.fps;
         if (now - (f._maskAt || 0) < 1 / fps || this.busy) continue;
         f._maskAt = now; this.run(c, f, kind);

@@ -4,6 +4,21 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 `node tools/compare/resolume.mjs fichas`. Servem para igualar os controles dos efeitos do OpenLume.
 "Opacity" é a mistura do próprio efeito; aparece em todos.
 
+## Acuarela
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| Gain | Range | 0 | 1 | 0.01 |  |
+| Speed | Range | 0 | 40 | 4 |  |
+| Detail | Range | 0 | 8 | 4 |  |
+| Strength | Range | 0 | 1 | 0.3222 |  |
+| Density | Range | 0 | 100 | 4 |  |
+| Gain X | Range | 0 | 1 | 0.3 |  |
+| Gain Y | Range | 0 | 1 | 0.3 |  |
+| Reset | Event |  |  |  |  |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
 ## Add Subtract
 
 | Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
@@ -12,7 +27,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | R | Range | -1 | 1 | 0 | % |
 | G | Range | -1 | 1 | 0 | % |
 | B | Range | -1 | 1 | 0 | % |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Auto Mask
 
@@ -22,7 +37,25 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Channel | Choice |  |  | Luminance | Luminance, Red, Green, Blue |
 | Contrast | Range | 0 | 1 | 0.5 |  |
 | Invert | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## Background Removal
+
+Presets: Light-Weight, Low-Light, Moving Subject, Multiple Subjects, Music Video, Static Subject, Webcam
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| Refine Edge | Range | 0 | 1 | 0.5 |  |
+| Soft Edge | Range | 0 | 1 | 0.5 |  |
+| Fill Holes | Boolean |  |  | true |  |
+| Hard Mask | Boolean |  |  | false |  |
+| Filter Specks | Range | 0 | 1 | 0.1 |  |
+| Temporal Smoothness | Range | 0 | 1 | 0.1 |  |
+| Mode | Choice |  |  | Alpha | Alpha, Mask |
+| Invert | Boolean |  |  | false |  |
+| Model Quality | Choice |  |  | Medium | Low, Medium, High |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Bendoscope
 
@@ -31,7 +64,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Opacity | Range | 0 | 1 | 1 | % |
 | Divisions | Range | 0 | 1 | 0.1 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Bloom
 
@@ -44,7 +77,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Iterations | Range | 1 | 5 | 2 |  |
 | Size | Range | 0 | 1 | 0.25 |  |
 | Gaussian | Range | 0 | 1 | 0.5 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Blow
 
@@ -55,7 +88,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Y | Range | 0 | 1 | 0.5 |  |
 | Width | Range | 0 | 1 | 0.5 |  |
 | Height | Range | 0 | 1 | 0.5 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Blur
 
@@ -67,7 +100,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Blur Y Distance | Range | 0 | 1 | 0.05 |  |
 | Quality | Range | 0 | 1 | 0.15 |  |
 | Gaussian | Range | 0 | 1 | 0.2 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Bright.Contrast
 
@@ -76,7 +109,40 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Opacity | Range | 0 | 1 | 1 | % |
 | Brightness | Range | -1 | 1 | 0 | % |
 | Contrast | Range | -1 | 1 | 0 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## CRT
+
+Presets: Big Beautiful Beams, Big Grid Energy, Bit of a Grid, Jagged Lines, Mind the Gap, Red-Green Lensch Flare, Scanlines Horizontal, Scanlines Vertical, Trinitron
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| Columns | Range | 1 | 720 | 340 |  |
+| Rows | Range | 1 | 240 | 115 |  |
+| Shift | Range | 0 | 100 | 100 | % |
+| Vignette | Range | 0 | 100 | 0 | % |
+| Fisheye | Range | 0 | 100 | 0 | % |
+| Spread | Range | 0 | 100 | 50 | % |
+| Brightness | Range | 1 | 100 | 50 | % |
+| Bloom Amount | Range | 0 | 100 | 100 | % |
+| Bloom Width | Range | 0 | 300 | 50 | % |
+| Bloom Height | Range | 0 | 300 | 50 | % |
+| Between Slots | Range | 0 | 2 | 1 | px |
+| Left/Right | Range | 0 | 5 | 1 | px |
+| Top/Bottom | Range | 0 | 5 | 1 | px |
+| Color Left | Choice |  |  | R | R, G, B |
+| Power Left | Range | 0 | 1 | 1 |  |
+| Tilt Left | Range | -1 | 1 | 0 | x |
+| Color Middle | Choice |  |  | G | R, G, B |
+| Power Middle | Range | 0 | 1 | 1 |  |
+| Tilt Middle | Range | -1 | 1 | 0 | x |
+| Color Right | Choice |  |  | B | R, G, B |
+| Power Right | Range | 0 | 1 | 1 |  |
+| Tilt Right | Range | -1 | 1 | 0 | x |
+| Height Scale | Range | 1 | 10 | 4 | x |
+| Display Mode | Choice |  |  | Fit to Output | Fit to Output, Native |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## ChromaKey
 
@@ -95,7 +161,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Spill Softness | Range | 0 | 1 | 0.1 |  |
 | Edge Shrink | Range | 0 | 1 | 0.125 |  |
 | Edge Blur | Range | 0 | 1 | 0.125 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Circles
 
@@ -104,7 +170,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Opacity | Range | 0 | 1 | 1 | % |
 | Size | Range | 0 | 1 | 0.5 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Color Pass
 
@@ -114,7 +180,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Hue 1 | Range | 0 | 1 | 0.5 |  |
 | Hue 2 | Range | 0 | 1 | 1 |  |
 | Invert | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Colorize
 
@@ -128,7 +194,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | GreysTolerance | Range | 0 | 1 | 0.3 |  |
 | Invert | Boolean |  |  | false |  |
 | Contrast | Range | 0 | 1 | 0.2 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Crop
 
@@ -141,7 +207,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Bottom | Range | 0 | 32768 | 1080 |  |
 | Invert | Boolean |  |  | false |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Cube Tiles
 
@@ -157,7 +223,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Rotate Z | Range | 0 | 1 | 0.5 |  |
 | Num Cubes | Range | 0 | 1 | 0 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Delay RGB
 
@@ -167,7 +233,103 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | R delay | Range | 0 | 1 | 0 |  |
 | G delay | Range | 0 | 1 | 0.15 |  |
 | B delay | Range | 0 | 1 | 0.3 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## Depth Blur
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| Depth | Range | 0 | 1 | 0.2 |  |
+| Width | Range | 0 | 1 | 0.1 |  |
+| Radius | Range | 0 | 32 | 12 | px |
+| Scale Near | Range | 0 | 2 | 1 |  |
+| Scale Far | Range | 0 | 2 | 1 |  |
+| Quality | Range | 0 | 1 | 0.3 |  |
+| Depth Aware | Range | 0 | 1 | 0.75 |  |
+| Boost | Range | 0 | 10 | 2 |  |
+| Threshold | Range | 0 | 1 | 0.5 |  |
+| Power | Range | 1 | 8 | 2 |  |
+| Model Quality | Choice |  |  | Low | Low, Medium, High |
+| Transparency | Boolean |  |  | true |  |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## Depth Displace
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| Depth | Range | 0 | 1 | 1 |  |
+| Thickness | Range | 0 | 1 | 0.5 |  |
+| Min | Range | 0 | 1 | 0 |  |
+| Max | Range | 0 | 1 | 0.4 |  |
+| Falloff | Range | 0.5 | 4 | 1 |  |
+| Detail | Range | 2 | 64 | 10 |  |
+| Speed | Range | 0 | 2 | 0.3 |  |
+| Model Quality | Choice |  |  | Low | Low, Medium, High |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## Depth Estimation
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| Model Quality | Choice |  |  | Low | Low, Medium, High |
+| Temporal Filter | Range | 0 | 1 | 0.5 |  |
+| Transparency | Boolean |  |  | true |  |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## Depth Field
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| Depth | Range | 0 | 1 | 0.5 |  |
+| Thickness | Range | 0.001 | 0.5 | 0.1 |  |
+| Soft Edge | Range | 0 | 12 | 1 |  |
+| Jitter | Range | 0 | 1 | 0 |  |
+| Color | Color |  |  | #66e6ffff |  |
+| Chroma | Range | 0 | 1 | 0 |  |
+| Glow | Range | 0 | 8 | 2 |  |
+| Enabled | Boolean |  |  | true |  |
+| Negative | Boolean |  |  | false |  |
+| Desaturate | Range | 0 | 1 | 1 |  |
+| Brightness | Range | 0 | 2 | 0.5 |  |
+| Model Quality | Choice |  |  | Low | Low, Medium, High |
+| Transparency | Boolean |  |  | true |  |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## Depth Pixelation
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| Depth | Range | 0 | 1 | 1 |  |
+| Thickness | Range | 0 | 1 | 0.5 |  |
+| Min | Range | 1 | 64 | 1 | px |
+| Max | Range | 1 | 256 | 40 | px |
+| Falloff | Range | 0.5 | 4 | 1 | x |
+| Model Quality | Choice |  |  | Low | Low, Medium, High |
+| Transparency | Boolean |  |  | true |  |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## Depth Shift
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| X | Range | -1 | 1 | 0.1 |  |
+| Y | Range | -1 | 1 | -0.1 |  |
+| Wrap | Choice |  |  | Clamp | Clamp, Repeat, Mirror Repeat |
+| Scale | Range | 0 | 1 | 0.75 |  |
+| Steps | Range | 1 | 128 | 10 |  |
+| Power | Range | 0 | 1 | 0.5 |  |
+| Mode | Choice |  |  | Multiply | Multiply, Tint, Fill |
+| Close | Color |  |  | #ffffffff |  |
+| Far | Color |  |  | #3c3c3cff |  |
+| Edges | Boolean |  |  | false |  |
+| Model Quality | Choice |  |  | Low | Low, Medium, High Quality |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Dilate
 
@@ -179,7 +341,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Threshold | Range | 0 | 1 | 0 |  |
 | Mode | Choice |  |  | Light | Light, Dark |
 | Shape | Choice |  |  | Rectangle | Rectangle, Circle, Triangle, Cross |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Displace
 
@@ -191,9 +353,9 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Smooth | Boolean |  |  | false |  |
 | Threshold | Range | 0 | 1 | 0 |  |
 | Invert | Boolean |  |  | false |  |
-| Mode | Choice |  |  | Repeat | Repeat, Wrap, Transparent |
+| Mode | Choice |  |  | Clamp | Clamp, Wrap, Transparent |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Distortion
 
@@ -202,7 +364,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Opacity | Range | 0 | 1 | 1 | % |
 | Distort | Range | 0 | 1 | 0 |  |
 | Radius | Range | 0 | 1 | 0.55 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Dither
 
@@ -210,7 +372,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 |---|---|---|---|---|---|
 | Opacity | Range | 0 | 1 | 1 | % |
 | Mode | Choice |  |  | 2x | 2x, 4x, 8x |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Dot Screen
 
@@ -220,7 +382,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Saturation | Range | 0 | 1 | 0.5 |  |
 | Angle | Range | 0 | 1 | 0 |  |
 | Scale | Range | 0 | 1 | 0.5 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Drop Shadow
 
@@ -232,7 +394,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Color | Color |  |  | #000000ff |  |
 | Spread | Range | 0 | 0.005 | 0.0013 | % |
 | Strength | Range | 1 | 32 | 8 | % |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Edge Detection
 
@@ -244,7 +406,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Use Color | Boolean |  |  | false |  |
 | Color | Color |  |  | #ffffffff |  |
 | Amount | Range | 0 | 1 | 1 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Exposure
 
@@ -252,7 +414,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 |---|---|---|---|---|---|
 | Opacity | Range | 0 | 1 | 1 | % |
 | Exposure | Range | 0 | 1 | 0.5 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Fish Eye
 
@@ -261,7 +423,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Opacity | Range | 0 | 1 | 1 | % |
 | FishEye | Range | 0 | 1 | 0.5 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Flip
 
@@ -271,7 +433,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Horizontal | Boolean |  |  | true |  |
 | Vertical | Boolean |  |  | false |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Fragment
 
@@ -287,7 +449,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | FragScale | Range | 0 | 1 | 0.5 |  |
 | CompositeOpacity | Range | 0 | 1 | 0.75 |  |
 | Black BG | Boolean |  |  | true |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Freeze
 
@@ -298,7 +460,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Y | Range | 0 | 1 | 0 |  |
 | Frozen solid | Boolean |  |  | false |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Goo
 
@@ -311,7 +473,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | MaxDistortionY | Range | 0 | 1 | 0.14 |  |
 | MaxDistortionZ | Range | 0 | 1 | 0 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Grid
 
@@ -323,7 +485,28 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Size Y | Range | 0 | 1 | 0.1 |  |
 | Fuzzyness | Range | 0 | 1 | 0.05 |  |
 | Color | Color |  |  | #ffffffff |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## Grid Cloner
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| Columns | Range | 1 | 10 | 4 |  |
+| Rows | Range | 1 | 10 | 4 |  |
+| Input Rotation | Range | -180 | 180 | 0 | ° |
+| Input Scale | Range | 0 | 200 | 20 | % |
+| Width | Range | 0 | 2 | 1.2 |  |
+| Height | Range | 0 | 2 | 0.7 |  |
+| Scale | Range | 0 | 500 | 100 | % |
+| Rotation | Range | -180 | 180 | 0 | ° |
+| Vertical Shift | Range | -1 | 1 | 0 |  |
+| Horiztonal Shift | Range | -1 | 1 | 0 |  |
+| Random Shift | Range | 0 | 1 | 0 |  |
+| Order | Choice |  |  | Top Right | Center, Top Right |
+| Delay | Boolean |  |  | false |  |
+| Background | Color |  |  | #11ff6800 |  |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Hatched
 
@@ -335,7 +518,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Invert | Boolean |  |  | false |  |
 | Color1 | Color |  |  | #ffffffff |  |
 | Color2 | Color |  |  | #000000ff |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Heat
 
@@ -343,7 +526,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 |---|---|---|---|---|---|
 | Opacity | Range | 0 | 1 | 1 | % |
 | Heat | Range | 0 | 1 | 0.5 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Hue Rotate
 
@@ -353,7 +536,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Hue Scale | Range | 0 | 1 | 1 |  |
 | Hue Rotate | Range | 0 | 1 | 0 |  |
 | Sat. Scale | Range | 0 | 1 | 0.5 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Infinite Zoom
 
@@ -366,7 +549,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Alpha | Range | 0 | 1 | 0.5 |  |
 | Num Slices | Range | 2 | 30 | 10 |  |
 | Reset | Event |  |  |  |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Invert RGB
 
@@ -377,7 +560,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | G | Range | 0 | 1 | 1 |  |
 | B | Range | 0 | 1 | 1 |  |
 | A | Range | 0 | 1 | 0 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Iterate
 
@@ -408,7 +591,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | GRotateY | Range | 0 | 1 | 0.5 |  |
 | GRotateZ | Range | 0 | 1 | 0.5 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Kaleidoscope
 
@@ -420,7 +603,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Zoom | Range | 0 | 1 | 0.5 |  |
 | Input Rotation | Range | 0 | 1 | 0 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Keystone
 
@@ -437,7 +620,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Bot. Left Y | Range | 0 | 1 | 1 |  |
 | Show Grid | Boolean |  |  | false |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Keystone Crop
 
@@ -454,7 +637,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Bot. Left Y | Range | 0 | 1 | 0.75 |  |
 | Show Grid | Boolean |  |  | false |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Keystone Mask
 
@@ -469,9 +652,10 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Bot. Right Y | Range | 0 | 1 | 0.75 |  |
 | Bot. Left X | Range | 0 | 1 | 0.25 |  |
 | Bot. Left Y | Range | 0 | 1 | 0.75 |  |
+| Invert | Boolean |  |  | false |  |
 | Show Grid | Boolean |  |  | false |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Kuwahara
 
@@ -479,7 +663,15 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 |---|---|---|---|---|---|
 | Opacity | Range | 0 | 1 | 1 | % |
 | Radius | Range | 1 | 25 | 5 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## LUT
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| LUT 3D | File |  |  |  |  |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Levels
 
@@ -489,7 +681,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Base | Range | 0 | 1 | 0.5 |  |
 | Midpoint | Range | 0 | 1 | 0.5 |  |
 | Ratio | Range | 0 | 1 | 0.5 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Linear Cloner
 
@@ -513,7 +705,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Delay Amount | Range | 0 | 1 | 0.5 |  |
 | Delay Order | Choice |  |  | New To Old | New To Old, Old To New, Bounce, Bounce Tail, Random |
 | Delay Fill | Choice |  |  | Repeat | Repeat, Transparent |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## LoRez
 
@@ -523,7 +715,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Pixel Size | Range | 0 | 1 | 0 |  |
 | Bit Reduction | Range | 0 | 1 | 0 |  |
 | Dither | Range | 0 | 1 | 0 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Mask
 
@@ -547,7 +739,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Scale | Boolean |  |  | false |  |
 | Invert | Boolean |  |  | false |  |
 | Margin | Range | 0 | 0.95 | 0.125 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Mirror
 
@@ -560,7 +752,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Flip X | Boolean |  |  | false |  |
 | Flip Y | Boolean |  |  | false |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Mirror Quad
 
@@ -569,7 +761,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Opacity | Range | 0 | 1 | 1 | % |
 | Flip X | Boolean |  |  | false |  |
 | Flip Y | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Noisy
 
@@ -583,7 +775,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Noise C | Range | 0 | 1 | 0 |  |
 | Resolution | Range | 0 | 1 | 1 |  |
 | Interpolate | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Particle System
 
@@ -612,7 +804,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Gravity | Range | -0.002 | 0.002 | 0 |  |
 | Wind | Range | -0.002 | 0.002 | 0 |  |
 | Friction | Range | 0 | 1 | 0 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Pixel Blur
 
@@ -624,7 +816,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Distance Y | Range | 0 | 250 | 20 |  |
 | Interval | Range | 1 | 6 | 2 |  |
 | Gaussian | Range | 0 | 1 | 0.2 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Pixel High Pass
 
@@ -634,7 +826,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | R | Range | 0 | 1 | 0 |  |
 | G | Range | 0 | 1 | 0 |  |
 | B | Range | 0 | 1 | 0 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Point Grid
 
@@ -649,7 +841,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Rotate X | Range | 0 | 1 | 0.5 |  |
 | Rotate Y | Range | 0 | 1 | 0.5 |  |
 | Rotate Z | Range | 0 | 1 | 0.5 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## PolarKaleido
 
@@ -659,7 +851,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Rings | Range | 1 | 16 | 1 |  |
 | Parts | Range | 1 | 16 | 1 |  |
 | Angle | Range | 0 | 1 | 0 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Polkadot
 
@@ -668,7 +860,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Opacity | Range | 0 | 1 | 1 | % |
 | Dot Size | Range | 0 | 1 | 0.1 |  |
 | Threshold | Range | 0 | 1 | 0 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Posterize
 
@@ -676,7 +868,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 |---|---|---|---|---|---|
 | Opacity | Range | 0 | 1 | 1 | % |
 | Posterize | Range | 0 | 1 | 0.5 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Radar
 
@@ -688,7 +880,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Fade | Range | 0 | 1 | 0.1 |  |
 | Show Grid | Boolean |  |  | true |  |
 | Grid Scale | Range | 0.08 | 1 | 0.5 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Radial Cloner
 
@@ -709,7 +901,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Delay Amount | Range | 0 | 1 | 0.5 |  |
 | Delay Order | Choice |  |  | New To Old | New To Old, Old To New, Bounce, Random |
 | Delay Fill | Choice |  |  | Repeat | Repeat, Transparent |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## RadialBlur
 
@@ -721,7 +913,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Rotation | Range | 0 | 1 | 0.5 |  |
 | High Quality | Boolean |  |  | false |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Raster
 
@@ -731,7 +923,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Modulo X | Range | 1 | 100 | 2 |  |
 | Modulo Y | Range | 1 | 100 | 2 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Recolor
 
@@ -744,7 +936,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Cycle Phase | Range | 0 | 1 | 0 |  |
 | Cycle Speed | Range | 0 | 1 | 0.5 |  |
 | Use Alpha | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Reveal
 
@@ -762,7 +954,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Order | Choice |  |  | Random | Normal, Random |
 | Seed | Choice |  |  | Normal | Normal, Audio |
 | Black BG | Boolean |  |  | true |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Ripples
 
@@ -776,7 +968,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Amplitude Both | Range | 0 | 1 | 1 |  |
 | Phase | Range | 0 | 1 | 0 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Saturation
 
@@ -784,7 +976,32 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 |---|---|---|---|---|---|
 | Opacity | Range | 0 | 1 | 1 | % |
 | Saturation | Range | 0 | 1 | 0.5 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## SearchLight
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| Size | Range | 0 | 1 | 0.6 |  |
+| Blur | Range | 0 | 1 | 0.5 |  |
+| Frequency | Range | 0 | 2 | 0.77 |  |
+| Invert | Boolean |  |  | false |  |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## Shape Mask
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| Shape | Choice |  |  | Square | Square, Circle, Triangle, Pentagon, Hexagon, Octagon, Hexagram |
+| Feather | Range | 0 | 300 | 4 |  |
+| Scale | Range | 0 | 200 | 60 | % |
+| Rotation | Range | -180 | 180 | 0 | ° |
+| Position X | Range | -2 | 2 | 0 |  |
+| Position Y | Range | -2 | 2 | 0 |  |
+| Invert | Boolean |  |  | false |  |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Shaper
 
@@ -798,7 +1015,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Color | Color |  |  | #ffffffff |  |
 | Outline | Range | 0 | 0.5 | 0.1 |  |
 | Outline Color | Color |  |  | #1dd0ffff |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Sharpen
 
@@ -807,7 +1024,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Opacity | Range | 0 | 1 | 1 | % |
 | Strength | Range | 0 | 1 | 0.5 |  |
 | Distance | Range | 1 | 25 | 1 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Shift Glitch
 
@@ -819,7 +1036,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Horizontal | Range | 0 | 1 | 0.5 |  |
 | Size | Range | 0 | 1 | 0.5 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Shift RGB
 
@@ -832,7 +1049,16 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | G | Range | -1 | 1 | 0 |  |
 | B | Range | -1 | 1 | 0 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## Slice Delay
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| Order | Choice |  |  | Original | Original, Size, Width, Height, X, Y, Name  |
+| Scaling | Choice |  |  | Fill | None, Fit, Fill, Stretch |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Slice Transform
 
@@ -842,7 +1068,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Black BG | Boolean |  |  | false |  |
 | Scaling | Choice |  |  | Fill | Fill, Fit, Stretch, Mask, Mask Invert |
 | Scale | Range | 0 | 10 | 1 | % |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Slide
 
@@ -852,7 +1078,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | X | Range | 0 | 1 | 0 |  |
 | Y | Range | 0 | 1 | 0 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Snow
 
@@ -865,7 +1091,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | View Y | Range | 0 | 1 | 0.5 |  |
 | View X | Range | 0 | 1 | 0.5 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Snowy
 
@@ -879,7 +1105,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Threshold | Range | 0.25 | 1 | 0.5 |  |
 | Show Image | Boolean |  |  | true |  |
 | Smart Edges | Boolean |  |  | true |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Solid Color
 
@@ -888,7 +1114,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Opacity | Range | 0 | 1 | 1 | % |
 | Color | Color |  |  | #ff0000ff |  |
 | Show Image | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Sparkles
 
@@ -905,7 +1131,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Threshold | Range | 64 | 255 | 128 |  |
 | Move | Boolean |  |  | true |  |
 | Show Image | Boolean |  |  | true |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Sphere
 
@@ -928,7 +1154,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Rotation Y | Range | -180 | 180 | 0 | ° |
 | Rotation Z | Range | -180 | 180 | 0 | ° |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Static
 
@@ -936,7 +1162,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 |---|---|---|---|---|---|
 | Opacity | Range | 0 | 1 | 1 | % |
 | Mode | Choice |  |  | Grayscale | Color, Grayscale, Two-tone |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Stingy Sphere
 
@@ -964,7 +1190,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Rotate Y | Range | -180 | 180 | 0 |  |
 | Rotate Z | Range | -180 | 180 | 0 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Stop Motion
 
@@ -974,7 +1200,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Frequency | Range | 0 | 1 | 0.5 |  |
 | Frame Count | Range | 0 | 1 | 0 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Stripper
 
@@ -996,7 +1222,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Green | Range | 0 | 1 | 0 |  |
 | Blue | Range | 0 | 1 | 0 |  |
 | Alpha | Range | 0 | 1 | 1 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Strobe
 
@@ -1006,7 +1232,29 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Frequency | Range | 0 | 1 | 0.5 |  |
 | Fade | Boolean |  |  | false |  |
 | Color | Color |  |  | #ffffffff |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## Strokes
+
+Presets: Adamantium Claws, Arrow Cloud, Bubble Bath, Floating Oil, Product Placement, Starry Night
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| Amount | Range | 1 | 5000 | 1024 |  |
+| Edges Only | Boolean |  |  | false |  |
+| Frequency Mode | Choice |  |  | Hz | Hz, BPM |
+| Frequency | Range | 0 | 360 | 60 | Hz |
+| Size Mode | Choice |  |  | Random | Random, Brightness |
+| Size | Range | 0 | 1 | 0.2 |  |
+| Variation | Range | 0 | 1 | 0.1 |  |
+| Swirl | Range | 0 | 1 | 0.3 |  |
+| Flow | Range | -1 | 1 | 0.25 |  |
+| Feedback | Range | 0 | 1 | 0.5 |  |
+| Reset | Event |  |  |  |  |
+| Resource | File |  |  | Resource\Strokes_Brush.png |  |
+| Rotation | Range | 0 | 1 | 0 |  |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Suckr
 
@@ -1015,7 +1263,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Opacity | Range | 0 | 1 | 1 | % |
 | Suck | Range | 0 | 1 | 0.5 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Terrain
 
@@ -1032,7 +1280,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Attenuation | Range | 10 | 300 | 100 |  |
 | Texture Rep | Range | 0 | 12 | 0 |  |
 | Additive | Boolean |  |  | true |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Text Animator
 
@@ -1067,7 +1315,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Animated Outline Width | Range | 0 | 1 | 0 | % |
 | Animated Glow In | Range | 0 | 1 | 0 | % |
 | Animated Glow Out | Range | 0 | 1 | 0 | % |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Text Block
 
@@ -1092,7 +1340,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Outline Width | Range | 0 | 1 | 0 | % |
 | Glow In | Range | 0 | 1 | 0 | % |
 | Glow Out | Range | 0 | 1 | 0 | % |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Threshold
 
@@ -1104,7 +1352,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Color 1 | Color |  |  | #ffffffff |  |
 | Color 2 | Color |  |  | #000000ff |  |
 | Alpha | Choice |  |  | Original | Original, Combine, Replace |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Tile
 
@@ -1117,7 +1365,20 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Skew Y | Range | 0 | 1 | 0.5 |  |
 | Rotation Angle | Range | 0 | 1 | 0 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## Tilt Shift
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| Blur | Range | 0 | 1 | 0.9 |  |
+| Position | Range | 0 | 1 | 0.5 |  |
+| Focus | Range | 0 | 1 | 0.4 |  |
+| Falloff | Range | 0 | 1 | 1 |  |
+| Saturation | Range | 0 | 1 | 0.7 |  |
+| Vignette | Range | 0 | 1 | 0.5 |  |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Tint
 
@@ -1126,7 +1387,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Opacity | Range | 0 | 1 | 1 | % |
 | Black To | Color |  |  | #ff0000ff |  |
 | White To | Color |  |  | #ccff00ff |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Trails
 
@@ -1135,7 +1396,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Opacity | Range | 0 | 1 | 1 | % |
 | Feedback | Range | 0 | 1 | 0.9 |  |
 | Mode | Choice |  |  | Alpha | Alpha, Luma, Lighten |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Transform
 
@@ -1153,7 +1414,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Anchor X | Range | -16384 | 16384 | 0 |  |
 | Anchor Y | Range | -16384 | 16384 | 0 |  |
 | Anchor Z | Range | -16384 | 16384 | 0 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Triangulate
 
@@ -1164,7 +1425,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Levels | Range | 1 | 10 | 4 |  |
 | Flip Direction | Boolean |  |  | true |  |
 | Threshold | Range | 0 | 1 | 0 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Tunnel
 
@@ -1181,7 +1442,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | WobbleH | Range | 0 | 1 | 0 |  |
 | WobbleV | Range | 0 | 1 | 0 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Twisted
 
@@ -1191,7 +1452,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Twirl | Range | 0 | 1 | 0.6 |  |
 | Radius | Range | 0 | 1 | 0.25 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Twitch
 
@@ -1213,7 +1474,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Max Blur | Range | 0 | 1 | 0 |  |
 | Blur Frequency | Range | 0 | 1 | 0 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## UV Map
 
@@ -1228,7 +1489,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Filter Strength | Range | 0 | 1 | 0.25 |  |
 | Filter Color | Color |  |  | #00000000 |  |
 | Black Is Transparent | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Vibrance
 
@@ -1236,7 +1497,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 |---|---|---|---|---|---|
 | Opacity | Range | 0 | 1 | 1 | % |
 | Vibrance | Range | -1 | 1 | 0 |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## VideoWall
 
@@ -1255,7 +1516,7 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | GapSize | Range | 0 | 1 | 0 |  |
 | BrightnessVary | Range | 0 | 1 | 0 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Vignette
 
@@ -1266,7 +1527,20 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Size | Range | 0 | 1 | 0 |  |
 | Softness | Range | 0 | 1 | 0.96 |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
+
+## WarpSpeed
+
+| Controle | Tipo | Mín | Máx | Padrão | Opções / unidade |
+|---|---|---|---|---|---|
+| Opacity | Range | 0 | 1 | 1 | % |
+| Vignette | Range | 0 | 1 | 0.2 |  |
+| Fade | Range | 0 | 1 | 0.5 |  |
+| Scale | Range | 0 | 1 | 0.5 |  |
+| Rotate | Range | -1 | 1 | 0 |  |
+| Center X | Range | -1 | 1 | 0 |  |
+| Center Y | Range | -1 | 1 | 0 |  |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |
 
 ## Wave Warp
 
@@ -1280,4 +1554,4 @@ Tiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto n
 | Speed | Range | 0 | 1 | 0.5 |  |
 | Pin edges? | Boolean |  |  | true |  |
 | Black BG | Boolean |  |  | false |  |
-| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Wipe Ellipse, Zoom In, Zoom Out |
+| Blend Mode (mistura) | Choice |  |  | Alpha | Add, Alpha, B&W, Burn, Cube, Cut, Darken, Depth, Difference, Difference I, Displace, Dissolve, Dodge, Exclusion, Hard Light, JitterBug, Lighten, LoRez, Luma Is Alpha, Luma Key, Luma Key I, Meta Mix, Multiply, Multi Task, Noisy, Overlay, Parts, PiP, Push Down, Push Left, Push Right, Push Up, RGB, Rotate X, Rotate Y, Screen, Shift RGB, Side by Side, Soft Light, Static, Subtract, Tile, TimeSwitcher, to Black, to Color, to White, Twitch, Video Bumper, Wipe Ellipse, Zoom In, Zoom Out |

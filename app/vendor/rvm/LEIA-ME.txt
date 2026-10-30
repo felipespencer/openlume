@@ -3,3 +3,9 @@ https://github.com/PeterL1n/RobustVideoMatting (release v1.0.0)
 Licenca GPL-3.0 (LICENSE.txt), a mesma do OpenLume.
 Entradas: src 1x3xHxW RGB em 0..1; r1i..r4i (memoria do quadro anterior; comece com [1,1,1,1] = 0); downsample_ratio [1].
 Saidas: fgr 1x3xHxW, pha 1x1xHxW (alfa), r1o..r4o (memoria para o proximo quadro). Usado em 640x360 com ratio 0,5.
+
+Alteracao nossa: nos 3 AveragePool (2x2, passo 2) o atributo ceil_mode foi trocado de 1 para 0 (script Python com onnx).
+Com largura e altura multiplas de 8 o resultado e identico; o WebGPU do onnxruntime-web 1.31 calcula ceil_mode errado (alfa ~0).
+Alteracao nossa 2: nas 4 convolucoes do decodificador com canais de entrada impares (171, 107, 59, 35) entra um Pad de canais
+zerados ate o multiplo de 4 e os pesos ganham canais zerados: o Conv do WebGPU do onnxruntime-web 1.31 calcula errado com
+canais de entrada que nao dividem por 4. Resultado matematicamente identico.

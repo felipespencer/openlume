@@ -7,7 +7,7 @@
 //   - arquivo solto numa casa vira clipe guardado, sem ir para o ar;
 //   - abrir o programa começa sempre do zero.
 import { Engine, IDENT_TR } from './engine.js';
-import { MIXER_OPT, randomMixer } from './mixers.js';
+import { MIXER_OPT, MIXER_OPTS, randomMixer } from './mixers.js';
 import * as M from './screens.js';
 import * as C from './clips.js';
 const { PLAY_MODES } = C;
@@ -623,7 +623,13 @@ function render() {
     op.onclick = (e) => e.stopPropagation();
     op.oninput = () => { L.opacity = op.value / 100; if (li === state.selLayer) panels.render(); };
     const nm = el('div', 'nm'); const num = state.layers.length - li; nm.append(el('b', 'num', String(num)), document.createTextNode(L.name)); nm.title = 'Camada ' + num + (L.name !== 'Camada ' + num ? ': ' + L.name : '');
-    lh.append(bb, nm, op);   // número da camada antes do nome: 1 é a de baixo (layers[0] é a de cima)
+    // modo de mistura da camada na própria faixa, como no Resolume (o mesmo controle do painel Camada)
+    const bl = el('select', 'blend'); bl.title = 'Mistura: como a camada entra sobre o que está embaixo';
+    for (const [id, name] of MIXER_OPTS) { const o = el('option', '', name); o.value = id; bl.appendChild(o); }
+    bl.value = L.blend === 'normal' ? 'alpha' : L.blend; if (bl.value !== (L.blend === 'normal' ? 'alpha' : L.blend)) bl.value = 'alpha';
+    bl.onclick = (e) => e.stopPropagation(); bl.onpointerdown = (e) => e.stopPropagation();
+    bl.onchange = () => { L.blend = bl.value; if (li === state.selLayer) panels.render(); };
+    lh.append(bb, nm, bl, op);   // número da camada antes do nome: 1 é a de baixo (layers[0] é a de cima)
     lh.onclick = () => { state.selLayer = li; state.selGroup = L.group; panels.tab = 'layer'; render(); };
     g.appendChild(lh);
     for (let c = 0; c < COLS; c++) {
