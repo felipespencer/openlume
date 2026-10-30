@@ -1,8 +1,8 @@
 // Processo nativo do Background Removal (utilityProcess do Electron): roda os modelos no onnxruntime-node com
 // DirectML, direto na placa de vídeo, como o Resolume faz. Fala com a janela por uma MessagePort.
 //   Qualidade Baixa — PP-HumanSeg (PaddleSeg, Apache 2.0, vendor/pphumanseg): 192×192, fundo/pessoa.
-//   Média — PP-MattingV2 (PaddleSeg, Apache 2.0, vendor/ppmattingv2): 512×512, o modelo do Medium do Resolume.
-//   Alta — MODNet-HRNet_W18 (PaddleSeg, Apache 2.0, vendor/modnet-hrnet): 640×640, o modelo do High do Resolume.
+//   Média — MODNet-HRNet_W18 (PaddleSeg, Apache 2.0, vendor/modnet-hrnet) em 480×480; Alta — o mesmo em 640×640. Na bancada
+//   (quadros parados da gravação do Felipe) foi o que mais bateu com o Medium e o High do Resolume 7.28; o PP-MattingV2 batia pior.
 //   (RVM, vendor/rvm, fica para a reserva pela WebGPU na janela.)
 // Recebe o quadro já no tamanho do modelo como RGBA (Uint8), devolve a máscara 0..255 já limpa, na ordem do
 // efeito do Resolume 7.28: máscara dura, suavidade no tempo (com portão de movimento), fechar buracos
@@ -15,7 +15,6 @@ try { ort = require('onnxruntime-node'); } catch (e) { ortErr = e.message || Str
 const VENDOR = path.join(__dirname, 'vendor');
 const MODELS = {
   fast: { file: path.join(VENDOR, 'pphumanseg', 'pphumanseg.onnx'), k: 1 / 127.5, b: -1 },
-  ppmatting: { file: path.join(VENDOR, 'ppmattingv2', 'ppmattingv2-stdc1-human_512.onnx'), k: 1 / 127.5, b: -1 },
   modnet_hrnet: { file: path.join(VENDOR, 'modnet-hrnet', 'modnet-hrnet_w18.onnx'), k: 1 / 127.5, b: -1 },
   rvm: { file: path.join(VENDOR, 'rvm', 'rvm_mobilenetv3_fp32.onnx'), k: 1 / 255, b: 0 },
 };
@@ -62,7 +61,10 @@ async function run(msg) {
   if (kind === 'rvm') { e.rec = { r1i: out.r1o, r2i: out.r2o, r3i: out.r3o, r4i: out.r4o }; prob = Float32Array.from(out.pha.data); }
   else if (kind === 'fast') {
     const o = out[s.outputNames[0]], data = o.data; prob = new Float32Array(n);
-    if (o.dims.length === 4 && o.dims[1] === 2) for (let i = 0; i < n; i++) prob[i] = 1 / (1 + Math.exp(data[i] - data[n + i]));   // (fundo, pessoa) como logits → probabilidade de pessoa
+    // saída [1,2,H,W] = (fundo, pessoa). O PP-HumanSeg exportado já traz Softmax: canal 1 É a probabilidade de pessoa
+    // (passar isso por outra sigmoide achatava a máscara para 0,27..0,73 — a Baixa saía cinza). Se vierem logits, aí sim a sigmoide da diferença.
+    if (o.dims.length === 4 && o.dims[1] === 2) { let mn = Infinity, mx = -Infinity; for (let i = 0; i < 2 * n; i += 97) { const v = data[i]; if (v < mn) mn = v; if (v > mx) mx = v; } const probs = mn >= -0.001 && mx <= 1.001;
+      for (let i = 0; i < n; i++) prob[i] = probs ? data[n + i] : 1 / (1 + Math.exp(data[i] - data[n + i])); }
     else for (let i = 0; i < n; i++) prob[i] = Math.min(1, Math.max(0, data[i]));
   } else { const data = out[s.outputNames[0]].data; prob = new Float32Array(n); for (let i = 0; i < n; i++) prob[i] = Math.min(1, Math.max(0, data[i])); }
   e.pend = { prob, kind, W, H };

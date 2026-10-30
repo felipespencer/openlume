@@ -76,7 +76,10 @@ async function run(msg) {
     prob = Float32Array.from(out.pha.data);
   } else {
     const s = sess.fast, n = W * H; const o = out[s.outputNames[0]], data = o.data; prob = new Float32Array(n);
-    if (o.dims.length === 4 && o.dims[1] === 2) for (let i = 0; i < n; i++) prob[i] = 1 / (1 + Math.exp(data[i] - data[n + i]));   // (fundo, pessoa) como logits → probabilidade de pessoa
+    // saída [1,2,H,W] = (fundo, pessoa). O PP-HumanSeg exportado já traz Softmax: canal 1 É a probabilidade de pessoa
+    // (passar isso por outra sigmoide achatava a máscara para 0,27..0,73 — a Baixa saía cinza). Se vierem logits, aí sim a sigmoide da diferença.
+    if (o.dims.length === 4 && o.dims[1] === 2) { let mn = Infinity, mx = -Infinity; for (let i = 0; i < 2 * n; i += 97) { const v = data[i]; if (v < mn) mn = v; if (v > mx) mx = v; } const probs = mn >= -0.001 && mx <= 1.001;
+      for (let i = 0; i < n; i++) prob[i] = probs ? data[n + i] : 1 / (1 + Math.exp(data[i] - data[n + i])); }
     else for (let i = 0; i < n; i++) prob[i] = Math.min(1, Math.max(0, data[i]));
   }
   e.pend = { prob, kind, W, H };
