@@ -104,6 +104,33 @@ vec4 fx(vec2 uv){ vec2 A = vec2(blx, bly), B = vec2(brx, bry), C = vec2(trx, try
     glsl: `vec4 fx(vec2 uv){ vec4 acc = vec4(0.0); for (int i = 7; i >= 0; i--) { if (float(i) >= n) continue; float k = n > 1.0 ? float(i) / (n - 1.0) : 0.0; vec2 off = vec2(cos(angle), sin(angle)) * dist * float(i); float sc = mix(1.0, scale, k); vec2 p = rot2((uv - 0.5 - off) * vec2(ar(), 1.0), -rot * k) / vec2(ar(), 1.0) / sc + 0.5; acc = over(acc, texIn(p)); } return acc; }` },
   { id: 'mask', name: 'Mask', desc: 'Máscara redonda ou retangular, com suavidade.', params: [P('shape', 'Forma', 0, 0, 1, 1), P('w', 'Largura', 0.6, 0, 2, 0.01), P('h', 'Altura', 0.6, 0, 2, 0.01), P('x', 'Centro X', 0, -1, 1), P('y', 'Centro Y', 0, -1, 1), P('soft', 'Suavidade', 0.05, 0, 0.5), P('invert', 'Inverter', 0, 0, 1, 1)],
     glsl: `vec4 fx(vec2 uv){ vec2 p = (uv - 0.5 - vec2(x, y) * 0.5) * 2.0; p.x *= ar(); float d = shape < 0.5 ? length(p / vec2(w * ar(), h) * vec2(1.0, 1.0) / vec2(1.0, 1.0) / vec2(1.0)) : max(abs(p.x) / (w * ar()), abs(p.y) / h); float k = 1.0 - smoothstep(1.0 - soft, 1.0 + soft, d); if (invert > 0.5) k = 1.0 - k; return tex(uv) * k; }` },
+  // Shape Mask do Resolume 7.28, medido na bancada em branco.png: tamanho = Escala% × altura do quadro. Quadrado: lado = tamanho.
+  // Círculo: diâmetro. Triângulo: equilátero, vértice para cima, lado = tamanho. Pentágono: vértice para cima, apótema = tamanho/2.
+  // Hexágono e octógono: lado reto em cima, apótema = tamanho/2. Hexagrama: dois triângulos, raio = tamanho/2. Feather = rampa
+  // suave de 0 a 0,48 × valor, em pixels, para dentro da borda. Posição em meias-alturas (0,5 = um quarto da altura; Y para cima).
+  { id: 'shapemask', name: 'Shape Mask', desc: 'Máscara em forma geométrica: quadrado, círculo, triângulo, pentágono, hexágono, octógono ou hexagrama, com suavidade, tamanho, giro e posição.',
+    params: [LIST('shape', 'Forma', ['Quadrado', 'Círculo', 'Triângulo', 'Pentágono', 'Hexágono', 'Octógono', 'Hexagrama'], ['Square', 'Circle', 'Triangle', 'Pentagon', 'Hexagon', 'Octagon', 'Hexagram']), P('feather', 'Suavidade', 4, 0, 300, 1, ' px'), P('scale', 'Escala', 60, 0, 200, 1, ' %'), P('rot', 'Giro', 0, -180, 180, 1, ' °'), P('px', 'Posição X', 0, -2, 2, 0.01), P('py', 'Posição Y', 0, -2, 2, 0.01), P('invert', 'Inverter', 0, 0, 1, 1)],
+    rparams: { Shape: 'shape', Feather: 'feather', Scale: 'scale', Rotation: 'rot', 'Position X': 'px', 'Position Y': 'py', Invert: 'invert' },
+    glsl: `
+    // distância com sinal (px, positiva fora) de um polígono regular de n lados e apótema A; vtx: vértice para cima (1) ou lado reto em cima (0)
+    float sdReg(vec2 p, float n, float A, float vtx) { float seg = 6.2831853 / n; float a = atan(p.x, p.y); float b = vtx > 0.5 ? (floor(a / seg) + 0.5) * seg : floor(a / seg + 0.5) * seg; return dot(p, vec2(sin(b), cos(b))) - A; }
+    vec4 fx(vec2 uv){
+      vec2 p = (uv - 0.5) * uRes;                                                           // pixels, origem no centro (o uv já tem y para cima)
+      p -= vec2(px, py) * uRes.y * 0.5;                                                     // posição em meias-alturas
+      float c = cos(radians(-rot)), s = sin(radians(-rot)); p = vec2(c * p.x - s * p.y, s * p.x + c * p.y);   // giro positivo = horário, como no Resolume
+      float size = scale / 100.0 * uRes.y, h = size * 0.5; float d;
+      int sh = int(shape + 0.5);
+      if (sh == 0) { vec2 q = abs(p) - h; d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0); }
+      else if (sh == 1) d = length(p) - h;
+      else if (sh == 2) d = sdReg(p, 3.0, size / 3.4641016, 1.0);
+      else if (sh == 3) d = sdReg(p, 5.0, h, 1.0);
+      else if (sh == 4) d = sdReg(p, 6.0, h, 0.0);
+      else if (sh == 5) d = sdReg(p, 8.0, h, 0.0);
+      else d = min(sdReg(p, 3.0, h * 0.5, 1.0), sdReg(-p, 3.0, h * 0.5, 1.0));
+      float f = max(feather * 0.48, 0.75);
+      float k = 1.0 - smoothstep(-f, 0.0, d);
+      if (invert > 0.5) k = 1.0 - k;
+      return tex(uv) * k; }` },
   { id: 'metashape', name: 'Meta Shape', desc: 'Um polígono girando por cima, como máscara ou como forma.', params: [P('sides', 'Lados', 5, 3, 12, 1), P('size', 'Tamanho', 0.5, 0.05, 1.5, 0.01), P('rot', 'Giro', 0.3, -3, 3, 0.05), P('soft', 'Suavidade', 0.02, 0, 0.3, 0.005), P('mode', 'Modo', 0, 0, 1, 1)],
     glsl: `vec4 fx(vec2 uv){ vec2 p = (uv - 0.5) * vec2(ar(), 1.0) * 2.0; float a = atan(p.y, p.x) + uTime * rot; float seg = 6.2831853 / sides; float d = cos(floor(0.5 + a / seg) * seg - a) * length(p); float k = 1.0 - smoothstep(size - soft, size + soft, d); vec4 c = tex(uv); return mode < 0.5 ? c * k : over(c, vec4(vec3(1.0), 1.0) * k * 0.8); }` },
   { id: 'particlesystem', name: 'Particle System', desc: 'Partículas que caem ou sobem por cima da imagem.', params: [P('n', 'Partículas', 40, 1, 64, 1), P('size', 'Tamanho', 0.01, 0.002, 0.08, 0.001), P('speed', 'Velocidade', 0.3, -2, 2, 0.05), P('gravity', 'Gravidade', -0.3, -2, 2, 0.05), P('wind', 'Vento', 0, -1, 1, 0.05), HUE('hue', 'Matiz', 0.1), P('sat', 'Saturação', 0.5, 0, 1)],
