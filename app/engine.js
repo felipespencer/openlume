@@ -522,6 +522,10 @@ export class Engine {
     gl.deleteSync(r.sync); r.sync = null;
     const buf = new Uint8Array(r.w * r.h * 4);
     gl.bindBuffer(gl.PIXEL_PACK_BUFFER, r.pbo); gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, buf); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null); gl.deleteBuffer(r.pbo);
+    // as texturas sobem com UNPACK_FLIP_Y_WEBGL e o readPixels devolve de baixo para cima: vira as linhas para ficar como o getImageData
+    // (Felipe, beta.26: "botou a máscara de cabeça para baixo")
+    const row = r.w * 4, tmp = new Uint8Array(row);
+    for (let y = 0, z = r.h - 1; y < z; y++, z--) { const a = y * row, b = z * row; tmp.set(buf.subarray(a, a + row)); buf.copyWithin(a, b, b + row); buf.set(tmp, b); }
     return buf;
   }
   cancelReadClipFrame(r) { const gl = this.gl; if (!r) return; if (r.sync) gl.deleteSync(r.sync); if (r.pbo) gl.deleteBuffer(r.pbo); r.sync = null; r.pbo = null; }
