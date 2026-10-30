@@ -18,7 +18,7 @@ export function mkSlice(name, inRect, outRect) {
   const s = { id: seq++, type: 'slice', name, enabled: true, source: 'comp',
     in: { x: inRect.x, y: inRect.y, w: inRect.w, h: inRect.h, rot: 0 }, flip: { x: false, y: false },
     warp: { mode: 'corners', curve: true, divX: 2, divY: 2, rot: 0, pts: cornersFromRect(outRect.x, outRect.y, outRect.w, outRect.h) },
-    soft: { on: false, power: 2, lum: 0.5, gamma: [2.2, 2.2, 2.2], black: 0 },
+    soft: { on: false, power: 2, lum: 0.5, gamma: [2.2, 2.2, 2.2], black: 0, grads: [], round: { on: true, r: 0.5 } },   // grads: degradês ajustados à mão; round: arredondado dos automáticos
     color: { bright: 1, contrast: 1, r: 0, g: 0, b: 0 },
     inMask: null, rev: 1 };
   return s;
@@ -139,6 +139,52 @@ export function softWidths(slice, all) {
 }
 export const allSlices = (screens) => screens.flatMap(s => s.enabled ? s.items.filter(i => i.type === 'slice') : []);
 
+// Degradês de emenda do slice, em pixels do recorte de entrada (0..w, 0..h, y para baixo). Cada um é uma reta
+// A (brilho inteiro) → B (zero) com uma faixa de n1 px para um lado e n2 para o outro, e cantos redondos do lado de A.
+// Os automáticos nascem de softWidths, um por borda com vizinho; os ajustados à mão vivem em soft.grads, e um ajustado
+// que guarda a borda de origem (edge) substitui o automático daquela borda. (Ideia do Felipe, 2026-10-30: a alça de
+// degradê do Illustrator puxada na própria imagem; o Resolume só tem emenda por borda.)
+export const EDGE_NAMES = { l: 'esquerda', r: 'direita', t: 'de cima', b: 'de baixo' };
+export function softGrads(slice, all) {
+  const out = [], man = slice.soft.grads || [], rd = slice.soft.round || { on: true, r: 0.5 };
+  if (slice.soft.on) {
+    const sw = softWidths(slice, all), w = slice.in.w, h = slice.in.h;
+    const mk = (edge, a, b, n) => { if (man.some(g => g.edge === edge)) return; out.push({ edge, auto: true, a, b, n1: n, n2: n, roundOn: rd.on, round: rd.r }); };
+    if (sw.l > 0) { const m = (sw.lS[0] + sw.lS[1]) / 2 * h; mk('l', [sw.l * w, m], [0, m], (sw.lS[1] - sw.lS[0]) * h / 2); }
+    if (sw.r > 0) { const m = (sw.rS[0] + sw.rS[1]) / 2 * h; mk('r', [w - sw.r * w, m], [w, m], (sw.rS[1] - sw.rS[0]) * h / 2); }
+    if (sw.t > 0) { const m = (sw.tS[0] + sw.tS[1]) / 2 * w; mk('t', [m, sw.t * h], [m, 0], (sw.tS[1] - sw.tS[0]) * w / 2); }
+    if (sw.b > 0) { const m = (sw.bS[0] + sw.bS[1]) / 2 * w; mk('b', [m, h - sw.b * h], [m, h], (sw.bS[1] - sw.bS[0]) * w / 2); }
+  }
+  for (const g of man) out.push(g);
+  return out;
+}
+// Mexer num degradê automático: vira ajustado (cópia em soft.grads, com a borda de origem) e volta como o alvo da edição.
+export function adoptGrad(slice, g) {
+  if (!g.auto) return g;
+  const m = { id: seq++, edge: g.edge, a: [g.a[0], g.a[1]], b: [g.b[0], g.b[1]], n1: g.n1, n2: g.n2, roundOn: g.roundOn, round: g.round };
+  (slice.soft.grads || (slice.soft.grads = [])).push(m); touch(slice); return m;
+}
+export function gradName(g, i) { return g.auto ? `Emenda ${EDGE_NAMES[g.edge]}` : g.edge ? `Emenda ${EDGE_NAMES[g.edge]}` : `Degradê ${i + 1}`; }
+// raio do arredondado em pixels: fração de metade do lado menor da faixa
+export const gradRadius = (g) => g.roundOn ? Math.min(Math.hypot(g.b[0] - g.a[0], g.b[1] - g.a[1]), g.n1 + g.n2) / 2 * (g.round || 0) : 0;
+// contorno da faixa (pixels do recorte), com os dois cantos do lado de A arredondados
+export function gradOutline(g) {
+  const dx = g.b[0] - g.a[0], dy = g.b[1] - g.a[1], L = Math.hypot(dx, dy) || 1, px = -dy / L, py = dx / L;
+  const P = [[g.a[0] + px * g.n1, g.a[1] + py * g.n1], [g.b[0] + px * g.n1, g.b[1] + py * g.n1], [g.b[0] - px * g.n2, g.b[1] - py * g.n2], [g.a[0] - px * g.n2, g.a[1] - py * g.n2]];
+  const r = gradRadius(g); if (r < 1) return P;
+  const out = [];
+  for (let k = 0; k < 4; k++) {
+    const p0 = P[(k + 3) % 4], p1 = P[k], p2 = P[(k + 1) % 4];
+    if (k === 1 || k === 2) { out.push(p1); continue; }   // lado de B (beirada do projetor): reto
+    const u = [p0[0] - p1[0], p0[1] - p1[1]], v = [p2[0] - p1[0], p2[1] - p1[1]], lu = Math.hypot(...u) || 1, lv = Math.hypot(...v) || 1, rr = Math.min(r, lu / 2, lv / 2);
+    const c = [p1[0] + u[0] / lu * rr + v[0] / lv * rr, p1[1] + u[1] / lu * rr + v[1] / lv * rr];
+    const a0 = Math.atan2(p1[1] + u[1] / lu * rr - c[1], p1[0] + u[0] / lu * rr - c[0]), a1 = Math.atan2(p1[1] + v[1] / lv * rr - c[1], p1[0] + v[0] / lv * rr - c[0]);
+    let d = a1 - a0; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+    for (let t = 0; t <= 8; t++) { const a = a0 + d * t / 8; out.push([c[0] + Math.cos(a) * rr, c[1] + Math.sin(a) * rr]); }
+  }
+  return out;
+}
+
 // ---------- máscaras ----------
 export function maskShape(kind, x, y, w, h) {
   if (kind === 'circle') { const n = 32, pts = []; for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; pts.push([x + w / 2 + Math.cos(a) * w / 2, y + h / 2 + Math.sin(a) * h / 2]); } return pts; }
@@ -174,6 +220,8 @@ export function deserialize(json) {
       Object.assign(sl.in, it.in || {}); Object.assign(sl.flip, it.flip || {});
       if (it.warp) { Object.assign(sl.warp, it.warp); sl.warp.pts = (it.warp.pts || sl.warp.pts).map(p => [+p[0], +p[1]]); }
       if (it.soft) { Object.assign(sl.soft, it.soft); sl.soft.gamma = (it.soft.gamma || [2.2, 2.2, 2.2]).map(Number); }
+      sl.soft.grads = ((it.soft && it.soft.grads) || []).map(g => ({ id: seq++, edge: g.edge || null, a: [+g.a[0], +g.a[1]], b: [+g.b[0], +g.b[1]], n1: +g.n1 || 8, n2: +g.n2 || 8, roundOn: g.roundOn !== false, round: g.round ?? 0.5 }));
+      sl.soft.round = Object.assign({ on: true, r: 0.5 }, (it.soft && it.soft.round) || {});
       Object.assign(sl.color, it.color || {});
       if (it.inMask) sl.inMask = { pts: it.inMask.pts.map(p => [+p[0], +p[1]]), invert: !!it.inMask.invert, rev: 1 };
       sc.items.push(sl);

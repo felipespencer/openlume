@@ -18,7 +18,7 @@ export class AdvancedOutput {
   constructor(ctx) {
     this.c = ctx;
     this.open = false; this.tab = 'in'; this.mode = 'move'; this.snap = false; this.grid = true; this.led = false; this.pan = false; this.zoom = 'fit';
-    this.sel = null; this.selPt = -1; this.selPtK = null; this.nudgeT = 0; this.drawing = null; this.cursor = null; this.drag = null; this.scale = 1;
+    this.sel = null; this.selPt = -1; this.selPtK = null; this.selG = -1; this.nudgeT = 0; this.drawing = null; this.cursor = null; this.drag = null; this.scale = 1;
     this.snapshot = ''; this.presetName = ''; this.hist = []; this.redoHist = []; this.space = false;
     Object.assign(this, propsKit(this));
     this.build();
@@ -120,7 +120,7 @@ export class AdvancedOutput {
   redo() { if (!this.redoHist.length) return; this.hist.push(this.snapState()); this.restore(this.redoHist.pop()); }
 
   // ---------- ferramentas ----------
-  setTab(t) { this.tab = t; this.selPt = -1; this.drawing = null; this.syncTools(); this.layout(); this.refresh(); }
+  setTab(t) { this.tab = t; this.selPt = -1; this.selG = -1; this.drawing = null; this.syncTools(); this.layout(); this.refresh(); }
   setMode(m) { this.mode = m; this.selPt = -1; this.syncTools(); this.draw(); this.renderProps(); }
   syncTools() {
     $('aoTabIn').classList.toggle('on', this.tab === 'in'); $('aoTabOut').classList.toggle('on', this.tab === 'out');
@@ -146,18 +146,24 @@ export class AdvancedOutput {
     else if (e.key === 'Escape') { if (this.drawing) { this.drawing = null; this.draw(); } else this.hide(true); }
     else if (e.key === 't' || e.key === 'T') { if (this.tab === 'out') this.setMode(this.mode === 'move' ? 'pts' : 'move'); }
     else if (e.key === 'Enter' && this.drawing) this.finishDrawing();
-    else if (e.key.startsWith('Arrow') && this.sel && this.sel.item && !this.drawing) { this.nudge(e.key, e.shiftKey ? 10 : 1); e.preventDefault(); }
-    else if (e.key === 'Delete' && this.sel && this.sel.item) this.removeItem(this.sel.item);
+    else if (e.key.startsWith('Arrow') && this.sel && this.sel.item && !this.drawing) { this.nudge(e.key, e.shiftKey ? 10 : 1, e.altKey); e.preventDefault(); }
+    else if (e.key === 'Delete' && this.sel && this.sel.item) { if (this.tab === 'in' && this.selG >= 0) this.removeGrad(); else this.removeItem(this.sel.item); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.shiftKey ? this.redo() : this.undo(); e.preventDefault(); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { this.redo(); e.preventDefault(); }
   }
   // Setas: movem o ponto selecionado (ou o item inteiro) 1 px; com Shift, 10 px. Toques seguidos viram um só "desfazer".
-  nudge(key, step) {
+  nudge(key, step, alt) {
     const it = this.sel.item, dx = key === 'ArrowLeft' ? -step : key === 'ArrowRight' ? step : 0, dy = key === 'ArrowUp' ? -step : key === 'ArrowDown' ? step : 0;
     if (!dx && !dy) return;
     const k = this.selPt >= 0 ? this.selPtK : null;
     if (this.tab === 'in' && it.type !== 'slice') return;
     const now = Date.now(); if (now - this.nudgeT > 800) this.pushUndo(); this.nudgeT = now;
+    if (this.tab === 'in' && this.selG >= 0 && it.soft.on) {   // degradê selecionado: as setas movem o fim (quadrado); com Alt, o degradê inteiro
+      const g0 = this.grads(it)[this.selG]; if (!g0) return;
+      const g = M.adoptGrad(it, g0); this.selG = this.grads(it).indexOf(g);
+      g.b = [g.b[0] + dx, g.b[1] + dy]; if (alt) g.a = [g.a[0] + dx, g.a[1] + dy]; M.touch(it);
+      this.draw(); this.renderProps(); this.c.onChange(); return;
+    }
     if (k === 'anchor' && it.warp && it.warp.pts[this.selPt]) M.moveAnchor(it, this.selPt, dx, dy);
     else if (k === 'maskpt' && it.pts && it.pts[this.selPt]) { const q = it.pts[this.selPt]; q[0] += dx; q[1] += dy; M.touch(it); }
     else if (k === 'inmaskpt' && it.inMask && it.inMask.pts[this.selPt]) { const q = it.inMask.pts[this.selPt]; q[0] += dx / it.in.w; q[1] += dy / it.in.h; it.inMask.rev++; M.touch(it); }
@@ -209,7 +215,7 @@ export class AdvancedOutput {
     if (this.tab === 'in') return this.screens().flatMap(sc => sc.enabled ? sc.items.filter(i => i.type === 'slice' && i.enabled).map(i => ({ screen: sc, item: i })) : []);
     const sc = this.curScreen(); return sc ? sc.items.filter(i => i.enabled).map(i => ({ screen: sc, item: i })) : [];
   }
-  select(screen, item) { this.sel = { screen, item }; this.selPt = -1; this.syncTools(); if (this.tab === 'out') this.layout(); this.refresh(); }
+  select(screen, item) { this.sel = { screen, item }; this.selPt = -1; this.selG = -1; this.syncTools(); if (this.tab === 'out') this.layout(); this.refresh(); }
 
   // ---------- desenho do palco ----------
   draw() {
@@ -237,6 +243,7 @@ export class AdvancedOutput {
         svg.appendChild(g);
         if (sel && item.inMask) this.drawPoly(item.inMask.pts.map(p => localToIn(item, p)), 'inmask', true, item);
         if (sel && !item.inMask) this.drawHandles(r, item);
+        if (sel && item.soft.on) this.drawGrads(item);
       } else if (item.type === 'slice') {
         if (item.warp.mode === 'mesh') svg.appendChild(svgEl('path', { d: meshLinesPath(item), class: 'mesh' }));
         svg.appendChild(svgEl('path', { d: outlinePath(item), class: 'slice' + (sel ? ' sel' : ''), 'data-k': 'body', 'data-id': item.id }));
@@ -259,6 +266,29 @@ export class AdvancedOutput {
       svg.appendChild(svgEl('line', { x1: this.cursor[0], y1: 0, x2: this.cursor[0], y2: H, class: 'cursor' }));
     }
     svg.querySelectorAll('text').forEach(t => t.setAttribute('font-size', 13 * k));
+  }
+  // degradês de emenda (aba Entrada): faixa tracejada, linha A→B, bolinha em A (inteiro), quadrado em B (zero), losangos no trecho
+  grads(item) { return M.softGrads(item, M.allSlices(this.screens())); }
+  localPx(item, p) { const l = inToLocal(item, p); return [l[0] * item.in.w, l[1] * item.in.h]; }
+  drawGrads(item) {
+    const k = 1 / this.scale, svg = this.svg, w = item.in.w, h = item.in.h, L2 = (p) => localToIn(item, [p[0] / w, p[1] / h]);
+    this.grads(item).forEach((g, i) => {
+      const cls = (i === this.selG ? ' cur' : '') + (g.auto ? '' : ' man'), at = (kk) => ({ 'data-k': kk, 'data-i': i, 'data-id': item.id });
+      const dx = g.b[0] - g.a[0], dy = g.b[1] - g.a[1], Ln = Math.hypot(dx, dy) || 1, px = -dy / Ln, py = dx / Ln, mx = (g.a[0] + g.b[0]) / 2, my = (g.a[1] + g.b[1]) / 2;
+      svg.appendChild(svgEl('polygon', { points: M.gradOutline(g).map(p => L2(p).join(',')).join(' '), class: 'gband' + cls }));
+      const A = L2(g.a), B = L2(g.b), N1 = L2([mx + px * g.n1, my + py * g.n1]), N2 = L2([mx - px * g.n2, my - py * g.n2]);
+      svg.appendChild(svgEl('line', { x1: A[0], y1: A[1], x2: B[0], y2: B[1], class: 'gline' + cls }));
+      svg.appendChild(svgEl('line', { x1: A[0], y1: A[1], x2: B[0], y2: B[1], class: 'gmid', ...at('gM') }));
+      svg.appendChild(svgEl('circle', { cx: A[0], cy: A[1], r: 6 * k, class: 'hd ga' + cls, ...at('gA') }));
+      svg.appendChild(svgEl('rect', { x: B[0] - 5 * k, y: B[1] - 5 * k, width: 10 * k, height: 10 * k, class: 'hd' + cls, ...at('gB') }));
+      for (const [kk, m] of [['gN1', N1], ['gN2', N2]]) svg.appendChild(svgEl('polygon', { points: `${m[0]},${m[1] - 7 * k} ${m[0] + 7 * k},${m[1]} ${m[0]},${m[1] + 7 * k} ${m[0] - 7 * k},${m[1]}`, class: 'hd' + cls, ...at(kk) }));
+      const t = svgEl('text', { x: A[0] + 9 * k, y: A[1] - 9 * k, class: 'gname' + cls }); t.textContent = g.auto ? 'automático' : 'ajustado'; svg.appendChild(t);
+    });
+  }
+  removeGrad() {
+    const s = this.sel && this.sel.item; if (!s || s.type !== 'slice') return;
+    const g = this.grads(s)[this.selG]; if (!g || g.auto) return;
+    this.pushUndo(); s.soft.grads = s.soft.grads.filter(x => x !== g); M.touch(s); this.selG = -1; this.c.onChange(); this.draw(); this.renderProps();
   }
   // alças do Transformar, como no Resolume: círculo com quadrado nos cantos, quadrado no meio dos lados
   drawHandles(r, item) {
@@ -310,6 +340,13 @@ export class AdvancedOutput {
     this.svg.setPointerCapture(e.pointerId);
     this.pushUndo();
     const d = this.drag = { k, i: +t.dataset.i, it, last: p, start: p };
+    if (k[0] === 'g' && k.length <= 3) {   // alça de degradê: o automático vira ajustado na hora em que é tocado
+      const g0 = this.grads(it)[d.i]; if (!g0) { this.drag = null; return; }
+      const g = M.adoptGrad(it, g0); this.selG = this.grads(it).indexOf(g);
+      d.g = g; d.g0 = { a: [...g.a], b: [...g.b] }; d.lp = this.localPx(it, p);
+      this.draw(); this.renderProps(); return;
+    }
+    this.selG = -1;
     if (k === 'anchor' || k === 'maskpt' || k === 'inmaskpt') { this.selPt = d.i; this.selPtK = k; this.draw(); this.renderProps(); }
     if (k === 'resize' || k === 'body') d.rect = this.tab === 'in' ? { ...it.in } : it.type === 'slice' ? M.outRect(it) : bbox(it.pts);
   }
@@ -319,6 +356,21 @@ export class AdvancedOutput {
     if (this.drawing) { this.draw(); return; }
     const d = this.drag; if (!d) { if (this.grid && this.tab === 'out') this.draw(); return; }
     const it = d.it, dx = p[0] - d.last[0], dy = p[1] - d.last[1];
+    if (d.g) {   // degradê: pontas, linha inteira ou comprimento da faixa, em pixels do recorte
+      const g = d.g, lp = this.localPx(it, p), ddx = lp[0] - d.lp[0], ddy = lp[1] - d.lp[1];
+      if (d.k === 'gA' || d.k === 'gM') g.a = [d.g0.a[0] + ddx, d.g0.a[1] + ddy];
+      if (d.k === 'gB' || d.k === 'gM') g.b = [d.g0.b[0] + ddx, d.g0.b[1] + ddy];
+      if (e.shiftKey && (d.k === 'gA' || d.k === 'gB')) {   // Shift: o ângulo gruda de 45 em 45
+        const o = d.k === 'gA' ? g.b : g.a, q = d.k === 'gA' ? g.a : g.b, Ln = Math.hypot(q[0] - o[0], q[1] - o[1]), an = Math.round(Math.atan2(q[1] - o[1], q[0] - o[0]) / (Math.PI / 4)) * Math.PI / 4;
+        g[d.k === 'gA' ? 'a' : 'b'] = [o[0] + Math.cos(an) * Ln, o[1] + Math.sin(an) * Ln];
+      }
+      if (d.k === 'gN1' || d.k === 'gN2') {
+        const vx = g.b[0] - g.a[0], vy = g.b[1] - g.a[1], Ln = Math.hypot(vx, vy) || 1, px = -vy / Ln, py = vx / Ln, s = (lp[0] - (g.a[0] + g.b[0]) / 2) * px + (lp[1] - (g.a[1] + g.b[1]) / 2) * py;
+        if (d.k === 'gN1') g.n1 = Math.max(8, Math.round(s)); else g.n2 = Math.max(8, Math.round(-s));
+      }
+      g.a = g.a.map(Math.round); g.b = g.b.map(Math.round); M.touch(it);
+      this.draw(); this.renderProps(); this.c.onChange(); return;
+    }
     if (d.k === 'body') {
       let r = { x: d.rect.x + p[0] - d.start[0], y: d.rect.y + p[1] - d.start[1], w: d.rect.w, h: d.rect.h };
       r = this.snapRect(r, it);
@@ -444,6 +496,34 @@ export class AdvancedOutput {
   }
 
   // ---------- propriedades (linhas no formato do Resolume, kit em panel.js) ----------
+  // degradês da emenda: lista, pontos, trecho, arredondado e "Voltar ao automático"
+  gradProps(P, s) {
+    const gs = this.grads(s), refresh = () => { M.touch(s); this.c.onChange(); this.draw(); this.renderProps(); };
+    P.appendChild(this.phead('Degradês da emenda', 'Degradês da emenda|Cada emenda é um degradê com alça na imagem, como no Illustrator: bolinha = brilho inteiro, quadrado = zero, losangos = trecho da faixa. O automático põe um por vizinho; mexeu numa alça, ele vira ajustado.'));
+    const list = el('div', 'glist');
+    gs.forEach((g, i) => {
+      const row = el('div', 'grow' + (i === this.selG ? ' cur' : ''));
+      row.append(el('span', 'nm', M.gradName(g, i)), el('span', 'tag' + (g.auto ? '' : ' man'), g.auto ? 'automático' : 'ajustado'));
+      if (!g.auto) { const x = el('span', 'x', '✕'); x.title = 'Apagar'; x.onclick = (ev) => { ev.stopPropagation(); this.selG = i; this.removeGrad(); }; row.appendChild(x); }
+      row.onclick = () => { this.selG = i; this.draw(); this.renderProps(); };
+      list.appendChild(row);
+    });
+    const add = el('button', 'wide', '+ Adicionar degradê'); add.type = 'button';
+    add.onclick = () => { this.pushUndo(); const w = s.in.w, h = s.in.h, rd = s.soft.round; s.soft.grads.push({ id: M.nextId(), edge: null, a: [Math.round(w * 0.3), Math.round(h / 2)], b: [0, Math.round(h / 2)], n1: Math.round(h / 4), n2: Math.round(h / 4), roundOn: rd.on, round: rd.r }); this.selG = this.grads(s).length - 1; refresh(); };
+    P.appendChild(this.prow('', '', list)); P.appendChild(add);
+    const g = gs[this.selG]; if (!g) return;
+    const edit = (fn) => (v) => { const m = M.adoptGrad(s, g); fn(m, v); this.selG = this.grads(s).indexOf(m); M.touch(s); };
+    P.appendChild(this.pnum('Começo X', 'Começo|Ponto de brilho inteiro (bolinha), em pixels do recorte.', g.a[0], { min: -99999, max: 99999, step: 1 }, edit((m, v) => { m.a[0] = v; })));
+    P.appendChild(this.pnum('Começo Y', 'Começo|Ponto de brilho inteiro (bolinha), em pixels do recorte.', g.a[1], { min: -99999, max: 99999, step: 1 }, edit((m, v) => { m.a[1] = v; })));
+    P.appendChild(this.pnum('Fim X', 'Fim|Ponto de brilho zero (quadrado), em pixels do recorte.', g.b[0], { min: -99999, max: 99999, step: 1 }, edit((m, v) => { m.b[0] = v; })));
+    P.appendChild(this.pnum('Fim Y', 'Fim|Ponto de brilho zero (quadrado), em pixels do recorte.', g.b[1], { min: -99999, max: 99999, step: 1 }, edit((m, v) => { m.b[1] = v; })));
+    P.appendChild(this.pnum('Trecho +', 'Trecho|Quanto a faixa se estende para cada lado da linha, em pixels (os losangos).', Math.round(g.n1), { min: 8, max: 99999, step: 1 }, edit((m, v) => { m.n1 = v; })));
+    P.appendChild(this.pnum('Trecho −', 'Trecho|Quanto a faixa se estende para cada lado da linha, em pixels (os losangos).', Math.round(g.n2), { min: 8, max: 99999, step: 1 }, edit((m, v) => { m.n2 = v; })));
+    // arredondado: no automático é o padrão do slice (vale para todos os automáticos); no ajustado é dele
+    P.appendChild(this.pcheck('Arredondar', 'Arredondar|Arredonda os cantos da faixa do lado da projeção; na beirada do projetor fica reto.', g.roundOn, v => { if (g.auto) s.soft.round.on = v; else g.roundOn = v; M.touch(s); }));
+    P.appendChild(this.pnum('Raio', 'Raio|Tamanho do arredondado, em % de metade do lado menor da faixa.', Math.round((g.round || 0) * 100), { min: 0, max: 100, step: 1, unit: ' %', bar: true, reset: 50 }, v => { if (g.auto) s.soft.round.r = v / 100; else g.round = v / 100; M.touch(s); }));
+    if (!g.auto && g.edge) { const back = el('button', 'wide', 'Voltar ao automático'); back.type = 'button'; back.onclick = () => { this.pushUndo(); s.soft.grads = s.soft.grads.filter(x => x !== g); this.selG = -1; refresh(); }; P.appendChild(back); }
+  }
   colorRows(P, c) {
     P.appendChild(this.pnum('Brilho', 'Brilho|Compensa projetores diferentes entre si.', Math.round((c.bright - 1) * 100), { min: -100, max: 100, step: 1, bar: true, reset: 0 }, v => { c.bright = 1 + v / 100; }));
     P.appendChild(this.pnum('Contraste', 'Contraste|Compensa projetores diferentes entre si.', Math.round((c.contrast - 1) * 100), { min: -100, max: 100, step: 1, bar: true, reset: 0 }, v => { c.contrast = 1 + v / 100; }));
@@ -506,6 +586,7 @@ export class AdvancedOutput {
         P.appendChild(this.pnum('Gama azul', 'Gama por cor|Corrige a emenda numa cor só.', s.soft.gamma[2], { min: 1, max: 4, step: 0.05, dec: 2, bar: true, reset: 2.2 }, v => { s.soft.gamma[2] = v; }));
         P.appendChild(this.phead('Compensação de preto', 'Compensação de preto|Levanta o preto do slice fora da emenda, para casar com o preto da área sobreposta.'));
         P.appendChild(this.pnum('Nível', 'Nível de preto|Quanto o preto sobe fora da emenda.', s.soft.black, { min: 0, max: 60, step: 1, bar: true, reset: 0 }, v => { s.soft.black = v; }));
+        if (this.tab === 'in') this.gradProps(P, s);
       }
       if (this.tab === 'in') {
         const icons = el('div', 'pv icons');

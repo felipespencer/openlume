@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenLume — maquete: Soft Edge por degradê</title>
+<style>
+  :root{
+    --bg:#1b1c1f; --bg2:#232428; --bg3:#2c2d32; --line:#3a3b41; --txt:#d6d7db; --dim:#8b8d95; --ghost:#5a5c64;
+    --accent:#39FF14; --sel:#FF2D95; --warn:#FFB02E; --s1:#6EC1FF; --s2:#FF7B9C;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; margin:0; }
+  body{ background:var(--bg); color:var(--txt); font:12px/1.3 "Segoe UI",system-ui,sans-serif; display:grid;
+    grid-template-rows:30px 34px minmax(0,1fr); overflow:hidden; user-select:none; }
+  button,select{ font:inherit; color:inherit; background:var(--bg3); border:1px solid var(--line); border-radius:3px; cursor:pointer; height:22px; padding:0 8px; }
+  button:hover,select:hover{ border-color:var(--dim); }
+  button.on{ background:var(--accent); border-color:var(--accent); color:#0b0b0d; font-weight:700; }
+  input[type=range]{ accent-color:var(--accent); height:14px; margin:0; width:100%; }
+  input[type=checkbox]{ accent-color:var(--accent); margin:0; }
+
+  #top{ display:flex; align-items:center; gap:14px; padding:0 10px; background:#141518; border-bottom:1px solid var(--line); }
+  #top .logo{ font-weight:800; letter-spacing:.06em; } #top .logo b{ color:var(--accent); }
+  #top .tit{ color:var(--dim); } #top .sp{ flex:1; }
+  #top .maq{ color:var(--warn); font-size:11px; }
+
+  #tools{ display:flex; align-items:center; gap:6px; padding:0 10px; background:var(--bg2); border-bottom:1px solid var(--line); }
+  #tools .sep{ width:1px; height:20px; background:var(--line); margin:0 4px; }
+  #tools .tabs{ display:flex; } #tools .tabs button{ border-radius:0; } #tools .tabs button:first-child{ border-radius:3px 0 0 3px; } #tools .tabs button:last-child{ border-radius:0 3px 3px 0; }
+  #tools .info{ color:var(--dim); margin-left:auto; }
+
+  #main{ display:grid; grid-template-columns:230px minmax(0,1fr) 300px; min-height:0; }
+
+  #tree{ background:var(--bg2); border-right:1px solid var(--line); overflow:auto; display:flex; flex-direction:column; }
+  #tree .hd{ display:flex; justify-content:space-between; align-items:center; padding:8px 10px 6px; color:var(--dim); font-size:10px; letter-spacing:.08em; text-transform:uppercase; }
+  .scr{ border-top:1px solid var(--line); }
+  .scr .row{ display:flex; align-items:center; gap:6px; padding:6px 8px; cursor:pointer; }
+  .scr .row:hover{ background:var(--bg3); }
+  .scr .row.sel{ background:#26282e; box-shadow:inset 3px 0 0 var(--sel); }
+  .scr .row .nm{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .scr .row .dev{ color:var(--ghost); font-size:10px; }
+  .scr .row.screen .nm{ font-weight:700; }
+  .scr .row.item{ padding-left:22px; }
+  .scr .row .dot{ width:8px; height:8px; border-radius:2px; flex:none; }
+  #tree .dica{ margin-top:auto; padding:10px; color:var(--ghost); line-height:1.5; border-top:1px solid var(--line); }
+  #tree .dica b{ color:var(--dim); }
+
+  #stage{ position:relative; overflow:hidden; background:#121316;
+    background-image:linear-gradient(#1a1b1f 1px,transparent 1px),linear-gradient(90deg,#1a1b1f 1px,transparent 1px); background-size:40px 40px; }
+  #stage canvas, #stage svg{ position:absolute; left:0; top:0; }
+  #stage svg{ overflow:visible; }
+  .proj{ fill:none; stroke:var(--line); }
+  .slice{ fill:none; stroke:var(--s1); stroke-width:1.5; }
+  .other{ fill:rgba(255,123,156,.06); stroke:var(--s2); stroke-width:1.2; stroke-dasharray:6 4; }
+  .sname{ font:700 11px "Segoe UI",system-ui,sans-serif; fill:var(--s1); } .oname{ font:700 11px "Segoe UI",system-ui,sans-serif; fill:var(--s2); }
+  .gline{ stroke:#fff; stroke-width:1.5; opacity:.9; } .gline.sel{ stroke:var(--accent); } .gline.sel.man{ stroke:var(--warn); }
+  .gband{ stroke:#fff; stroke-width:1; stroke-dasharray:4 4; opacity:.45; } .gband.sel{ stroke:var(--accent); } .gband.sel.man{ stroke:var(--warn); }
+  .hd{ fill:#0b0b0d; stroke:#fff; stroke-width:2; cursor:grab; } .hd.sel{ stroke:var(--accent); } .hd.sel.man{ stroke:var(--warn); }
+  .hd.a{ fill:#fff; } .hd.a.sel{ fill:var(--accent); } .hd.a.sel.man{ fill:var(--warn); }
+  .hdmid{ fill:transparent; cursor:move; }
+  .hlab{ font:10px "Segoe UI",system-ui,sans-serif; fill:#fff; opacity:.8; }
+  #stage .legend{ position:absolute; left:10px; bottom:8px; color:var(--ghost); font-size:11px; display:flex; gap:14px; }
+  #stage .legend i{ display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:-1px; margin-right:4px; }
+  #stage .tip{ position:absolute; right:10px; top:8px; color:var(--dim); font-size:11px; background:rgba(20,21,24,.85); border:1px solid var(--line); border-radius:3px; padding:6px 8px; line-height:1.5; max-width:330px; }
+  #stage .tip b{ color:var(--txt); }
+
+  #props{ background:var(--bg2); border-left:1px solid var(--line); overflow:auto; }
+  #props .tit{ padding:8px 10px; font-weight:700; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+  #props .tit span{ color:var(--s1); }
+  .grp{ border-bottom:1px solid var(--line); }
+  .grp .gh{ display:flex; justify-content:space-between; align-items:center; padding:7px 10px; color:var(--dim); font-size:10px; letter-spacing:.08em; text-transform:uppercase; }
+  .grp .gh b{ color:var(--ghost); font-weight:400; }
+  .grp .gb{ padding:2px 10px 8px; }
+  .row{ display:grid; grid-template-columns:86px minmax(0,1fr) 50px; align-items:center; gap:8px; margin:5px 0; color:var(--dim); }
+  .row output{ color:var(--txt); text-align:right; font-variant-numeric:tabular-nums; }
+  .row .seg{ display:flex; grid-column:2 / -1; } .row .seg button{ flex:1; border-radius:0; } .row .seg button:first-child{ border-radius:3px 0 0 3px; } .row .seg button:last-child{ border-radius:0 3px 3px 0; }
+  .row .num{ display:flex; gap:4px; grid-column:2 / -1; }
+  .row .num span{ flex:1; background:var(--bg); border:1px solid var(--line); border-radius:3px; padding:3px 6px; color:var(--txt); text-align:right; font-variant-numeric:tabular-nums; }
+  .row .num span i{ float:left; color:var(--ghost); font-style:normal; }
+  .glist{ margin:4px 0 6px; border:1px solid var(--line); border-radius:3px; overflow:hidden; }
+  .glist .g{ display:flex; align-items:center; gap:8px; padding:5px 8px; cursor:pointer; border-top:1px solid var(--line); }
+  .glist .g:first-child{ border-top:0; }
+  .glist .g:hover{ background:var(--bg3); } .glist .g.sel{ background:#26282e; box-shadow:inset 3px 0 0 var(--accent); }
+  .glist .g .sw{ width:26px; height:10px; border-radius:2px; background:linear-gradient(90deg,#fff,#000); flex:none; border:1px solid var(--line); }
+  .glist .g .tag{ font-size:10px; color:var(--accent); } .glist .g .tag.man{ color:var(--warn); }
+  .glist .g .nm{ flex:1; } .glist .g .x{ color:var(--ghost); } .glist .g:hover .x{ color:var(--txt); }
+  .glist .add{ padding:5px 8px; color:var(--dim); cursor:pointer; border-top:1px solid var(--line); } .glist .add:hover{ color:var(--txt); background:var(--bg3); }
+  .note{ padding:8px 10px; color:var(--ghost); line-height:1.5; }
+  .note b{ color:var(--dim); }
+</style>
+</head>
+<body>
+<div id="top">
+  <span class="logo">OPEN<b>LUME</b></span>
+  <span class="tit">Saída avançada</span>
+  <span class="sp"></span>
+  <span class="maq">MAQUETE · nada aqui está no programa ainda</span>
+</div>
+
+<div id="tools">
+  <div class="tabs"><button id="tabIn">Entrada</button><button class="on" id="tabOut">Saída</button></div>
+  <div class="sep"></div>
+  <button title="Mover, girar e redimensionar o slice inteiro">Transformar</button>
+  <button title="Deformar a malha">Deformar</button>
+  <button class="on" title="Ver e puxar os degradês de emenda direto na imagem">Emenda</button>
+  <div class="sep"></div>
+  <button class="on">Grade</button>
+  <span class="info" id="info">Projetor em pé 1080×1920 · o automático já pôs o degradê onde o deitado encosta; arraste as pontas pra inclinar, os losangos pra esticar o trecho</span>
+</div>
+
+<div id="main">
+  <div id="tree">
+    <div class="hd"><span>Telas</span><button>+ Adicionar ▾</button></div>
+    <div class="scr">
+      <div class="row screen"><input type="checkbox" checked><span class="nm">Projetor deitado</span><span class="dev">Monitor 2</span></div>
+      <div class="row item"><input type="checkbox" checked><i class="dot" style="background:var(--s2)"></i><span class="nm">Slice 1</span></div>
+    </div>
+    <div class="scr">
+      <div class="row screen sel"><input type="checkbox" checked><span class="nm">Projetor em pé</span><span class="dev">Monitor 3</span></div>
+      <div class="row item sel"><input type="checkbox" checked><i class="dot" style="background:var(--s1)"></i><span class="nm">Slice 1</span></div>
+    </div>
+    <div class="dica"><b>Degradê de emenda.</b> A emenda é sempre um degradê com alça, igual ao do Illustrator. O automático só decide onde a alça nasce (pela sobreposição dos recortes). Mexeu na alça, o degradê vira seu; "Voltar ao automático" refaz.</div>
+  </div>
+
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <svg id="ov"></svg>
+    <div class="tip"><b>Gesto.</b> O degradê verde foi posto pelo <b>automático</b>, só no trecho onde o deitado encosta. Arraste a <b>bolinha</b> (inteiro) ou o <b>quadradinho</b> (zero) e ele vira <b>ajustado</b> (laranja), mantendo o trecho. Os <b>losangos</b> esticam ou encurtam o trecho; <b>Arredondar</b> (liga/desliga + raio) arredonda os cantos do lado da projeção; na beirada do projetor fica reto. Arraste a <b>linha</b> para mover. Setinhas 1 px, Shift 10 px. Duplo clique cria outro. Del apaga.</div>
+    <div class="legend"><span><i style="background:var(--s1)"></i>Projetor em pé (selecionado)</span><span><i style="background:var(--s2)"></i>Onde o deitado chega (tracejado)</span><span><i style="background:#fff"></i>Alça do degradê</span></div>
+  </div>
+
+  <div id="props">
+    <div class="tit"><span>Slice 1</span><small style="color:var(--ghost)">Projetor em pé</small></div>
+
+    <div class="grp"><div class="gh">Soft edge <b>emenda</b></div><div class="gb">
+      <div class="row"><span>Ligado</span><div class="seg"><button class="on" style="flex:none;width:60px">Sim</button><span style="color:var(--ghost);padding:4px 8px">emenda com o vizinho</span></div></div>
+            <div class="row" style="grid-template-columns:1fr"><div class="glist" id="glist"></div></div>
+      <div class="row"><span>Potência</span><input type="range" id="pow" min="50" max="500" value="200"><output id="powO">2,0</output></div>
+      <div class="row"><span>Luminância</span><input type="range" id="lum" min="0" max="100" value="50"><output id="lumO">0,50</output></div>
+      <div class="row"><span>Gama</span><input type="range" id="gam" min="100" max="400" value="220"><output id="gamO">2,20</output></div>
+      <div class="row"><span>Arredondar</span><div class="num" style="align-items:center"><input type="checkbox" id="rndOn" checked style="flex:none"><input type="range" id="rnd" min="0" max="100" value="50" style="flex:1"></div></div>
+      <div class="row"><span></span><div class="num"><span style="color:var(--ghost);text-align:left;border:0;background:none">só os cantos do lado da projeção · raio <em id="rndO">50%</em></span></div></div>
+    </div></div>
+
+    <div class="grp"><div class="gh">Degradê selecionado <b>em pixels do projetor</b></div><div class="gb">
+      <div class="row"><span>Começo</span><div class="num"><span><i>X</i><em id="ax">0</em></span><span><i>Y</i><em id="ay">0</em></span></div></div>
+      <div class="row"><span>Fim</span><div class="num"><span><i>X</i><em id="bx">0</em></span><span><i>Y</i><em id="by">0</em></span></div></div>
+      <div class="row"><span>Largura</span><div class="num"><span><em id="len">0</em> px</span><span><i>ângulo</i><em id="ang">0</em>°</span></div></div>
+      <div class="row"><span>Trecho</span><div class="num"><span><em id="trecho">0</em> px</span><span style="color:var(--ghost);text-align:left">losangos nas pontas</span></div></div>
+      <div class="row"><span>Origem</span><div class="num"><span id="orig" style="text-align:left">automático</span></div></div>
+      <div class="row"><span></span><div class="num"><button id="gauto" style="flex:1">Voltar ao automático</button></div></div>
+    </div></div>
+
+    <div class="note"><b>Como entra no programa.</b> Cada degradê é uma reta de A a B em pixels da saída do slice. O brilho em cada ponto é a curva de emenda (Potência, Luminância, Gama) aplicada à projeção do ponto nessa reta: inteiro antes de A, zero depois de B. Vários degradês se multiplicam. Salva no preset da Saída avançada, com desfazer. O Resolume só tem emenda por borda; isso é nosso.</div>
+  </div>
+</div>
+
+<script>
+// ---- modelo ----
+// projetor em pé 1080×1920; o deitado (1920×1080) encosta de quina no canto de cima à esquerda do em pé
+const PW = 1080, PH = 1920;
+const other = { x: -1700, y: 300, w: 1920, h: 1080 };     // onde o deitado cai, em pixels do em pé (sobrepõe x 0..220, y 300..1380)
+const OV = { x0: 0, x1: 220, y0: 300, y1: 1380 };          // a sobreposição, que o automático usa
+// um degradê: reta A (inteiro) → B (zero). auto: posto pelo programa, só no trecho do vizinho; ajustado: seu, vale a lateral toda
+function autoGrad() { const n = (OV.y1 - OV.y0) / 2; return { name: 'Degradê 1 · deitado', auto: true, a: { x: OV.x1, y: (OV.y0 + OV.y1) / 2 }, b: { x: OV.x0, y: (OV.y0 + OV.y1) / 2 }, n1: n, n2: n, roundOn: true, round: 0.5 }; }
+// a faixa do degradê: retângulo girado, da reta A→B estendido n1 para um lado e n2 para o outro (em pixels do projetor)
+function bandPath(g) {   // retângulo girado com cantos redondos: lista de [x,y] na tela (arcos aproximados por pontos)
+  const B = band(g), P = B.pts.map(([x, y]) => toS({ x, y })); const L = Math.hypot(g.b.x - g.a.x, g.b.y - g.a.y), r = g.roundOn ? Math.min(L, g.n1 + g.n2) / 2 * (g.round || 0) * S : 0;
+  if (r < 1) return P;
+  const out = []; for (let k = 0; k < 4; k++) {
+    const p0 = P[(k + 3) % 4], p1 = P[k], p2 = P[(k + 1) % 4];
+    const u = [p0[0] - p1[0], p0[1] - p1[1]], v = [p2[0] - p1[0], p2[1] - p1[1]]; const lu = Math.hypot(...u) || 1, lv = Math.hypot(...v) || 1;
+    const rr = (k === 0 || k === 3) ? Math.min(r, lu / 2, lv / 2) : 0.01;   // só os cantos do lado da projeção; na beirada do projetor fica reto
+    const c = [p1[0] + u[0] / lu * rr + v[0] / lv * rr, p1[1] + u[1] / lu * rr + v[1] / lv * rr];   // centro do arco
+    const a0 = Math.atan2(p1[1] + u[1] / lu * rr - c[1], p1[0] + u[0] / lu * rr - c[0]), a1 = Math.atan2(p1[1] + v[1] / lv * rr - c[1], p1[0] + v[0] / lv * rr - c[0]);
+    let d = a1 - a0; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+    for (let t = 0; t <= 8; t++) { const a = a0 + d * t / 8; out.push([c[0] + Math.cos(a) * rr, c[1] + Math.sin(a) * rr]); }
+  }
+  return out;
+}
+function band(g) { const dx = g.b.x - g.a.x, dy = g.b.y - g.a.y, L = Math.hypot(dx, dy) || 1, px = -dy / L, py = dx / L; return { px, py, pts: [[g.a.x + px * g.n1, g.a.y + py * g.n1], [g.b.x + px * g.n1, g.b.y + py * g.n1], [g.b.x - px * g.n2, g.b.y - py * g.n2], [g.a.x - px * g.n2, g.a.y - py * g.n2]] }; }
+const st = { grads: [autoGrad()], sel: 0, pow: 2, lum: 0.5, gam: 2.2 };
+function ramp(t) {
+  t = Math.max(0, Math.min(1, t)); const p = st.pow, L = st.lum;
+  const f = t < 0.5 ? L * Math.pow(2 * t, p) : 1 - (1 - L) * Math.pow(2 * (1 - t), p);
+  return Math.pow(f, 2.2 / st.gam);
+}
+
+// ---- palco ----
+const stage = document.getElementById('stage'), cv = document.getElementById('cv'), ov = document.getElementById('ov'), ctx = cv.getContext('2d');
+let S = 1, OX = 0, OY = 0;
+function layout() {
+  const W = stage.clientWidth, H = stage.clientHeight; cv.width = W; cv.height = H; ov.setAttribute('width', W); ov.setAttribute('height', H);
+  S = Math.min((W - 80) / PW, (H - 70) / PH); OX = (W - PW * S) / 2; OY = (H - PH * S) / 2 + 8;
+  draw();
+}
+const toS = (p) => [OX + p.x * S, OY + p.y * S];
+const toP = (sx, sy) => ({ x: Math.round((sx - OX) / S), y: Math.round((sy - OY) / S) });
+
+function picture() {
+  const g = ctx.createLinearGradient(OX, OY, OX + PW * S, OY + PH * S);
+  g.addColorStop(0, '#5c2a8a'); g.addColorStop(.5, '#1c6ea4'); g.addColorStop(1, '#1fae7a');
+  ctx.fillStyle = g; ctx.fillRect(OX, OY, PW * S, PH * S);
+  ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1;
+  for (let y = 0; y <= PH; y += 120) { ctx.beginPath(); ctx.moveTo(OX, OY + y * S); ctx.lineTo(OX + PW * S, OY + y * S); ctx.stroke(); }
+  for (let x = 0; x <= PW; x += 120) { ctx.beginPath(); ctx.moveTo(OX + x * S, OY); ctx.lineTo(OX + x * S, OY + PH * S); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = `700 ${Math.max(14, 90 * S)}px Segoe UI, system-ui, sans-serif`; ctx.textAlign = 'center';
+  ctx.fillText('EM PÉ', OX + PW * S / 2, OY + PH * S / 2);
+}
+function fade(g) {   // escurece pela curva ao longo da reta A→B; o automático só dentro do trecho do vizinho
+  const [ax, ay] = toS(g.a), [bx, by] = toS(g.b); if (Math.hypot(bx - ax, by - ay) < 1) return;
+  const lg = ctx.createLinearGradient(ax, ay, bx, by);
+  for (let i = 0; i <= 24; i++) { const t = i / 24; lg.addColorStop(t, `rgba(0,0,0,${(1 - ramp(1 - t)).toFixed(4)})`); }
+  ctx.fillStyle = lg;
+  ctx.save(); ctx.beginPath(); bandPath(g).forEach(([sx, sy], k) => { if (k) ctx.lineTo(sx, sy); else ctx.moveTo(sx, sy); }); ctx.closePath(); ctx.clip();
+  ctx.fillRect(OX - 4000, OY - 4000, PW * S + 8000, PH * S + 8000); ctx.restore();
+}
+function draw() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.save(); ctx.beginPath(); ctx.rect(OX, OY, PW * S, PH * S); ctx.clip();
+  picture(); st.grads.forEach(fade);
+  ctx.restore();
+  overlay(); props();
+}
+function overlay() {
+  const [ox, oy] = toS(other); const ow = other.w * S, oh = other.h * S;
+  let s = `<rect class="proj" x="${OX}" y="${OY}" width="${PW * S}" height="${PH * S}"/>`;
+  s += `<rect class="slice" x="${OX}" y="${OY}" width="${PW * S}" height="${PH * S}"/><text class="sname" x="${OX + 8}" y="${OY + 16}">Slice 1 · 1080×1920</text>`;
+  s += `<rect class="other" x="${ox}" y="${oy}" width="${ow}" height="${oh}"/><text class="oname" x="${OX - 230}" y="${oy + oh - 10}">Projetor deitado ▸ chega até a linha tracejada</text>`;
+  st.grads.forEach((g, i) => {
+    const [ax, ay] = toS(g.a), [bx, by] = toS(g.b), sel = (i === st.sel ? ' sel' : '') + (g.auto ? '' : ' man');
+    const B = band(g), P = B.pts.map(([x, y]) => toS({ x, y }));
+    s += `<polygon class="gband${sel}" fill="none" points="${bandPath(g).map(q => q.join(',')).join(' ')}"/>`;
+    // alças do comprimento da faixa: losangos no meio de cada lado comprido
+    const mx = (ax + bx) / 2, my = (ay + by) / 2, h1 = [mx + B.px * g.n1 * S, my + B.py * g.n1 * S], h2 = [mx - B.px * g.n2 * S, my - B.py * g.n2 * S];
+    for (const [k, h] of [['n1', h1], ['n2', h2]]) s += `<polygon class="hd${sel}" data-g="${i}" data-h="${k}" points="${h[0]},${h[1] - 7} ${h[0] + 7},${h[1]} ${h[0]},${h[1] + 7} ${h[0] - 7},${h[1]}"/>`;
+    s += `<line class="gline${sel}" x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}"/><line class="hdmid" data-g="${i}" data-h="m" x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="transparent" stroke-width="14"/>`;
+    s += `<circle class="hd a${sel}" data-g="${i}" data-h="a" cx="${ax}" cy="${ay}" r="6"/><rect class="hd${sel}" data-g="${i}" data-h="b" x="${bx - 6}" y="${by - 6}" width="12" height="12"/>`;
+    s += `<text class="hlab" x="${ax + 9}" y="${ay - 9}">inteiro</text><text class="hlab" x="${bx + 9}" y="${by + 16}">zero</text>`;
+    s += `<text class="hlab" x="${(ax + bx) / 2 - 20}" y="${(ay + by) / 2 - 12}" style="fill:${g.auto ? '#39FF14' : '#FFB02E'};opacity:1">${g.auto ? 'automático' : 'ajustado'}</text>`;
+  });
+  ov.innerHTML = s;
+}
+function props() {
+  const g = st.grads[st.sel]; const el = (id) => document.getElementById(id);
+  const list = el('glist'); list.innerHTML = st.grads.map((x, i) => `<div class="g${i === st.sel ? ' sel' : ''}" data-i="${i}"><i class="sw"></i><span class="nm">${x.name}</span><span class="tag${x.auto ? '' : ' man'}">${x.auto ? 'automático' : 'ajustado'}</span><span class="x" data-x="${i}" title="Apagar">✕</span></div>`).join('') + `<div class="add" id="gadd">+ Adicionar degradê (ou duplo clique na imagem)</div>`;
+  if (g) { el('ax').textContent = Math.round(g.a.x); el('ay').textContent = Math.round(g.a.y); el('bx').textContent = Math.round(g.b.x); el('by').textContent = Math.round(g.b.y); el('len').textContent = Math.round(Math.hypot(g.b.x - g.a.x, g.b.y - g.a.y)); el('ang').textContent = Math.round(Math.atan2(g.b.y - g.a.y, g.b.x - g.a.x) * 180 / Math.PI); el('orig').textContent = g.auto ? 'automático · pela sobreposição com o deitado' : 'ajustado por você'; el('trecho').textContent = Math.round(g.n1 + g.n2); el('rnd').value = Math.round((g.round || 0) * 100); el('rndO').textContent = Math.round((g.round || 0) * 100) + '%'; el('rndOn').checked = !!g.roundOn; el('rnd').disabled = !g.roundOn; el('gauto').disabled = !!g.auto; }
+  el('powO').textContent = st.pow.toFixed(1).replace('.', ','); el('lumO').textContent = st.lum.toFixed(2).replace('.', ','); el('gamO').textContent = st.gam.toFixed(2).replace('.', ',');
+}
+
+// ---- gestos ----
+let drag = null;
+ov.addEventListener('pointerdown', (e) => {
+  const t = e.target.closest('[data-g]'); if (!t) return;
+  const gi = +t.dataset.g, h = t.dataset.h, g = st.grads[gi]; st.sel = gi;
+  const r = stage.getBoundingClientRect();
+  drag = { g, h, p0: toP(e.clientX - r.left, e.clientY - r.top), a0: { ...g.a }, b0: { ...g.b } };
+  ov.setPointerCapture(e.pointerId); draw();
+});
+ov.addEventListener('pointermove', (e) => {
+  if (!drag) return; const r = stage.getBoundingClientRect(); const p = toP(e.clientX - r.left, e.clientY - r.top);
+  const dx = p.x - drag.p0.x, dy = p.y - drag.p0.y; if (!dx && !dy) return;
+  if (drag.g.auto) { drag.g.auto = false; drag.g.name = drag.g.name.replace(' · deitado', ''); }   // mexeu: o degradê vira seu
+  if (drag.h === 'n1' || drag.h === 'n2') {   // comprimento da faixa: projeção do ponteiro na perpendicular, a partir do meio da reta
+    const B = band(drag.g), mx = (drag.g.a.x + drag.g.b.x) / 2, my = (drag.g.a.y + drag.g.b.y) / 2; const d = (p.x - mx) * B.px + (p.y - my) * B.py;
+    if (drag.h === 'n1') drag.g.n1 = Math.max(20, Math.round(d)); else drag.g.n2 = Math.max(20, Math.round(-d));
+    draw(); return;
+  }
+  const cl = (q) => ({ x: Math.max(-200, Math.min(PW + 200, q.x)), y: Math.max(-200, Math.min(PH + 200, q.y)) });
+  if (drag.h === 'a' || drag.h === 'm') drag.g.a = cl({ x: drag.a0.x + dx, y: drag.a0.y + dy });
+  if (drag.h === 'b' || drag.h === 'm') drag.g.b = cl({ x: drag.b0.x + dx, y: drag.b0.y + dy });
+  if (e.shiftKey && drag.h !== 'm') {
+    const o = drag.h === 'a' ? drag.g.b : drag.g.a, q = drag.g[drag.h]; const L = Math.hypot(q.x - o.x, q.y - o.y); const an = Math.round(Math.atan2(q.y - o.y, q.x - o.x) / (Math.PI / 4)) * Math.PI / 4;
+    drag.g[drag.h] = { x: Math.round(o.x + Math.cos(an) * L), y: Math.round(o.y + Math.sin(an) * L) };
+  }
+  draw();
+});
+ov.addEventListener('pointerup', () => { drag = null; });
+stage.addEventListener('dblclick', (e) => {
+  const r = stage.getBoundingClientRect(); const p = toP(e.clientX - r.left, e.clientY - r.top);
+  st.grads.push({ name: 'Degradê ' + (st.grads.length + 1), auto: false, a: { x: p.x, y: p.y }, b: { x: p.x - 200, y: p.y }, n1: 300, n2: 300, roundOn: true, round: 0.5 }); st.sel = st.grads.length - 1; draw();
+});
+document.addEventListener('keydown', (e) => {
+  const g = st.grads[st.sel]; if (!g) return; const step = e.shiftKey ? 10 : 1; let d = null;
+  if (e.key === 'ArrowLeft') d = [-step, 0]; if (e.key === 'ArrowRight') d = [step, 0]; if (e.key === 'ArrowUp') d = [0, -step]; if (e.key === 'ArrowDown') d = [0, step];
+  if (d) { g.auto = false; g.b.x += d[0]; g.b.y += d[1]; if (e.altKey) { g.a.x += d[0]; g.a.y += d[1]; } e.preventDefault(); draw(); }
+  if (e.key === 'Delete' && st.grads.length > 1) { st.grads.splice(st.sel, 1); st.sel = Math.max(0, st.sel - 1); draw(); }
+});
+document.getElementById('props').addEventListener('click', (e) => {
+  const x = e.target.closest('[data-x]'); if (x) { if (st.grads.length > 1) { st.grads.splice(+x.dataset.x, 1); st.sel = Math.max(0, st.sel - 1); draw(); } return; }
+  const g = e.target.closest('[data-i]'); if (g) { st.sel = +g.dataset.i; draw(); return; }
+  if (e.target.id === 'gadd') { st.grads.push({ name: 'Degradê ' + (st.grads.length + 1), auto: false, a: { x: 400, y: 1700 }, b: { x: 400, y: 1920 }, n1: 300, n2: 300, roundOn: true, round: 0.5 }); st.sel = st.grads.length - 1; draw(); }
+  if (e.target.id === 'gauto') { const sel = st.grads[st.sel]; if (sel && !sel.auto) { st.grads[st.sel] = autoGrad(); draw(); } }
+});
+document.getElementById('pow').oninput = (e) => { st.pow = e.target.value / 100; draw(); };
+document.getElementById('lum').oninput = (e) => { st.lum = e.target.value / 100; draw(); };
+document.getElementById('gam').oninput = (e) => { st.gam = e.target.value / 100; draw(); };
+document.getElementById('rnd').oninput = (e) => { const g = st.grads[st.sel]; if (g) { g.round = e.target.value / 100; draw(); } };
+document.getElementById('rndOn').onchange = (e) => { const g = st.grads[st.sel]; if (g) { g.roundOn = e.target.checked; draw(); } };
+window.addEventListener('resize', layout); layout();
+</script>
+</body>
+</html>

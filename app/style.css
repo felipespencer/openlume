@@ -217,6 +217,14 @@ button.gh:hover{ color:var(--txt); background:var(--bg3); }
 #aoView svg .hdc{ fill:none; stroke:var(--teal); stroke-width:1.5; vector-effect:non-scaling-stroke; }
 #aoView svg .hd.anc{ fill:var(--teal); } #aoView svg .hd.cur{ stroke:#fff; stroke-width:2.5; }
 #aoView svg .handle{ stroke:var(--teal); stroke-width:1; stroke-dasharray:3 3; opacity:.8; vector-effect:non-scaling-stroke; pointer-events:none; }
+/* degradês de emenda: faixa, linha A→B e alças; ajustado à mão fica laranja */
+#aoView svg .gband{ fill:rgba(111,230,198,.07); stroke:var(--teal); stroke-width:1; stroke-dasharray:4 4; opacity:.7; vector-effect:non-scaling-stroke; pointer-events:none; } #aoView svg .gband.cur{ opacity:1; } #aoView svg .gband.man{ stroke:var(--warn); fill:rgba(255,176,46,.07); }
+#aoView svg .gline{ stroke:var(--teal); stroke-width:1.5; vector-effect:non-scaling-stroke; pointer-events:none; } #aoView svg .gline.man{ stroke:var(--warn); }
+#aoView svg .gmid{ stroke:transparent; stroke-width:14; vector-effect:non-scaling-stroke; cursor:move; }
+#aoView svg .hd.man{ stroke:var(--warn); } #aoView svg .hd.ga{ fill:var(--teal); } #aoView svg .hd.ga.man{ fill:var(--warn); }
+#aoView svg .gname{ fill:var(--teal); pointer-events:none; } #aoView svg .gname.man{ fill:var(--warn); }
+#aoProps .glist{ width:100%; display:flex; flex-direction:column; gap:1px; } #aoProps .grow{ display:flex; gap:6px; align-items:center; padding:3px 6px; cursor:pointer; border-radius:3px; }
+#aoProps .grow:hover{ background:var(--bg3); } #aoProps .grow.cur{ background:var(--rh); box-shadow:inset 2px 0 0 var(--teal); } #aoProps .grow .nm{ flex:1; } #aoProps .grow .tag{ font-size:10px; color:var(--teal); } #aoProps .grow .tag.man{ color:var(--warn); } #aoProps .grow .x{ color:var(--dim); } #aoProps .grow .x:hover{ color:#fff; }
 #aoView svg .mask, #aoView svg .inmask{ fill:#f5d742; fill-opacity:.12; stroke:#f5d742; stroke-width:1; stroke-dasharray:5 4; vector-effect:non-scaling-stroke; cursor:move; }
 #aoView svg .mname{ fill:#f5d742; }
 #aoView svg .drawing{ fill:none; stroke:#f5d742; stroke-width:1.5; stroke-dasharray:5 4; vector-effect:non-scaling-stroke; pointer-events:none; }

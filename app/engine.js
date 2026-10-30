@@ -11,7 +11,7 @@
 // A cor sai do shader já multiplicada pela opacidade (premultiplicada), o que deixa os
 // modos de mistura corretos só com blendFunc.
 import { tessellate } from './warp.js';
-import { softWidths, allSlices } from './screens.js';
+import { softWidths, softGrads, gradRadius, allSlices } from './screens.js';
 import { effectById, EFFECT_HELPERS } from './effects.js';
 import { sourceById } from './sources.js';
 import { FS_MIX, mixerCode, normMixer, hexRgb, hexRgba, MIXER_OPT, mixerColor } from './mixers.js';
@@ -29,7 +29,6 @@ precision highp float; in vec2 v; uniform sampler2D uTex; uniform float uOp; uni
 void main(){ vec4 c = texture(uTex, v); if (uPre < 0.5) c.rgb *= c.a; o = c * uOp; }`;
 
 // slice: posição em px da tela; luv é a coordenada local (0..1) dentro do recorte
-const SOFT_Y_UP = false;   // o uv local do slice cresce para baixo, como a composição (conferido na saída real em 2026-10-30: com true o trecho caía na ponta errada)
 const VS_SLICE = `#version 300 es
 in vec2 aPos; in vec2 aLuv;
 uniform vec2 uScreen; uniform vec4 uIn; uniform float uRot; uniform vec2 uFlip; uniform vec2 uSrc;
@@ -47,8 +46,9 @@ const FS_SLICE = `#version 300 es
 precision highp float;
 in vec2 vUv; in vec2 vLuv; out vec4 o;
 uniform sampler2D uTex; uniform vec2 uBC; uniform vec3 uRGB;
-uniform int uUseSoft; uniform vec4 uSoft; uniform vec3 uSoftP; uniform vec3 uGamma;
-uniform vec4 uSoftLR; uniform vec4 uSoftTB;   // trecho da borda onde a emenda vale: (esq y0,y1, dir y0,y1) e (cima x0,x1, baixo x0,x1), no uv local
+uniform int uUseSoft; uniform vec3 uSoftP; uniform vec3 uGamma;
+#define NG 8
+uniform int uNG; uniform vec4 uGA[NG]; uniform vec4 uGB[NG]; uniform vec2 uInSize;   // degradês de emenda: A→B em px do recorte e (n1, n2, raio, 0)
 uniform int uUseMask; uniform sampler2D uMask;
 float ramp(float x){
   float s = step(0.5, x);
@@ -60,11 +60,20 @@ void main(){
   c.rgb = mix(vec3(0.5) * c.a, c.rgb * uBC.x, uBC.y) + uRGB * c.a;
   if (uUseSoft != 0) {
     float f = 1.0;
-    // cada rampa só vale no trecho da borda onde o outro projetor está (fora dele a borda fica inteira)
-    if (uSoft.x > 0.0 && vLuv.y >= uSoftLR.x && vLuv.y <= uSoftLR.y) f *= ramp(clamp(vLuv.x / uSoft.x, 0.0, 1.0));
-    if (uSoft.y > 0.0 && vLuv.y >= uSoftLR.z && vLuv.y <= uSoftLR.w) f *= ramp(clamp((1.0 - vLuv.x) / uSoft.y, 0.0, 1.0));
-    if (uSoft.z > 0.0 && vLuv.x >= uSoftTB.x && vLuv.x <= uSoftTB.y) f *= ramp(clamp(vLuv.y / uSoft.z, 0.0, 1.0));
-    if (uSoft.w > 0.0 && vLuv.x >= uSoftTB.z && vLuv.x <= uSoftTB.w) f *= ramp(clamp((1.0 - vLuv.y) / uSoft.w, 0.0, 1.0));
+    // cada degradê: faixa em volta da reta A→B (t ao longo, s para os lados); dentro dela a rampa vai de inteiro em A a zero em B;
+    // os cantos do lado de A podem ser redondos; fora da faixa a imagem fica inteira. Vários degradês se multiplicam.
+    vec2 p = vLuv * uInSize;
+    for (int i = 0; i < NG; i++) {
+      if (i >= uNG) break;
+      vec2 a = uGA[i].xy, d = uGA[i].zw - a; float L = max(length(d), 1e-3); vec2 u = d / L, n = vec2(-u.y, u.x);
+      vec2 q = p - a; float t = dot(q, u), s = dot(q, n), n1 = uGB[i].x, n2 = uGB[i].y, r = uGB[i].z;
+      bool dentro = t >= 0.0 && t <= L && s <= n1 && s >= -n2;
+      if (dentro && r > 0.0 && t < r) {
+        if (s > n1 - r) dentro = length(vec2(t - r, s - (n1 - r))) <= r;
+        else if (s < -n2 + r) dentro = length(vec2(t - r, s - (-n2 + r))) <= r;
+      }
+      if (dentro) f *= ramp(clamp(1.0 - t / L, 0.0, 1.0));
+    }
     // o nível de preto só sobe fora da faixa de emenda, para casar o preto dos dois projetores
     c.rgb = max(c.rgb, vec3(uSoftP.z) * step(0.99, f) * c.a);
     c.rgb *= pow(vec3(f), 1.0 / uGamma);
@@ -109,7 +118,7 @@ export class Engine {
     const gl = this.gl = canvas.getContext('webgl2', { alpha: false, antialias: false, premultipliedAlpha: true, preserveDrawingBuffer: true });
     if (!gl) throw new Error('WebGL2 indisponível');
     this.progLayer = this.program(VS_LAYER, FS_LAYER, ['uScale', 'uPos', 'uRot', 'uAspect', 'uOp', 'uPre', 'uTex']);
-    this.progSlice = this.program(VS_SLICE, FS_SLICE, ['uScreen', 'uIn', 'uRot', 'uFlip', 'uSrc', 'uTex', 'uBC', 'uRGB', 'uUseSoft', 'uSoft', 'uSoftP', 'uGamma', 'uSoftLR', 'uSoftTB', 'uUseMask', 'uMask']);
+    this.progSlice = this.program(VS_SLICE, FS_SLICE, ['uScreen', 'uIn', 'uRot', 'uFlip', 'uSrc', 'uTex', 'uBC', 'uRGB', 'uUseSoft', 'uSoftP', 'uGamma', 'uNG', 'uGA', 'uGB', 'uInSize', 'uUseMask', 'uMask']);
     this.progScreen = this.program(VS_QUAD, FS_SCREEN, ['uTex', 'uMask', 'uUseMask', 'uBC', 'uRGB', 'uOp']);
     this.progCopy = this.program(VS_QUAD, FS_COPY, ['uTex', 'uOpaque']);
     this.progMix = this.program(VS_QUAD, FS_MIX, ['uA', 'uB', 'uK', 'uTrans', 'uMode', 'uColor', 'uSmooth', 'uTime', 'uRes', 'uSeed']);
@@ -583,12 +592,14 @@ export class Engine {
       gl.uniform2f(P.u.uSrc, this.W, this.H);
       gl.uniform2f(P.u.uBC, s.color.bright, s.color.contrast);
       gl.uniform3f(P.u.uRGB, s.color.r, s.color.g, s.color.b);
-      const sw = softWidths(s, all);
-      gl.uniform1i(P.u.uUseSoft, s.soft.on ? 1 : 0);
-      gl.uniform4f(P.u.uSoft, sw.l, sw.r, sw.t, sw.b);
-      // trechos: a conta do modelo é com y para baixo (composição); o uv local do slice tem y para cima (SOFT_Y_UP)
-      const yy = (s2) => SOFT_Y_UP ? [1 - s2[1], 1 - s2[0]] : s2; const L = yy(sw.lS), R = yy(sw.rS);
-      gl.uniform4f(P.u.uSoftLR, L[0], L[1], R[0], R[1]); gl.uniform4f(P.u.uSoftTB, sw.tS[0], sw.tS[1], sw.bS[0], sw.bS[1]);
+      // degradês de emenda (até 8): A→B em pixels do recorte; o uv local cresce para baixo, como a composição
+      const gs = s.soft.on ? softGrads(s, all).slice(0, 8) : [];
+      gl.uniform1i(P.u.uUseSoft, s.soft.on ? 1 : 0); gl.uniform1i(P.u.uNG, gs.length); gl.uniform2f(P.u.uInSize, s.in.w, s.in.h);
+      if (gs.length) {
+        const GA = new Float32Array(32), GB = new Float32Array(32);
+        gs.forEach((g, i) => { GA.set([g.a[0], g.a[1], g.b[0], g.b[1]], i * 4); GB.set([g.n1, g.n2, gradRadius(g), 0], i * 4); });
+        gl.uniform4fv(P.u.uGA, GA); gl.uniform4fv(P.u.uGB, GB);
+      }
       gl.uniform3f(P.u.uSoftP, s.soft.power, s.soft.lum, s.soft.black / 255);
       gl.uniform3f(P.u.uGamma, s.soft.gamma[0], s.soft.gamma[1], s.soft.gamma[2]);
       if (s.inMask) {
