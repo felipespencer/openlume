@@ -152,9 +152,20 @@ function filterSpecks(m, W, H, minSize) {   // regiões de pessoa com área meno
 function post(e, prob, W, H, p) {
   const n = W * H;
   if (p.hard) for (let i = 0; i < n; i++) prob[i] = prob[i] >= 0.5 ? 1 : 0;                      // 1
+  // 2. suavidade no tempo, como o Resolume descreve: mediana de 3 quadros com portão de movimento (tira o pisca de um quadro só,
+  //    mas um pixel que mudou muito passa direto) e depois um passa-baixa adaptativo (1€): tremida pequena é amortecida,
+  //    mudança grande passa quase inteira, então a máscara não deixa rastro quando a pessoa se mexe
   let acc = e.acc;
-  if (!acc || acc.length !== n || p.tsmooth <= 0) { acc = e.acc = prob; }
-  else { const k = 1 - p.tsmooth, gate = 0.6; for (let i = 0; i < n; i++) { const d = prob[i] - acc[i]; acc[i] += (d > gate || d < -gate) ? d : d * k; } }   // 2
+  if (!acc || acc.length !== n || p.tsmooth <= 0) { acc = e.acc = prob; e.p1 = null; e.p2 = null; }
+  else {
+    const kmin = 1 - p.tsmooth, beta = 3.0, p1 = e.p1, p2 = e.p2;
+    for (let i = 0; i < n; i++) {
+      let x = prob[i];
+      if (p1 && p2) { const a = p1[i], b = p2[i]; if (Math.abs(x - a) < 0.5) x = Math.max(Math.min(x, a), Math.min(Math.max(x, a), b)); }   // mediana(x, a, b), só sem movimento
+      const d = x - acc[i], k = Math.min(1, kmin + beta * Math.abs(d)); acc[i] += d * k;
+    }
+  }
+  e.p2 = e.p1; e.p1 = Float32Array.from(prob);
   const m = Float32Array.from(acc);
   if (p.fill || p.specks > 0) {
     if (W >= 400) {   // grande: decisões (buraco / pontinho) na metade da resolução, aplicadas na máscara inteira
