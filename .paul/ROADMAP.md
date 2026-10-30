@@ -17,7 +17,7 @@ raiz continua sendo a lista detalhada do que veio do Resolume e do que está fei
 
 **v0.2 Automape e provas no equipamento** (v0.2.0)
 Status: In progress
-Phases: 0 of 6 complete
+Phases: 0 of 7 complete
 
 ## Phases
 
@@ -28,11 +28,12 @@ Phases: 0 of 6 complete
 | Phase | Name | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
 | 1 | Automape | 5 | In progress (3/5) | - |
-| 2 | Efeitos do Resolume | TBD | Planning | - |
+| 2 | Efeitos do Resolume | TBD | In progress (1 fechado) | - |
 | 3 | Celular e plugins | TBD | Not started | - |
 | 4 | Provas no equipamento (laser e APC40) | TBD | Not started | - |
 | 5 | Versão web | TBD | Not started | - |
 | 6 | Versão Android | TBD | Not started | - |
+| 7 | Saída avançada | TBD | Planning (executada agora, fora da ordem, a pedido do Felipe) | - |
 
 ## Phase Details
 
@@ -78,7 +79,7 @@ imagem automaticamente; licença de cada modelo de `ai-models/` antes de embarca
 - Ficha e controles no modelo do Wire: tipo (fonte/efeito/mixer), nome, autor, descrição, identificador, controles em ordem e grupos com mínimo/máximo/unidade/tipo de controle, presets
 
 **Plans:**
-- [ ] 02-01: bancada lado a lado (REST do Resolume + CDP do OpenLume + captura + diferença por pixel), fichas de controles pela API, e o 1º lote igualado: Delay RGB, Trails, Threshold
+- [x] 02-01: bancada lado a lado (REST do Resolume + CDP do OpenLume + captura + diferença por pixel), fichas de controles pela API, e o 1º lote igualado: Delay RGB, Trails, Threshold — fechado em 2026-10-30; de quebra Background Removal, Shape Mask, YouTube e celular (SUMMARY)
 - [ ] 02-02 em diante: lotes dos mais usados (lista a combinar), Wire (CRT, Strokes, Tilt Shift, Grid Cloner…), profundidade
 
 ### Phase 3: Celular e plugins
@@ -137,6 +138,24 @@ com `OutputPresentation` para o projetor.
 **Plans:**
 - [ ] 06-01: a definir
 
+### Phase 7: Saída avançada
+
+**Goal:** a Saída avançada do OpenLume vai além do Resolume onde o Felipe pede: emendas (soft edge) como
+degradês com alça puxados na própria imagem, quatro por slice, seleção sem surpresa na sobreposição, e o
+que mais surgir dos testes dele com projetores de verdade.
+**Depends on:** nada (executada em 2026-10-30, fora da ordem das fases, porque os pedidos vieram
+durante o checkpoint do 02-01; registrada como fase própria em 2026-10-30 — "não quero me perder")
+**Research:** Unlikely
+
+**Scope:**
+- Já entregue em betas (a registrar no 07-01): emenda só no trecho da sobreposição; degradê com alça
+  (A inteiro → B zero, faixa, cantos redondos do lado da projeção); quatro emendas por slice com
+  liga/desliga; automático só posiciona; seleção: o selecionado por cima, clique alterna com o de trás
+- A fazer: alças também na aba Saída (acompanhando a deformação), e os próximos pedidos do Felipe
+
+**Plans:**
+- [ ] 07-01: Soft Edge por degradê e seleção na sobreposição (registro do entregue + alças na aba Saída)
+
 ## Ideias para um marco futuro
 
 - **Domo / planetário com vários projetores** (pedido de 2026-10-29, "quero deixar esse passo pra depois"):
@@ -148,4 +167,4 @@ com `OutputPresentation` para o projetor.
 
 ---
 *Roadmap created: 2026-10-21*
-*Last updated: 2026-10-29 (ideia do domo/planetário anotada para depois); 2026-10-25 (inseridas depois do Automape: Fase 2 "Efeitos do Resolume" e Fase 3 "Celular e plugins"; as seguintes renumeradas)*
+*Last updated: 2026-10-30 (02-01 fechado; Fase 7 Saída avançada acrescentada); 2026-10-29 (ideia do domo/planetário anotada para depois); 2026-10-25 (inseridas depois do Automape: Fase 2 "Efeitos do Resolume" e Fase 3 "Celular e plugins"; as seguintes renumeradas)*

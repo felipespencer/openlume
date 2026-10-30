@@ -12,23 +12,21 @@ source = "https://chrisai.cv/skool"
 name = "v0.2 Automape e provas no equipamento"
 version = "0.2.0"
 status = "in_progress"
-phases = 6
+phases = 7
 
 [phase]
-number = 1
-name = "Automape"
+number = 2
+name = "Efeitos do Resolume"
 status = "in_progress"
-plans_completed = 3
+plans_completed = 1
 
 [loop]
-position = "APPLY"
-plan = "02-01"
-plan_path = "phases/02-efeitos-do-resolume/02-01-PLAN.md"
+position = "IDLE"
 
 [satellite]
 groom = true
 
 [stats]
-total_plans = 3
+total_plans = 4
 total_phases = 0
-last_activity = "2026-10-25T20:15:00-03:00"
+last_activity = "2026-10-30T16:45:00-03:00"
