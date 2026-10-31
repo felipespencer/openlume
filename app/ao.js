@@ -4,7 +4,7 @@
 // desfazer, refazer, mão, ímã, grade; Editar pontos / Transformar); propriedades à direita em
 // linhas "rótulo | valor − + barra"; Cancelar e Salvar e fechar embaixo à direita.
 import * as M from './screens.js';
-import { outlinePath, meshLinesPath, bbox } from './warp.js';
+import { outlinePath, meshLinesPath, bbox, localToOut, outToLocal } from './warp.js';
 import { el, fmtN, ICON, propsKit } from './panel.js';
 
 const $ = (id) => document.getElementById(id);
@@ -121,7 +121,7 @@ export class AdvancedOutput {
 
   // ---------- ferramentas ----------
   setTab(t) { this.tab = t; this.selPt = -1; this.selG = -1; this.drawing = null; this.syncTools(); this.layout(); this.refresh(); }
-  setMode(m) { this.mode = m; this.selPt = -1; this.syncTools(); this.draw(); this.renderProps(); }
+  setMode(m) { this.mode = m; this.selPt = -1; this.selG = -1; this.syncTools(); this.draw(); this.renderProps(); }
   syncTools() {
     $('aoTabIn').classList.toggle('on', this.tab === 'in'); $('aoTabOut').classList.toggle('on', this.tab === 'out');
     $('aoMove').classList.toggle('on', this.mode === 'move'); $('aoPts').classList.toggle('on', this.mode === 'pts');
@@ -152,7 +152,7 @@ export class AdvancedOutput {
     else if (e.key === 't' || e.key === 'T') { if (this.tab === 'out') this.setMode(this.mode === 'move' ? 'pts' : 'move'); }
     else if (e.key === 'Enter' && this.drawing) this.finishDrawing();
     else if (e.key.startsWith('Arrow') && this.sel && this.sel.item && !this.drawing) { this.nudge(e.key, e.shiftKey ? 10 : 1, e.altKey); e.preventDefault(); }
-    else if (e.key === 'Delete' && this.sel && this.sel.item) { if (this.tab === 'in' && this.selG >= 0) this.removeGrad(); else this.removeItem(this.sel.item); }
+    else if (e.key === 'Delete' && this.sel && this.sel.item) { if ((this.tab === 'in' || this.mode === 'move') && this.selG >= 0) this.removeGrad(); else this.removeItem(this.sel.item); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.shiftKey ? this.redo() : this.undo(); e.preventDefault(); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { this.redo(); e.preventDefault(); }
   }
@@ -163,7 +163,7 @@ export class AdvancedOutput {
     const k = this.selPt >= 0 ? this.selPtK : null;
     if (this.tab === 'in' && it.type !== 'slice') return;
     const now = Date.now(); if (now - this.nudgeT > 800) this.pushUndo(); this.nudgeT = now;
-    if (this.tab === 'in' && this.selG >= 0 && it.soft.on) {   // degradê selecionado: as setas movem o fim (quadrado); com Alt, o degradê inteiro
+    if ((this.tab === 'in' || this.mode === 'move') && this.selG >= 0 && it.soft.on) {   // degradê selecionado: as setas movem o fim (quadrado); com Alt, o degradê inteiro
       const g0 = this.grads(it)[this.selG]; if (!g0) return;
       const g = M.adoptGrad(it, g0); this.selG = this.grads(it).indexOf(g);
       g.b = [g.b[0] + dx, g.b[1] + dy]; if (alt) g.a = [g.a[0] + dx, g.a[1] + dy]; M.touch(it);
@@ -263,6 +263,7 @@ export class AdvancedOutput {
         svg.appendChild(svgEl('path', { d: outlinePath(item), class: 'slice' + (sel ? ' sel' : ''), 'data-k': 'body', 'data-id': item.id }));
         const b = M.outRect(item), t = svgEl('text', { x: b.x + b.w / 2, y: b.y + b.h / 2, class: 'sname', 'text-anchor': 'middle' }); t.textContent = item.name; svg.appendChild(t);
         if (sel && this.mode === 'move') this.drawHandles(b, item);
+        if (sel && this.mode === 'move' && item.soft.on) this.drawGrads(item);   // as alças da emenda sobre a imagem deformada (não no modo Editar pontos)
         if (sel && this.mode === 'pts') this.drawMeshPoints(item);
       } else {
         this.drawPoly(item.pts, 'mask', sel && this.mode === 'pts', item);
@@ -283,13 +284,15 @@ export class AdvancedOutput {
   }
   // degradês de emenda (aba Entrada): faixa tracejada, linha A→B, bolinha em A (inteiro), quadrado em B (zero), losangos no trecho
   grads(item) { return M.softGrads(item, M.allSlices(this.screens())); }
-  localPx(item, p) { const l = inToLocal(item, p); return [l[0] * item.in.w, l[1] * item.in.h]; }
+  localPx(item, p) { const l = this.tab === 'in' ? inToLocal(item, p) : outToLocal(item, p[0], p[1]); return [l[0] * item.in.w, l[1] * item.in.h]; }
   drawGrads(item) {
-    const k = 1 / this.scale, svg = this.svg, w = item.in.w, h = item.in.h, L2 = (p) => localToIn(item, [p[0] / w, p[1] / h]);
+    const k = 1 / this.scale, svg = this.svg, w = item.in.w, h = item.in.h, out = this.tab === 'out';
+    const L2 = out ? (p) => localToOut(item, p[0] / w, p[1] / h) : (p) => localToIn(item, [p[0] / w, p[1] / h]);
+    const dense = (pts) => { if (!out) return pts; const r = []; for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length]; for (let t = 0; t < 8; t++) r.push([p[0] + (q[0] - p[0]) * t / 8, p[1] + (q[1] - p[1]) * t / 8]); } return r; };   // lados em 8 pedaços: na malha a faixa curva junto
     this.grads(item).forEach((g, i) => {
       const cls = (i === this.selG ? ' cur' : '') + (g.auto ? '' : ' man') + (g.on === false ? ' off' : ''), at = (kk) => ({ 'data-k': kk, 'data-i': i, 'data-id': item.id });
       const dx = g.b[0] - g.a[0], dy = g.b[1] - g.a[1], Ln = Math.hypot(dx, dy) || 1, px = -dy / Ln, py = dx / Ln, mx = (g.a[0] + g.b[0]) / 2, my = (g.a[1] + g.b[1]) / 2;
-      svg.appendChild(svgEl('polygon', { points: M.gradOutline(g).map(p => L2(p).join(',')).join(' '), class: 'gband' + cls }));
+      svg.appendChild(svgEl('polygon', { points: dense(M.gradOutline(g)).map(p => L2(p).join(',')).join(' '), class: 'gband' + cls }));
       const A = L2(g.a), B = L2(g.b), N1 = L2([mx + px * g.n1, my + py * g.n1]), N2 = L2([mx - px * g.n2, my - py * g.n2]);
       svg.appendChild(svgEl('line', { x1: A[0], y1: A[1], x2: B[0], y2: B[1], class: 'gline' + cls }));
       svg.appendChild(svgEl('line', { x1: A[0], y1: A[1], x2: B[0], y2: B[1], class: 'gmid', ...at('gM') }));
@@ -614,7 +617,7 @@ export class AdvancedOutput {
         P.appendChild(this.pnum('Gama azul', 'Gama por cor|Corrige a emenda numa cor só.', s.soft.gamma[2], { min: 1, max: 4, step: 0.05, dec: 2, bar: true, reset: 2.2 }, v => { s.soft.gamma[2] = v; }));
         P.appendChild(this.phead('Compensação de preto', 'Compensação de preto|Levanta o preto do slice fora da emenda, para casar com o preto da área sobreposta.'));
         P.appendChild(this.pnum('Nível', 'Nível de preto|Quanto o preto sobe fora da emenda.', s.soft.black, { min: 0, max: 60, step: 1, bar: true, reset: 0 }, v => { s.soft.black = v; }));
-        if (this.tab === 'in') this.gradProps(P, s);
+        if (this.tab === 'in' || this.mode === 'move') this.gradProps(P, s);
       }
       if (this.tab === 'in') {
         const icons = el('div', 'pv icons');

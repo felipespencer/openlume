@@ -102,6 +102,35 @@ export function tessellate(slice, K = 12) {
   return { pos: new Float32Array(pos), luv: new Float32Array(luv), idx: new Uint32Array(idx) };
 }
 
+// Posição no projetor de um ponto local (u, v em 0..1 do recorte) do slice: quatro cantos pela homografia, malha pelo
+// retalho bezier. É o mesmo mapeamento que o motor usa (tessellate), então as alças desenhadas por aqui caem exatamente
+// sobre a imagem deformada (07-01: alças do degradê de emenda na aba Saída).
+export function localToOut(slice, u, v) {
+  const w = slice.warp;
+  if (w.mode === 'mesh') return meshPoint(w.pts, w.divX, w.divY, u, v);
+  return applyHomography(homography(w.pts), u, v);
+}
+// O caminho de volta: do ponto no projetor para (u, v). Quatro cantos: homografia inversa (com o termo i). Malha: Newton
+// com Jacobiano por diferença finita, partindo do (u, v) proporcional dentro da caixa envolvente; para em 0,25 px.
+export function outToLocal(slice, x, y) {
+  const w = slice.warp;
+  if (w.mode !== 'mesh') {
+    const Hi = invertHomography(homography(w.pts)); if (!Hi) return [0.5, 0.5];
+    const d = Hi.g * x + Hi.h * y + Hi.i; return [(Hi.a * x + Hi.b * y + Hi.c) / d, (Hi.d * x + Hi.e * y + Hi.f) / d];
+  }
+  const b = bbox(w.pts); let u = b.w ? (x - b.x) / b.w : 0.5, v = b.h ? (y - b.y) / b.h : 0.5;
+  for (let it = 0; it < 12; it++) {
+    const p = meshPoint(w.pts, w.divX, w.divY, u, v), ex = p[0] - x, ey = p[1] - y;
+    if (Math.abs(ex) < 0.25 && Math.abs(ey) < 0.25) break;
+    const h = 1e-3, pu = meshPoint(w.pts, w.divX, w.divY, u + h, v), pv = meshPoint(w.pts, w.divX, w.divY, u, v + h);
+    const a = (pu[0] - p[0]) / h, c = (pv[0] - p[0]) / h, bb = (pu[1] - p[1]) / h, dd = (pv[1] - p[1]) / h, det = a * dd - c * bb;
+    if (Math.abs(det) < 1e-9) break;
+    u -= (dd * ex - c * ey) / det; v -= (-bb * ex + a * ey) / det;
+    u = Math.max(-0.5, Math.min(1.5, u)); v = Math.max(-0.5, Math.min(1.5, v));   // a malha só existe em 0..1; fora dela a conta é extrapolação
+  }
+  return [u, v];
+}
+
 // Caixa envolvente dos pontos.
 export function bbox(pts) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;

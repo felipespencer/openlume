@@ -121,6 +121,31 @@ check('outro clique no mesmo lugar volta para o em pé', await selName() === 'Em
   check('Ctrl+Z desfaz o arrasto (e os cliques de seleção não entraram no desfazer)', +await ev(`${P}.screens()[1].items[0].in.x`) === x0, `x=${await ev(`${P}.screens()[1].items[0].in.x`)}`); }
 await ev(`(() => { const p = ${P}; const sc = p.screens()[1]; p.ao.select(sc, sc.items[0]); p.ao.selG = -1; p.ao.refresh(); return 1; })()`);
 
+// 8c. aba Saída (07-01): as alças aparecem sobre o slice deformado e arrastar lá muda o degradê em pixels do recorte
+{
+  await ev(`(() => { const p = ${P}, M = p.M; const sb = p.screens()[1].items[0]; sb.warp.pts = [[100, 50], [980, 120], [1000, 1850], [80, 1900]]; M.touch(sb); p.ao.setTab('out'); p.ao.select(p.screens()[1], sb); p.ao.selG = 0; p.ao.refresh(); return 1; })()`); await wait(400);
+  const esperado = JSON.parse(await ev(`(async () => { const p = ${P}; const { localToOut } = await import('./warp.js'); const sb = p.screens()[1].items[0], g = p.ao.grads(sb)[0]; return JSON.stringify(localToOut(sb, g.a[0] / sb.in.w, g.a[1] / sb.in.h).map(Math.round)); })()`));
+  const desenhado = JSON.parse(await ev(`(() => { const e = document.querySelector('#aoView svg [data-k=gA]'); return JSON.stringify([Math.round(+e.getAttribute('cx')), Math.round(+e.getAttribute('cy'))]); })()`));
+  check('aba Saída: a bolinha é desenhada onde a deformação leva o começo do degradê (trapézio)', Math.abs(esperado[0] - desenhado[0]) <= 1 && Math.abs(esperado[1] - desenhado[1]) <= 1 && await n('gA') === 4 && await n('gM') === 4, `esperado ${esperado} desenhado ${desenhado}`);
+  check('aba Saída: o painel lista os degradês em modo Transformar', await ev(`document.querySelectorAll('#aoProps .grow').length`) === 4);
+  // arrasta a bolinha 40 px de tela para a direita: A anda em pixels do recorte o tanto que outToLocal diz, e a alça fica sob o mouse
+  const A2 = await rect('#aoView svg [data-k=gA]');
+  await drag(A2.x, A2.y, A2.x + 40, A2.y);
+  const r = JSON.parse(await ev(`(async () => { const p = ${P}; const { localToOut, outToLocal } = await import('./warp.js'); const sb = p.screens()[1].items[0], g = p.ao.grads(sb)[0]; const e = document.querySelector('#aoView svg [data-k=gA]'); const rr = e.getBoundingClientRect(); return JSON.stringify({ auto: !!g.auto, a: g.a.map(Math.round), alca: [rr.left + rr.width / 2, rr.top + rr.height / 2], manual: sb.soft.grads.length }); })()`));
+  check('aba Saída: arrastar a bolinha vira ajustado e a alça fica debaixo do mouse (≤ 2 px de tela)', !r.auto && r.manual === 1 && Math.abs(r.alca[0] - (A2.x + 40)) <= 2 && Math.abs(r.alca[1] - A2.y) <= 2, `alça=${r.alca.map(Math.round)} mouse=${[Math.round(A2.x + 40), Math.round(A2.y)]} a=${r.a}`);
+  check('aba Saída: a saída de verdade acompanha o degradê ajustado', await lum(1, 0.03, 0.25) < 61, `lum=${await lum(1, 0.03, 0.25)}`);
+  await ev(`(() => { const p = ${P}; p.ao.setTab('in'); p.ao.select(p.screens()[1], p.screens()[1].items[0]); p.ao.selG = 0; p.ao.refresh(); return 1; })()`); await wait(300);
+  const gi = await grads();
+  check('aba Entrada mostra a mesma emenda ajustada (um modelo só)', !gi[0].auto && gi[0].edge === 'l' && gi[0].a[0] === r.a[0], `a=${gi[0].a}`);
+  await ev(`document.activeElement && document.activeElement.blur(); 1`); await key('z', 'KeyZ', 90, 2); await wait(300);
+  check('Ctrl+Z desfaz o arrasto feito na aba Saída', await manual() === 0, `manual=${await manual()}`);
+  // malha 2×2 com um ponto puxado: a alça segue a curva
+  await ev(`(() => { const p = ${P}, M = p.M; const sb = p.screens()[1].items[0]; M.setWarpMode(sb, 'mesh'); M.setDivisions(sb, 2, 2); const i = Math.floor(sb.warp.pts.length / 2); sb.warp.pts[i][0] += 150; M.touch(sb); p.ao.setTab('out'); p.ao.select(p.screens()[1], sb); p.ao.selG = 0; p.ao.refresh(); return 1; })()`); await wait(400);
+  const em = JSON.parse(await ev(`(async () => { const p = ${P}; const { localToOut, outToLocal } = await import('./warp.js'); const sb = p.screens()[1].items[0], g = p.ao.grads(sb)[0]; const e = document.querySelector('#aoView svg [data-k=gA]'); const exp = localToOut(sb, g.a[0] / sb.in.w, g.a[1] / sb.in.h); const back = outToLocal(sb, exp[0], exp[1]); return JSON.stringify({ exp: exp.map(Math.round), got: [Math.round(+e.getAttribute('cx')), Math.round(+e.getAttribute('cy'))], volta: back.map(v => +v.toFixed(3)), uv: [+(g.a[0] / sb.in.w).toFixed(3), +(g.a[1] / sb.in.h).toFixed(3)] }); })()`));
+  check('malha 2×2 com ponto puxado: a bolinha segue a curva e o caminho de volta (Newton) acerta o (u, v)', Math.abs(em.exp[0] - em.got[0]) <= 1 && Math.abs(em.exp[1] - em.got[1]) <= 1 && Math.abs(em.volta[0] - em.uv[0]) < 0.002 && Math.abs(em.volta[1] - em.uv[1]) < 0.002, JSON.stringify(em));
+  await ev(`(() => { const p = ${P}, M = p.M; const sb = p.screens()[1].items[0]; M.setWarpMode(sb, 'corners'); p.ao.setTab('in'); p.ao.select(p.screens()[1], sb); p.ao.selG = -1; p.ao.refresh(); return 1; })()`); await wait(200);
+}
+
 // 9. salvar/abrir preserva os ajustes
 await ev(`(() => { const p = ${P}, s = p.screens()[1].items[0]; s.soft.grads.push({ id: 999, edge: 'l', a: [300, 500], b: [0, 500], n1: 400, n2: 450, roundOn: false, round: 0.3 }); p.M.touch(s); return 1; })()`);
 const rt = JSON.parse(await ev(`(() => { const p = ${P}, M = p.M; const s2 = M.deserialize(M.serialize(p.screens())); const g = s2[1].items[0].soft.grads[0]; return JSON.stringify({ n: s2[1].items[0].soft.grads.length, g, round: s2[1].items[0].soft.round }); })()`));
