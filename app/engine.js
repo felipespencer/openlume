@@ -497,6 +497,7 @@ export class Engine {
   // clipe e da camada; fica no canvas mestre para o blit
   previewLayer(L, clipIdx) {
     const gl = this.gl, W = this.W, H = this.H;
+    if (this.prevFbo && (this.prevFbo.w !== W || this.prevFbo.h !== H)) { gl.deleteFramebuffer(this.prevFbo.fb); gl.deleteTexture(this.prevFbo.t); this.prevFbo = null; }   // a composição mudou de tamanho (ex.: assistente de projetores): a Prévia saía na escala velha (Felipe, 2026-10-30)
     if (!this.prevFbo) this.prevFbo = this.fbo(W, H);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.prevFbo.fb); gl.viewport(0, 0, W, H);
     gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);

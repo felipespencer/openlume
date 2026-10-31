@@ -96,7 +96,7 @@ function post(e, prob, W, H, p) {
     const kmin = 1 - p.tsmooth, beta = 3.0, p1 = e.p1, p2 = e.p2;
     for (let i = 0; i < n; i++) {
       let x = prob[i];
-      if (p1 && p2) { const a = p1[i], b = p2[i]; if (Math.abs(x - a) < 0.5) x = Math.max(Math.min(x, a), Math.min(Math.max(x, a), b)); }   // mediana(x, a, b), só sem movimento
+      if (p1 && p2) { const a = p1[i], b = p2[i]; x = Math.max(Math.min(x, a), Math.min(Math.max(x, a), b)); }   // mediana(x, a, b) SEMPRE: um pixel de borda que pisca 0,1,0 vira 0 (com o portão de movimento, |x-a| = 1 passava direto e a borda tremia); mudança de verdade (0,1,1) entra um quadro depois
       const d = x - acc[i], k = Math.min(1, kmin + beta * Math.abs(d)); acc[i] += d * k;
     }
   }
