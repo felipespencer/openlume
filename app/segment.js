@@ -5,7 +5,7 @@
 // que volta sobe como textura para o efeito (slot uPrev), que a estica com refino guiado pela própria imagem.
 export class Segmenter {
   constructor(engine) {
-    this.engine = engine; this.gl = engine.gl; this.err = ''; this.runs = 0; this.ms = 0; this.gpu = !!navigator.gpu; this.ready = false; this.fatal = false;
+    this.engine = engine; this.gl = engine.gl; engine.segHook = (f) => { this.reads.add(f); this.pollSoon(); }; this.err = ''; this.runs = 0; this.ms = 0; this.gpu = !!navigator.gpu; this.ready = false; this.fatal = false;
     this.reads = new Set(); this.pollT = null;   // leituras assíncronas da placa à espera
     this.native = false;   // vira true quando o processo nativo (onnxruntime-node + DirectML, pela porta do preload) responde
     this.size = 192; this.fps = 30;                                                                   // Baixa
@@ -63,9 +63,9 @@ export class Segmenter {
     const tb0 = performance.now();
     // nativo: o quadro reduzido é pedido à placa (leitura assíncrona) e vai ao processo quando ela terminar (pollReads);
     // WebGPU (reserva): bitmap para o worker
-    if (this.native) {
-      let rd = null; try { rd = this.engine.beginReadClipFrame(c, W, H); } catch (e) { rd = null; }
-      if (rd) { (f._segReads || (f._segReads = [])).push({ rd, meta: { W, H, kind, q, reset } }); this.reads.add(f); this.pollSoon(); return true; }   // até duas leituras em voo por efeito
+    if (this.native) {   // o motor lê o quadro na cadeia de efeitos (a entrada deste efeito), no próximo render; pollReads manda ao processo
+      f._segWant = { W, H, meta: { W, H, kind, q, reset }, fail: () => { f._segBusy = (f._segInflight || 0) > 0; } };
+      return true;
     }
     let bitmap; try { bitmap = await createImageBitmap(src, { resizeWidth: W, resizeHeight: H, resizeQuality: 'medium' }); } catch (e) { f._segBusy = false; return false; }
     this.tBitmap = (this.tBitmap || 0) + (performance.now() - tb0 - (this.tBitmap || 0)) * 0.2;   // tempo do createImageBitmap (medição)
@@ -122,7 +122,7 @@ export class Segmenter {
         if (this.quality(f) >= 1 && !this.gpu && !this.avisou) { this.avisou = true; this.err = 'Qualidade Média/Alta precisa de WebGPU; usando a Baixa'; }
         const kind = this.kindOf(f); f._segSeen = performance.now() / 1000;
         const fps = this.fpsOf(kind);
-        const emVoo = (f._segReads ? f._segReads.length : 0) + (f._segInflight || 0);   // leituras na placa + pedidos no processo
+        const emVoo = (f._segReads ? f._segReads.length : 0) + (f._segInflight || 0) + (f._segWant ? 1 : 0);   // leituras na placa + pedidos no processo + pedido à espera do render
         if (emVoo >= (this.native ? 3 : 1) || now - (f._maskAt || 0) < 1 / fps) continue;
         f._maskAt = now; this.run(c, f, kind);
       }

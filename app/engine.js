@@ -301,6 +301,11 @@ export class Engine {
           ring = del.map(pick);
         }
         if (def.mask && f._maskTex) prev = f._maskTex;   // Background Removal: a máscara da segmentação
+        if (def.mask && f._segWant) {   // o recorte pediu um quadro: sai daqui, da entrada deste efeito, no tamanho do modelo
+          const wnt = f._segWant; f._segWant = null;
+          try { const rd = this.beginReadTex(src, wnt.W, wnt.H); (f._segReads || (f._segReads = [])).push({ rd, meta: wnt.meta }); if (this.segHook) this.segHook(f); } catch (err) { if (wnt.fail) wnt.fail(); }
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        }
         dst = this.scratch[1 + (i & 1)];
         if (dst.w !== w || dst.h !== h) { gl.deleteFramebuffer(dst.fb); gl.deleteTexture(dst.t); dst = this.scratch[1 + (i & 1)] = this.fbo(w, h); }
         if (dst.t === src) { dst = this.scratch[1 + ((i + 1) & 1)]; }
@@ -505,8 +510,11 @@ export class Engine {
   // A leitura é ASSÍNCRONA (readPixels num buffer PIXEL_PACK + fence): o readPixels direto esperava a placa terminar tudo o que
   // estava na fila (9 a 17 ms parado, mais quanto mais máscaras por segundo). beginReadClipFrame enfileira; pollReadClipFrame
   // devolve os pixels quando a placa acabou, ou null se ainda não.
-  beginReadClipFrame(c, w, h) {
-    const gl = this.gl, e = this.tex.get(c.id), tex = e ? e.t : this.texFor(c);   // usa o quadro que o render já subiu; só sobe de novo se nunca subiu
+  // A máscara do recorte tem de nascer da MESMA imagem que o efeito vê (a entrada dele na cadeia, já encaixada na camada), e não
+  // da textura crua do clipe: uma webcam 4:3 encaixada com barras numa composição 16:9 dava uma máscara esticada 33% na horizontal
+  // (Felipe, 2026-10-30: "a imagem da câmera estava menor que a máscara"; era o "aberto" e os "ombros esticados" de todas as betas).
+  beginReadTex(tex, w, h) {
+    const gl = this.gl;
     let f = this.readFbo; if (!f || f.w !== w || f.h !== h) { if (f) { gl.deleteFramebuffer(f.fb); gl.deleteTexture(f.t); } f = this.readFbo = this.fbo(w, h); }
     gl.bindFramebuffer(gl.FRAMEBUFFER, f.fb); this.copyInto(tex, w, h, true);
     const pbo = gl.createBuffer(); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pbo); gl.bufferData(gl.PIXEL_PACK_BUFFER, w * h * 4, gl.STREAM_READ);
@@ -528,6 +536,7 @@ export class Engine {
     for (let y = 0, z = r.h - 1; y < z; y++, z--) { const a = y * row, b = z * row; tmp.set(buf.subarray(a, a + row)); buf.copyWithin(a, b, b + row); buf.set(tmp, b); }
     return buf;
   }
+  beginReadClipFrame(c, w, h) { const e = this.tex.get(c.id); return this.beginReadTex(e ? e.t : this.texFor(c), w, h); }
   cancelReadClipFrame(r) { const gl = this.gl; if (!r) return; if (r.sync) gl.deleteSync(r.sync); if (r.pbo) gl.deleteBuffer(r.pbo); r.sync = null; r.pbo = null; }
   copyInto(tex, w, h, opaque) {
     const gl = this.gl;
