@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld('projDesktop', {
     pick: (p) => ipcRenderer.invoke('capture:pick', p),
     webShot: (key) => ipcRenderer.invoke('capture:web:shot', key),
     webInfo: (key) => ipcRenderer.invoke('capture:web:info', key),
+    webShow: (key, on) => ipcRenderer.invoke('capture:web:show', key, on),   // mostra a página escondida para entrar/mexer (Esc esconde)
   },
   rec: {
     save: (name, bytes, dir) => ipcRenderer.invoke('rec:save', name, bytes, dir),

@@ -173,6 +173,8 @@ export async function captureClip(spec) {
   return c;
 }
 // troca o endereço de uma página capturada (a janela escondida é a mesma; o stream segue)
+// mostra (ou esconde) a janela da página de um clipe de Página web, para o usuário entrar numa conta ou mexer nela
+export async function captureShow(c, on) { const D = window.projDesktop; if (c.kind !== 'capture' || !c.cap.url || !D) return false; c.cap.shown = !!on; return D.capture.webShow(c.cap.key, !!on); }
 export function captureNavigate(c, url) { const D = window.projDesktop; if (c.kind !== 'capture' || !c.cap.url || !D) return; c.cap.url = url; c.name = pageName(url); D.capture.webOpen(c.cap.key, url, c.cap.w, c.cap.h); }
 // o clipe saiu da grade: a última cópia de uma página fecha a janela escondida
 export function freeClip(c) { const D = window.projDesktop; if (!c || c.kind !== 'capture' || !c.cap.key || !D) return; const n = (webUse.get(c.cap.key) || 1) - 1; if (n <= 0) { webUse.delete(c.cap.key); D.capture.webClose(c.cap.key); } else webUse.set(c.cap.key, n); }

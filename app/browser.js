@@ -152,7 +152,7 @@ export class Browser {
     list.appendChild(el('div', 'grp', 'CAPTURA DE TELA, JANELA E PÁGINA WEB'));
     const D = this.c.desktop;
     if (D && D.capture) {
-      if (this.match('Página web')) mk('Página web…', 'Abre um endereço num navegador escondido dentro do OpenLume e projeta a página: sites, vídeos, visualizadores, a sua aba.', { capture: { web: true } });
+      if (this.match('Página web') || this.match('URL')) mk('URL / Página web…', 'Qualquer endereço: sites, Instagram, Claude, GPT, vídeos, visualizadores. Abre num navegador escondido dentro do OpenLume e projeta a página. Para entrar numa conta ou mexer na página: botão direito no clipe → Mostrar a página.', { capture: { web: true } });
       if (this.match('Celular')) mk('Celular (câmera)…', 'Abre no celular um endereço da rede local e a câmera dele chega aqui como uma webcam, por WebRTC. Mostra o endereço e espera o celular ligar.', { phone: true });
       if (this.match('YouTube')) mk('YouTube (URL)…', 'Cole o endereço de um vídeo ou live do YouTube: ele toca num navegador escondido e vira um clipe, sem baixar nada.', { capture: { youtube: true } });
       try { this.captures = await D.capture.sources(); } catch { this.captures = []; }

@@ -309,6 +309,14 @@ app.whenReady().then(async () => {
   // retrato da página pelo próprio Chromium (depuração e reserva, caso a captura da janela falhe)
   ipcMain.handle('capture:web:shot', async (_e, key) => { const w = webPages.get(String(key)); if (!w || w.isDestroyed()) return ''; const im = await w.webContents.capturePage(); return im.resize({ width: 480 }).toDataURL(); });
   ipcMain.handle('capture:web:info', (_e, key) => { const w = webPages.get(String(key)); if (!w || w.isDestroyed()) return null; const wc = w.webContents; return { url: wc.getURL().slice(0, 60), loading: wc.isLoading(), crashed: wc.isCrashed(), bounds: w.getBounds(), visible: w.isVisible(), minimized: w.isMinimized(), title: w.getTitle(), fps: wc.getFrameRate && wc.getFrameRate(), err: w.__err || '' }; });
+  // Mostrar a página para o usuário entrar numa conta ou mexer nela (Instagram, Claude, GPT…), e esconder de novo: a janela vira
+  // visível, com foco e cliques, no canto do monitor principal; a captura continua enquanto isso. Esc na página esconde.
+  ipcMain.handle('capture:web:show', (_e, key, on) => {
+    const w = webPages.get(String(key)); if (!w || w.isDestroyed()) return false;
+    if (on) { w.setOpacity(1); w.setIgnoreMouseEvents(false); w.setFocusable(true); w.setAlwaysOnTop(true); w.show(); w.focus(); if (!w.__escHook) { w.__escHook = true; w.webContents.on('before-input-event', (ev, inp) => { if (inp.type === 'keyDown' && inp.key === 'Escape') { ev.preventDefault(); w.setAlwaysOnTop(false); w.setFocusable(false); w.setIgnoreMouseEvents(true); w.setOpacity(0); w.blur(); } }); } }
+    else { w.setAlwaysOnTop(false); w.setFocusable(false); w.setIgnoreMouseEvents(true); w.setOpacity(0); w.blur(); }
+    return true;
+  });
   ipcMain.handle('capture:web:close', (_e, key) => { const w = webPages.get(String(key)); if (w && !w.isDestroyed()) w.destroy(); webPages.delete(String(key)); return true; });
   ipcMain.on('log', (_e, kind, msg) => logLine('janela:' + String(kind).slice(0, 20), msg));
   ipcMain.handle('log:show', () => { try { fs.appendFileSync(LOG_FILE(), ''); } catch { } shell.showItemInFolder(LOG_FILE()); return LOG_FILE(); });
