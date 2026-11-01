@@ -26,11 +26,11 @@ await ev(`(async () => { const p = ${P}; await p.putPath(0, 0, ${JSON.stringify(
 await wait(500);
 const clip = `${P}.state.layers[0].clips[0]`;
 const st = () => ev(`(() => { const c = ${clip}, v = c.el; return { playing: c.tr.playing, dir: c.tr.dir, t: +v.currentTime.toFixed(2), paused: v.paused, rate: v.playbackRate }; })()`);
-const btn = (txt) => ev(`(() => { const b = [...document.querySelectorAll('#clipPan .tbtns button')].find(x => x.dataset.k === ${JSON.stringify(txt)}); if (!b) return null; const q = b.getBoundingClientRect(); return [q.x + q.width / 2, q.y + q.height / 2, q.width, q.height]; })()`);
+const btn = (txt) => ev(`(() => { const b = [...document.querySelectorAll('#clipPan .tbtns button')].find(x => x.dataset.k === ${JSON.stringify(txt)}); if (!b) return null; b.scrollIntoView({ block: 'center' }); const q = b.getBoundingClientRect(); return [q.x + q.width / 2, q.y + q.height / 2, q.width, q.height]; })()`);
 const press = async (txt) => { const q = await btn(txt); if (!q) throw new Error('botão ' + txt + ' não achado'); await click(q[0], q[1]); await wait(250); };
 
 // linha do tempo fina
-const tl = await ev(`(() => { const e = document.querySelector('#clipPan .timeline'); if (!e) return null; const q = e.getBoundingClientRect(); return [q.x, q.y, q.width, q.height]; })()`);
+const tl = await ev(`(() => { const e = document.querySelector('#clipPan .timeline'); if (!e) return null; e.scrollIntoView({ block: 'center' }); const q = e.getBoundingClientRect(); return [q.x, q.y, q.width, q.height]; })()`);
 check('a linha do tempo existe', !!tl);
 const bar = await ev(`(() => { const e = document.querySelector('#clipPan .timeline .tbar'); return e ? e.getBoundingClientRect().height : null; })()`);
 check('a barra da linha do tempo é fina como a do Resolume (9 px)', bar !== null && bar <= 10, 'barra ' + bar + ' px');
@@ -51,7 +51,7 @@ await press('▶'); await wait(400); s = await st(); check('tocar de novo depois
 
 // IN/OUT empurram a agulha, como no Resolume (conferido lá: IN além da agulha leva a agulha ao IN; OUT aquém dela leva ao OUT)
 await ev(`(() => { const c = ${clip}; c.tr.in = 0; c.tr.out = c.dur; c.tr.playing = false; c.el.pause(); c.el.currentTime = 2; ${P}.panels.render(); return 1; })()`); await wait(300);
-const rect = (sel) => ev(`(() => { const e = document.querySelector('#clipPan .timeline ${sel}'); const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })()`);
+const rect = (sel) => ev(`(() => { const e = document.querySelector('#clipPan .timeline ${sel}'); e.scrollIntoView({ block: 'center' }); const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })()`);
 const dragTo = async (sel, frac, inner) => { const m = await rect(sel), tl2 = await rect(''); const x0 = m[0] + m[2] / 2, y0 = m[1] + m[3] / 2, x1 = tl2[0] + 6 + (tl2[2] - 12) * frac; await mouse('mouseMoved', x0, y0); await mouse('mousePressed', x0, y0); for (let k = 1; k <= 6; k++) await mouse('mouseMoved', x0 + (x1 - x0) * k / 6, y0); await mouse('mouseReleased', x1, y0); await wait(250); };
 await dragTo('.hnd.in', 0.5); s = await ev(`(() => ({ in: ${clip}.tr.in, t: ${clip}.el.currentTime }))()`);
 check('arrastar o IN para depois da agulha leva a agulha junto', s.in > 5 && Math.abs(s.t - s.in) < 0.05, JSON.stringify(s));
@@ -72,6 +72,9 @@ await press('▶'); await wait(700); s = await st();
 check('com IN = OUT o clipe fica parado (▶ não anda)', s.paused && Math.abs(s.t - 6) < 0.1, JSON.stringify(s));
 await press('◀'); await wait(500); s2 = await st();
 check('com IN = OUT o ◀ também não anda', Math.abs(s2.t - s.t) < 0.05, JSON.stringify(s2));
+// abriu de novo: continua andando sozinho
+await press('▶'); await dragTo('.hnd.out', 1.0); await wait(900); s2 = await st();
+check('abrindo o IN/OUT de novo o clipe volta a andar sozinho', !s2.paused && s2.playing && s2.t > 6.3, JSON.stringify(s2));
 await ev(`(() => { const c = ${clip}; c.tr.in = 0; c.tr.out = c.dur; ${P}.panels.render(); return 1; })()`);
 
 // o mesmo com o clipe NO AR (disparado): ◀ anda para trás e ‖ para

@@ -48,11 +48,19 @@ export class Panels {
     P.appendChild(this.phead('Transform', 'Transform|Posição, escala e giro' + (help || '') + '.'));
     P.appendChild(this.pnum('Posição X', 'Posição X|−100 é a esquerda, 100 a direita.', Math.round(tr.x * 100), { min: -200, max: 200, step: 1, bar: true, reset: 0 }, v => { tr.x = v / 100; }));
     P.appendChild(this.pnum('Posição Y', 'Posição Y|−100 é embaixo, 100 em cima.', Math.round(tr.y * 100), { min: -200, max: 200, step: 1, bar: true, reset: 0 }, v => { tr.y = v / 100; }));
-    // Escala muda largura e altura juntas (guarda a proporção esticada); Largura e Altura mexem cada uma sozinha
-    const sx = tr.sx ?? 1, sy = tr.sy ?? 1;
-    P.appendChild(this.pnum('Escala', 'Escala|Tamanho, largura e altura juntas.', Math.round(tr.scale * 100), { min: 1, max: 400, step: 1, unit: ' %', bar: true, reset: 100 }, v => { tr.scale = v / 100; }));
-    P.appendChild(this.pnum('Largura', 'Largura|Só a largura. 100 % é o tamanho normal; passa de 100 alarga, abaixo estreita.', Math.round(tr.scale * sx * 100), { min: 1, max: 800, step: 1, unit: ' %', bar: true, reset: 100 }, v => { tr.sx = v / 100 / tr.scale; }));
-    P.appendChild(this.pnum('Altura', 'Altura|Só a altura. 100 % é o tamanho normal; passa de 100 estica, abaixo achata.', Math.round(tr.scale * sy * 100), { min: 1, max: 800, step: 1, unit: ' %', bar: true, reset: 100 }, v => { tr.sy = v / 100 / tr.scale; }));
+    // Escala como no Resolume 7.28 (conferido na janela dele e pela API): um grupo que abre e fecha. Fechado: uma linha "Escala".
+    // Aberto: o cabeçalho "Escala" e embaixo Escala, Largura e Altura, os três independentes (de 0 a 1000 %); o tamanho que vai
+    // para a tela é Escala × Largura (e Escala × Altura). Não há tick de trava lá.
+    const open = !!this.scaleOpen, sx = tr.sx ?? 1, sy = tr.sy ?? 1;
+    const arrow = (row) => { const lb = row.querySelector('.pl'), a = el('span', 'tgl', open ? '▼' : '▶'); a.title = open ? 'Fechar' : 'Abrir Largura e Altura'; a.onclick = (e) => { e.stopPropagation(); this.scaleOpen = !open; this.render(); }; lb.prepend(a); lb.classList.add('hasTgl'); return row; };
+    const escala = this.pnum('Escala', 'Escala|Tamanho, largura e altura juntas. 100 % é o tamanho normal.', Math.round(tr.scale * 100), { min: 0, max: 1000, step: 1, unit: ' %', bar: true, reset: 100 }, v => { tr.scale = v / 100; });
+    if (!open) P.appendChild(arrow(escala));
+    else {
+      const gh = el('div', 'prow grp'); gh.append(el('span', 'pl hasTgl', ''), el('span', 'pv', '')); arrow(gh); gh.querySelector('.pl').append(el('span', 'tgn', 'Escala')); P.appendChild(gh);
+      P.appendChild(escala);
+      P.appendChild(this.pnum('Largura', 'Largura|Só a largura. 100 % é o tamanho normal; passa de 100 alarga, abaixo estreita. Multiplica a Escala.', Math.round(sx * 100), { min: 0, max: 1000, step: 1, unit: ' %', bar: true, reset: 100 }, v => { tr.sx = v / 100; }));
+      P.appendChild(this.pnum('Altura', 'Altura|Só a altura. 100 % é o tamanho normal; passa de 100 estica, abaixo achata. Multiplica a Escala.', Math.round(sy * 100), { min: 0, max: 1000, step: 1, unit: ' %', bar: true, reset: 100 }, v => { tr.sy = v / 100; }));
+    }
     P.appendChild(this.pnum('Giro', 'Giro|Ângulo em graus.', tr.rot, { min: -180, max: 180, step: 1, unit: ' °', bar: true, reset: 0 }, v => { tr.rot = v; }));
   }
   // um parâmetro de efeito ou de fonte: a linha do valor e o botão ♪, que o anima na batida

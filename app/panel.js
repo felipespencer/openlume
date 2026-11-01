@@ -57,7 +57,7 @@ export function propsKit(host) {
     const plus = el('button', 'pm', '+'); plus.type = 'button'; plus.onclick = () => commit(v + (o.step || 1));
     box.append(val, minus, plus);
     if (o.bar) {
-      const bar = el('div', 'bar'), fill = el('div', 'fill'); bar.appendChild(fill);
+      const bar = el('div', 'bar' + (o.min < 0 && o.max > 0 ? ' zero' : '')), fill = el('div', 'fill'); bar.appendChild(fill);   // zero: a barra nasce do meio
       // barra com zero no meio (posição, giro…) enche a partir do centro; as outras, da esquerda
       const paint = (n) => { const f = (n - o.min) / (o.max - o.min); if (o.min < 0 && o.max > 0) { const z = -o.min / (o.max - o.min); fill.style.left = Math.min(f, z) * 100 + '%'; fill.style.width = Math.abs(f - z) * 100 + '%'; } else { fill.style.left = '0'; fill.style.width = f * 100 + '%'; } };
       paint(v);

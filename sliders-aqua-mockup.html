@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>OpenLume · maquete dos sliders Aqua</title>
+<style>
+:root{
+  --bg:#1c1c1c; --txt:#e6e6e6; --dim:#8a8a8a;
+  /* gel: do claro (topo) ao escuro (meio) e de volta ao claro (fundo), como o Aqua do Mac OS X */
+  --g1:#a9f4ff; --g2:#3bd5f0; --g3:#0b9fc8; --g4:#55e2f6; --glow:rgba(70,220,245,.55);
+}
+body.lime{ --g1:#d6ffa8; --g2:#7ff04a; --g3:#38b81c; --g4:#a4f774; --glow:rgba(110,240,60,.5); }
+body.mint{ --g1:#c9fff0; --g2:#6fe6c6; --g3:#25a88a; --g4:#8cf0d6; --glow:rgba(111,230,198,.5); }
+body.pink{ --g1:#ffc2e2; --g2:#ff5fb1; --g3:#d41c7e; --g4:#ff86c6; --glow:rgba(255,80,170,.5); }
+*{box-sizing:border-box}
+body{margin:0;background:#0d0d0d;color:var(--txt);font:12px/1.4 "Segoe UI",system-ui,sans-serif}
+.top{padding:10px 16px;display:flex;gap:10px;align-items:center;background:#111;border-bottom:1px solid #222;position:sticky;top:0;z-index:5;flex-wrap:wrap}
+.top b{font-size:13px} .top button{background:#2b2b2b;color:#e6e6e6;border:0;padding:5px 12px;border-radius:3px;cursor:pointer;font:inherit}
+.top button.on{background:var(--g2);color:#06222a} .top span{color:var(--dim)}
+.wrap{max-width:1100px;margin:18px auto;padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.card{background:var(--bg);border:1px solid #2a2a2a;border-radius:4px;padding:0 0 10px}
+.card h3{margin:0;padding:8px 12px;font-size:12px;font-weight:600;background:#2b2b2b;color:#cfcfcf}
+.card h3 i{font-style:normal;color:var(--dim);font-weight:400;margin-left:8px}
+.row{display:grid;grid-template-columns:96px 74px 1fr;align-items:center;gap:8px;padding:5px 12px;min-height:30px}
+.row .l{color:#cfcfcf} .row .v{color:#ddd;font-variant-numeric:tabular-nums}
+.row.full{grid-template-columns:1fr}
+.note{max-width:1100px;margin:0 auto 40px;padding:0 16px;color:#bdbdbd}
+
+/* ---------- ATUAL ---------- */
+.old .bar{height:16px;background:#101010;position:relative;cursor:pointer}
+.old .bar .fill{position:absolute;top:0;bottom:0;background:#2f6fd6}
+.old input[type=range]{width:100%;height:14px;margin:0;accent-color:#39FF14}
+
+/* ---------- AQUA ---------- */
+.aqua .bar{
+  position:relative;height:14px;border-radius:8px;cursor:pointer;
+  background:linear-gradient(180deg,#050505 0%,#1a1b1e 70%,#26272b 100%);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.9),inset 0 0 0 1px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.10);
+}
+.aqua .bar .fill{
+  position:absolute;top:1px;bottom:1px;left:1px;border-radius:7px;min-width:12px;
+  background:linear-gradient(180deg,var(--g1) 0%,var(--g2) 46%,var(--g3) 52%,var(--g4) 100%);
+  box-shadow:0 0 6px var(--glow),inset 0 0 0 1px rgba(255,255,255,.28),inset 0 -1px 1px rgba(0,60,90,.35);
+}
+.aqua .bar .fill::after{   /* brilho de vidro na metade de cima */
+  content:"";position:absolute;left:3px;right:3px;top:1px;height:42%;border-radius:6px 6px 3px 3px;
+  background:linear-gradient(180deg,rgba(255,255,255,.75),rgba(255,255,255,.12));
+}
+.aqua .bar.zero .fill{left:auto}
+/* barra com zero no meio: o gel nasce do meio */
+.aqua .bar.zero::before{content:"";position:absolute;left:50%;top:2px;bottom:2px;width:1px;background:rgba(255,255,255,.22);z-index:2}
+
+/* range nativo (camada, crossfader, grupo) refeito no mesmo estilo, com bolinha de gel */
+.aqua input[type=range]{ -webkit-appearance:none;appearance:none;width:100%;height:22px;margin:0;background:transparent;cursor:pointer;
+  --p:50%; }
+.aqua input[type=range]::-webkit-slider-runnable-track{
+  height:12px;border-radius:7px;
+  background:
+    linear-gradient(180deg,var(--g1) 0%,var(--g2) 46%,var(--g3) 52%,var(--g4) 100%) 0 0/var(--p) 100% no-repeat,
+    linear-gradient(180deg,#050505 0%,#1a1b1e 70%,#26272b 100%);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.9),inset 0 0 0 1px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.10);
+}
+.aqua input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:20px;height:20px;margin-top:-4px;border-radius:50%;
+  background:radial-gradient(circle at 50% 22%,rgba(255,255,255,.95) 0 22%,rgba(255,255,255,0) 46%),
+             linear-gradient(180deg,var(--g1) 0%,var(--g2) 46%,var(--g3) 52%,var(--g4) 100%);
+  box-shadow:0 0 0 1px rgba(0,40,60,.7),0 2px 4px rgba(0,0,0,.7),0 0 8px var(--glow),inset 0 -2px 3px rgba(0,70,100,.45);
+}
+.aqua input[type=range]:active::-webkit-slider-thumb{ filter:brightness(1.1) saturate(1.2) }
+.aqua input[type=range].mini{height:16px;width:90px} .aqua input[type=range].mini::-webkit-slider-runnable-track{height:8px} .aqua input[type=range].mini::-webkit-slider-thumb{width:14px;height:14px;margin-top:-3px}
+.old input[type=range].mini{width:90px}
+</style></head>
+<body>
+<div class="top"><b>Maquete: sliders no estilo Aqua</b>
+<button data-t="" class="on">Aqua (azul)</button><button data-t="lime">Aqua verde-limão (a cor do programa)</button><button data-t="mint">Aqua menta</button><button data-t="pink">Aqua rosa (seleção)</button>
+<span>Os controles abaixo funcionam: arraste. À esquerda, como é hoje; à direita, o Aqua.</span></div>
+
+<div class="wrap">
+  <div class="card old"><h3>Hoje <i>barra de valor dos painéis</i></h3>
+    <div class="row"><span class="l">Opacidade</span><span class="v" id="o1v">100 %</span><div class="bar" data-v="1"><div class="fill" style="width:100%"></div></div></div>
+    <div class="row"><span class="l">Velocidade</span><span class="v" id="o2v">1,00x</span><div class="bar" data-v="0.1"><div class="fill" style="width:10%"></div></div></div>
+    <div class="row"><span class="l">Rotação</span><span class="v">0°</span><div class="bar" data-v="0.5"><div class="fill" style="left:50%;width:0"></div></div></div>
+  </div>
+  <div class="card aqua"><h3>Aqua <i>barra de valor dos painéis</i></h3>
+    <div class="row"><span class="l">Opacidade</span><span class="v" id="a1v">100 %</span><div class="bar" data-v="1"><div class="fill" style="width:calc(100% - 2px)"></div></div></div>
+    <div class="row"><span class="l">Velocidade</span><span class="v" id="a2v">1,00x</span><div class="bar" data-v="0.1"><div class="fill" style="width:10%"></div></div></div>
+    <div class="row"><span class="l">Rotação</span><span class="v">+90°</span><div class="bar zero" data-z="1"><div class="fill" style="left:50%;width:25%"></div></div></div>
+  </div>
+
+  <div class="card old"><h3>Hoje <i>slider da camada, grupo e crossfader</i></h3>
+    <div class="row full"><input type="range" min="0" max="100" value="80"></div>
+    <div class="row full"><input type="range" min="0" max="100" value="40"></div>
+    <div class="row"><span class="l">Alfa da cor</span><span class="v"></span><input type="range" class="mini" min="0" max="100" value="60"></div>
+  </div>
+  <div class="card aqua"><h3>Aqua <i>slider da camada, grupo e crossfader</i></h3>
+    <div class="row full"><input type="range" min="0" max="100" value="80"></div>
+    <div class="row full"><input type="range" min="0" max="100" value="40"></div>
+    <div class="row"><span class="l">Alfa da cor</span><span class="v"></span><input type="range" class="mini" min="0" max="100" value="60"></div>
+  </div>
+</div>
+<div class="note"><b>O que muda no Aqua:</b> trilho de vidro escuro com borda interna e sombra; enchimento de gel com o degradê claro-escuro-claro e o brilho de vidro na metade de cima; bolinha de gel nos sliders de arrastar, com brilho de luz e sombra; barra com zero no meio nasce do centro, com um risquinho no zero. Vale para todos: painéis de clipe e composição, Saída avançada, Laser, camadas, grupos, crossfader e alfa. A cor sai de uma variável só, então trocar é uma linha. Escolha a cor nos botões do alto.</div>
+<script>
+document.querySelectorAll('.top button').forEach(function(b){b.onclick=function(){document.querySelectorAll('.top button').forEach(function(x){x.classList.remove('on')});b.classList.add('on');document.body.className=b.dataset.t}});
+document.querySelectorAll('.aqua input[type=range]').forEach(function(r){var f=function(){r.style.setProperty('--p',((+r.value-r.min)/(r.max-r.min)*100)+'%')};r.oninput=f;f()});
+document.querySelectorAll('.bar').forEach(function(bar){
+  var aq=bar.closest('.aqua'), fill=bar.querySelector('.fill'), z=bar.dataset.z;
+  var set=function(e){var r=bar.getBoundingClientRect(),f=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+    if(z){var a=Math.min(f,.5),b=Math.max(f,.5);fill.style.left=(a*100)+'%';fill.style.width=((b-a)*100)+'%';}
+    else{fill.style.width=aq?('calc('+(f*100)+'% - '+(2*f)+'px)'):(f*100)+'%';}};
+  bar.onpointerdown=function(e){bar.setPointerCapture(e.pointerId);set(e);bar.onpointermove=function(ev){if(bar.hasPointerCapture(ev.pointerId))set(ev)}};
+});
+</script></body></html>

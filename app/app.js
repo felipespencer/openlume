@@ -1408,6 +1408,10 @@ loop();
 render();
 
 // usado pelo teste automático (tools/selftest-main.js); não é interface de usuário
+// sliders Aqua: o trilho nativo não tem "enchimento", então a variável --p (posição, em %) é mantida aqui para todos os input[type=range]
+// (os valores também mudam por código, sem evento: por isso a conferência periódica)
+function aquaSliders() { const sync = () => { for (const r of document.querySelectorAll('input[type=range]')) { const mn = +r.min || 0, mx = r.max === '' ? 100 : +r.max, p = mx > mn ? Math.max(0, Math.min(1, (+r.value - mn) / (mx - mn))) * 100 : 0, v = p.toFixed(1) + '%'; if (r.style.getPropertyValue('--p') !== v) r.style.setProperty('--p', v); } }; addEventListener('input', sync, true); setInterval(sync, 120); sync(); }
+aquaSliders();
 window.projecionista = { putPhone, frames: () => loop.total || 0, undo: undoComp, redo: redoComp, markUndo, hist, recordingToClip, automape, setAutomapeGrid, automapeGridOn, menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, addDeck, switchDeck, removeDeck, duplicateDeck, newGroup, setLayerGroup, removeGroup, duplicateGroup, addLayerToGroup, fadeTo, bpm: state.bpm, tapBpm: (t) => tap(state.bpm, t), pending: () => pending.length, apc, stepClip, EFFECTS, audio, mkAudioFx, seg, applyProjectors, projectorWizard, autosave, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
   probe: (pts) => engine.probe(state.layers, pts),
   probeScreen: (sc, pts) => engine.probeScreen(sc, state.layers, state.screens, pts),
