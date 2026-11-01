@@ -237,6 +237,8 @@ export function tickTransport(c, dt, speedMul = 1) {
   const el = mediaOf(c), t = c.tr; if (!el || c.kind !== 'video' || !c.dur) return false;
   if (c.player) c.player.advance(dt, t.playing && t.dir < 0);
   const inP = Math.max(0, Math.min(t.in, c.dur)), outP = Math.max(inP + 0.05, Math.min(t.out || c.dur, c.dur));
+  // IN e OUT fechados um contra o outro: o clipe fica parado nesse ponto, não importa o botão apertado
+  if ((t.out || c.dur) - t.in <= 0.002) { if (!el.paused) el.pause(); if (Math.abs(el.currentTime - inP) > 0.02) seekClip(c, inP); return false; }
   if (!t.playing) return false;
   if (t.sync === 'bpm' && clock && t.dir > 0) {
     // BPM Sync: a faixa entre entrada e saída dura N batidas, presa à batida geral (o "hard sync" do Resolume)

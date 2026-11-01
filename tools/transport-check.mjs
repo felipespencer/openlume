@@ -62,6 +62,18 @@ await ev(`(() => { ${clip}.el.currentTime = 6.5; ${P}.panels.render(); return 1;
 await dragTo('.hnd.in', 0.1); s = await ev(`(() => ({ in: ${clip}.tr.in, t: ${clip}.el.currentTime }))()`);
 check('puxar o IN para longe da agulha não mexe nela', s.in < 2 && Math.abs(s.t - 6.5) < 0.05, JSON.stringify(s));
 
+// IN e OUT se fecham um contra o outro e o clipe fica parado
+await ev(`(() => { const c = ${clip}; c.tr.in = 0; c.tr.out = c.dur; c.tr.playing = false; c.el.pause(); c.el.currentTime = 6; ${P}.panels.render(); return 1; })()`); await wait(300);
+await dragTo('.hnd.in', 0.5); await dragTo('.hnd.out', 0.5);
+s = await ev(`(() => ({ in: ${clip}.tr.in, out: ${clip}.tr.out }))()`);
+check('IN e OUT podem se encontrar', Math.abs(s.out - s.in) < 0.05, JSON.stringify(s));
+await ev(`(() => { ${P}.trigger(0, 0); return 1; })()`); await wait(300);
+await press('▶'); await wait(700); s = await st();
+check('com IN = OUT o clipe fica parado (▶ não anda)', s.paused && Math.abs(s.t - 6) < 0.1, JSON.stringify(s));
+await press('◀'); await wait(500); s2 = await st();
+check('com IN = OUT o ◀ também não anda', Math.abs(s2.t - s.t) < 0.05, JSON.stringify(s2));
+await ev(`(() => { const c = ${clip}; c.tr.in = 0; c.tr.out = c.dur; ${P}.panels.render(); return 1; })()`);
+
 // o mesmo com o clipe NO AR (disparado): ◀ anda para trás e ‖ para
 await ev(`(() => { ${P}.trigger(0, 0); return 1; })()`); await wait(600);
 await press('▶'); await wait(500); await press('◀'); s = await st(); await wait(700); s2 = await st();
