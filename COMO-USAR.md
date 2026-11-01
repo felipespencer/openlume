@@ -1,4 +1,4 @@
-# Projecionista (OpenLume no Windows): como usar
+# Projecionista (OpenLux no Windows): como usar
 
 Programa de computador para projeção ao vivo: uma grade de clipes por camada, tudo misturado
 numa imagem só, e uma janela de saída para o projetor. O jeito de trabalhar segue o do Resolume

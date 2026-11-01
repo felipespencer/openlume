@@ -5,7 +5,7 @@ status: complete
 completed: 2026-10-22
 description: "Maquete do Automape aprovada na prática: assistente em 7 passos, IA real nos exemplos, contornos, editor de pontos com bezier, zoom, nova forma, desfazer, mini animações, neon rosa"
 type: Summary
-about: "OpenLume"
+about: "OpenLux"
 ---
 
 # 01-01 SUMMARY: maquete do Automape
@@ -37,7 +37,7 @@ about: "OpenLume"
 - Nome: **Automape**. Foto com o projetor ligado mostrando borda + malha; câmera acima da lente.
 - Mapeamento pelo contorno, nunca só a caixa.
 - Interface = assistente com minitutoriais; painel cheio só como "modo avançado".
-- MCP do OpenLume entra no roadmap (01-04); IA de profundidade (01-05).
+- MCP do OpenLux entra no roadmap (01-04); IA de profundidade (01-05).
 
 ## Desvios
 - O checkpoint formal ("constrói igual") não foi dito; em 2026-10-22 o Felipe pediu para adiantar enquanto dormia e, antes, "veja o botão RECORD… o vídeo gravado já aparecer num dos clipes". Interpretado como aprovação de seguir para o programa, mantendo a maquete como referência.
@@ -46,4 +46,4 @@ about: "OpenLume"
 ## Pendências para os próximos planos
 - 01-02: REC vira clipe na grade (pedido de 2026-10-22).
 - 01-03: Automape dentro do programa com tudo acima menos a IA em fotos novas.
-- 01-04: IA local (segmentação com nomes) e/ou Claude + MCP do OpenLume.
+- 01-04: IA local (segmentação com nomes) e/ou Claude + MCP do OpenLux.

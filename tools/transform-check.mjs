@@ -4,8 +4,8 @@
 import { execFileSync } from 'node:child_process'; import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';
 const base = 'http://127.0.0.1:' + (process.env.PROJ_CDP || 9333);
 const pages = await (await fetch(base + '/json')).json();
-const page = pages.find(p => p.type === 'page' && p.title.includes('OpenLume'));
-if (!page) { console.error('janela do OpenLume não achada'); process.exit(1); }
+const page = pages.find(p => p.type === 'page' && p.title.includes('OpenLux'));
+if (!page) { console.error('janela do OpenLux não achada'); process.exit(1); }
 const d = path.join(os.tmpdir(), 'ol-tr'); fs.mkdirSync(d, { recursive: true }); const clipPath = path.join(d, 't.mp4');
 if (!fs.existsSync(clipPath)) execFileSync(path.join(import.meta.dirname, 'ffmpeg', 'ffmpeg.exe'), ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc=size=640x360:rate=25:duration=12', '-pix_fmt', 'yuv420p', clipPath]);
 const ws = new WebSocket(page.webSocketDebuggerUrl); await new Promise(r => ws.onopen = r);

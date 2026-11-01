@@ -1,9 +1,9 @@
 // Bancada TEMPORAL do Background Removal: o mesmo vídeo em movimento nos dois programas, em modo Máscara, com a
 // Suavidade no tempo em dois valores (0 e 0,95); captura N quadros seguidos de cada lado (Resolume pelo Spout em rajada,
-// OpenLume pelo canvas via CDP) e mede, em cada programa, quanto o 0,95 ATRASA e quanto RASTRO deixa em relação ao 0
+// OpenLux pelo canvas via CDP) e mede, em cada programa, quanto o 0,95 ATRASA e quanto RASTRO deixa em relação ao 0
 // do mesmo programa. Assim dá para calibrar a nossa suavidade pela deles sem precisar de sincronia entre os programas.
 // Uso: node tools/compare/temporal.mjs [--clip arq.mp4] [--n 90] [--valor 0.95] [--nome rotulo]
-// Precisa: Resolume com servidor web e Spout "Arena - Screen 1"; OpenLume com --remote-debugging-port=9333.
+// Precisa: Resolume com servidor web e Spout "Arena - Screen 1"; OpenLux com --remote-debugging-port=9333.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,11 +18,11 @@ for (let i = 0; i < argv.length; i++) { const k = argv[i]; if (k === '--clip') a
 fs.mkdirSync(OUT, { recursive: true });
 const clip = path.resolve(a.clip).replace(/\\/g, '/');
 
-// ---- OpenLume (CDP) ----
+// ---- OpenLux (CDP) ----
 const base = 'http://127.0.0.1:9333';
 const pages = await (await fetch(base + '/json')).json();
-const page = pages.find(p => p.type === 'page' && p.title === 'OpenLume') || pages.find(p => p.type === 'page' && p.title.includes('OpenLume'));
-if (!page) { console.error('OpenLume não está aberto com --remote-debugging-port=9333'); process.exit(1); }
+const page = pages.find(p => p.type === 'page' && p.title === 'OpenLux') || pages.find(p => p.type === 'page' && p.title.includes('OpenLux'));
+if (!page) { console.error('OpenLux não está aberto com --remote-debugging-port=9333'); process.exit(1); }
 const ws = new WebSocket(page.webSocketDebuggerUrl); await new Promise(r => ws.onopen = r);
 let id = 0; const waits = new Map();
 ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && waits.has(d.id)) { waits.get(d.id)(d); waits.delete(d.id); } };
@@ -66,7 +66,7 @@ async function resolumeSerie(tsmooth) {
 
 for (const v of [0, a.valor]) {
   console.log(`Resolume, Temporal Smoothness ${v}…`); await resolumeSerie(v);
-  console.log(`OpenLume, Suavidade no tempo ${v}…`); const s = await openlumeSerie(v);
+  console.log(`OpenLux, Suavidade no tempo ${v}…`); const s = await openlumeSerie(v);
   fs.writeFileSync(path.join(OUT, `${a.nome}-openlume-${v}.raw`), s.buf); fs.writeFileSync(path.join(OUT, `${a.nome}-openlume-${v}.json`), JSON.stringify(s.ts));
 }
 ws.close();

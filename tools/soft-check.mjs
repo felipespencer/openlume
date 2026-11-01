@@ -4,8 +4,8 @@
 // Programa aberto com --remote-debugging-port=9333 (ou PROJ_CDP). Uso: node tools/soft-check.mjs
 const base = 'http://127.0.0.1:' + (process.env.PROJ_CDP || 9333);
 const pages = await (await fetch(base + '/json')).json();
-const page = pages.find(p => p.type === 'page' && p.title === 'OpenLume') || pages.find(p => p.type === 'page' && p.title.includes('OpenLume'));
-if (!page) { console.error('janela do OpenLume não achada', pages.map(p => p.title)); process.exit(1); }
+const page = pages.find(p => p.type === 'page' && p.title === 'OpenLux') || pages.find(p => p.type === 'page' && p.title.includes('OpenLux'));
+if (!page) { console.error('janela do OpenLux não achada', pages.map(p => p.title)); process.exit(1); }
 const ws = new WebSocket(page.webSocketDebuggerUrl); await new Promise(r => ws.onopen = r);
 let id = 0; const waits = new Map();
 ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && waits.has(d.id)) { waits.get(d.id)(d); waits.delete(d.id); } };

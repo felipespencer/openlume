@@ -1,4 +1,4 @@
-# OpenLume
+# OpenLux
 
 **[Português](#português) · [English](#english)**
 
@@ -6,7 +6,7 @@
 
 ## Português
 
-OpenLume é um software livre e de código aberto pra VJ, performance visual ao vivo e projeção mapeada. A inspiração é o Resolume, com melhorias pensadas por quem faz projeção na rua e em palco.
+OpenLux é um software livre e de código aberto pra VJ, performance visual ao vivo e projeção mapeada. A inspiração é o Resolume, com melhorias pensadas por quem faz projeção na rua e em palco.
 
 Vai ter três versões: **web** (abre no navegador), **Windows** e **Android**, todas com o mesmo motor por baixo.
 
@@ -23,7 +23,7 @@ Vai ter três versões: **web** (abre no navegador), **Windows** e **Android**, 
 
 ### De onde vem
 
-O OpenLume nasce da experiência do [projecionista.app](https://projecionista.app), ferramenta de projeção mapeada feita no Brasil pra rede [Projetemos](https://projetemos.org). A partir de agora o OpenLume é o motor, e o projecionista.app passa a ser uma versão feita em cima dele.
+O OpenLux nasce da experiência do [projecionista.app](https://projecionista.app), ferramenta de projeção mapeada feita no Brasil pra rede [Projetemos](https://projetemos.org). A partir de agora o OpenLux é o motor, e o projecionista.app passa a ser uma versão feita em cima dele.
 
 ### Idioma
 
@@ -50,7 +50,7 @@ O projeto ainda está tomando forma. Ideias, relatos de uso e bugs são bem-vind
 
 ### Licença
 
-GPL-3.0. Você pode usar, estudar, modificar e distribuir o OpenLume, mas quem distribuir uma versão modificada tem que liberar o código dela com a mesma licença. Texto completo em [LICENSE](LICENSE).
+GPL-3.0. Você pode usar, estudar, modificar e distribuir o OpenLux, mas quem distribuir uma versão modificada tem que liberar o código dela com a mesma licença. Texto completo em [LICENSE](LICENSE).
 
 ### Autor
 
@@ -60,7 +60,7 @@ Felipe Spencer · [Videodifusora](https://github.com/felipespencer)
 
 ## English
 
-OpenLume is a free and open source tool for VJing, live visual performance and projection mapping. It's inspired by Resolume, with improvements shaped by people who project on streets and stages.
+OpenLux is a free and open source tool for VJing, live visual performance and projection mapping. It's inspired by Resolume, with improvements shaped by people who project on streets and stages.
 
 It will ship in three versions: **web** (runs in the browser), **Windows** and **Android**, all sharing the same engine underneath.
 
@@ -77,7 +77,7 @@ It will ship in three versions: **web** (runs in the browser), **Windows** and *
 
 ### Background
 
-OpenLume grows out of [projecionista.app](https://projecionista.app), a projection mapping tool made in Brazil for the [Projetemos](https://projetemos.org) network. From now on OpenLume is the engine, and projecionista.app becomes a version built on top of it.
+OpenLux grows out of [projecionista.app](https://projecionista.app), a projection mapping tool made in Brazil for the [Projetemos](https://projetemos.org) network. From now on OpenLux is the engine, and projecionista.app becomes a version built on top of it.
 
 ### Language
 
@@ -104,7 +104,7 @@ The project is still taking shape. Ideas, usage reports and bug reports are welc
 
 ### License
 
-GPL-3.0. You're free to use, study, change and share OpenLume, but if you distribute a modified version you have to release its source under the same license. Full text in [LICENSE](LICENSE).
+GPL-3.0. You're free to use, study, change and share OpenLux, but if you distribute a modified version you have to release its source under the same license. Full text in [LICENSE](LICENSE).
 
 ### Author
 

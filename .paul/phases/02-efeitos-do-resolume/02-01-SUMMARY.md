@@ -9,7 +9,7 @@ requires:
   - phase: 01-automape
     provides: motor de efeitos (effects.js/effects2.js), Saída avançada, tools/drive.mjs (CDP)
 provides:
-  - Bancada lado a lado Resolume × OpenLume (tools/compare): REST do Resolume + CDP do OpenLume + captura Spout + diferença por pixel
+  - Bancada lado a lado Resolume × OpenLux (tools/compare): REST do Resolume + CDP do OpenLux + captura Spout + diferença por pixel
   - Fichas de controles de todos os efeitos de vídeo do Resolume (referencia-resolume/FICHAS.md)
   - Delay RGB, Trails e Threshold iguais ao Resolume nos controles e na tela
   - Fora do plano: Background Removal nativo (onnxruntime-node + DirectML, modelos do Resolume), Shape Mask, fontes YouTube e Celular, Soft Edge por degradê com alça
@@ -32,7 +32,7 @@ key-decisions:
   - "Nada de shader, .wired ou código do Resolume no repositório"
 
 patterns-established:
-  - "Bancada: `node tools/compare/compare.mjs \"<Efeito>\" --r \"<controle>=<valor>\"` compara Resolume | OpenLume | diferença e dá a média por pixel"
+  - "Bancada: `node tools/compare/compare.mjs \"<Efeito>\" --r \"<controle>=<valor>\"` compara Resolume | OpenLux | diferença e dá a média por pixel"
   - "Efeito novo guarda `rname`/`rparams` para a bancada achar o par no Resolume"
   - "Cada recurso de interface ganha verificação por CDP com eventos reais (ao/ui/undo/automape/soft-check)"
 
@@ -40,9 +40,9 @@ patterns-established:
 duration: 5 dias de calendário (2026-10-25 → 2026-10-30), com o checkpoint aberto por 4 dias de betas
 started: 2026-10-25T17:00:00-03:00
 completed: 2026-10-30T16:40:00-03:00
-description: "Bancada Resolume × OpenLume e lote 1 (Threshold, Trails, Delay RGB) iguais por quadro; de quebra Background Removal nativo com os modelos do Resolume, Shape Mask, YouTube e celular como fontes, e Soft Edge por degradê"
+description: "Bancada Resolume × OpenLux e lote 1 (Threshold, Trails, Delay RGB) iguais por quadro; de quebra Background Removal nativo com os modelos do Resolume, Shape Mask, YouTube e celular como fontes, e Soft Edge por degradê"
 type: Summary
-about: "OpenLume"
+about: "OpenLux"
 ---
 
 # Phase 2 Plan 01: Bancada e lote 1 dos efeitos do Resolume — Summary
@@ -65,7 +65,7 @@ about: "OpenLume"
 | Criterion | Status | Notes |
 |-----------|--------|-------|
 | AC-1: Ficha de controles vinda do Resolume | Pass | `resolume.mjs fichas` gera `effects-rest.json` (fora do git) e `FICHAS.md` (1557 linhas, um efeito por seção, atualizado para o 7.28) |
-| AC-2: Bancada lado a lado | Pass | REST 8080 + CDP 9333 + Spout (`capture.py`); PNG Resolume \| OpenLume \| diferença a 960×540; recusa captura preta/repetida (captura duas vezes por causa da marca d'água do demo) |
+| AC-2: Bancada lado a lado | Pass | REST 8080 + CDP 9333 + Spout (`capture.py`); PNG Resolume \| OpenLux \| diferença a 960×540; recusa captura preta/repetida (captura duas vezes por causa da marca d'água do demo) |
 | AC-3: Os três efeitos iguais nos controles | Pass | Controles, ordem, faixas, padrões e listas da ficha; rótulos em português; `rname`/`rparams` no efeito |
 | AC-4: Os três efeitos iguais na tela | Pass | Threshold: média 0–3/255 em 5 casos (máximo alto só na borda do limiar, 1 px). Trails e Delay RGB: comparados por quadro renderizado, batem (tabelas em `tools/compare/saida/lote-01/RELATORIO.md`) |
 | AC-5: Sem código do Resolume | Pass | Nada dos shaders extraídos nem dos `.wired` nos arquivos; o Background Removal foi refeito pelo que o patch do Wire DESCREVE (comentários), não pelos nós |
@@ -109,7 +109,7 @@ Plan metadata: `7460334` (estado do checkpoint), `b1ca2d2`, `57d3c6a` e os "STAT
 
 | Decision | Rationale | Impact |
 |----------|-----------|--------|
-| Efeitos de tempo copiados por quadro renderizado | O Resolume rende a ~30 fps nesta máquina e o OpenLume a 60; comparar por tempo dava números falsos | Vale para todos os lotes: medir por quadro |
+| Efeitos de tempo copiados por quadro renderizado | O Resolume rende a ~30 fps nesta máquina e o OpenLux a 60; comparar por tempo dava números falsos | Vale para todos os lotes: medir por quadro |
 | Cor de efeito com alfa (`COLOR(..., true)`) | O Threshold do Resolume tem cor com alfa e modos de alfa | Painel ganhou controle de alfa; shader de camada premultiplica só textura de elemento |
 | Background Removal nativo (utilityProcess + onnxruntime-node/DirectML) com os modelos do Resolume | WebGPU do onnxruntime-web é 5–15× mais lento e calcula errado ceil_mode/Conv ímpar; o Resolume usa MODNet-HRNet | Instalador leva só os binários win32/x64; Média ≈ Medium do Resolume (2/255) |
 | Soft Edge vira degradê com alça; quatro por slice; o automático só posiciona | Ideia do Felipe ("gradiente do Illustrator puxado na imagem"); resolve a quina e o projetor em pé | Recurso nosso, fora do "copiar o Resolume"; alças só na aba Entrada por enquanto |

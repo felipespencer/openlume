@@ -1,4 +1,4 @@
-# Bancada lado a lado: Resolume × OpenLume
+# Bancada lado a lado: Resolume × OpenLux
 
 Põe o mesmo clipe, o mesmo efeito e os mesmos valores nos dois programas, captura as duas saídas e mede a
 diferença por pixel. É com ela que cada efeito do Resolume é copiado "pelo resultado": a ficha dos controles
@@ -10,7 +10,7 @@ entra aqui nem no `app/`.
 - **Resolume Arena 7.26** com o servidor web ligado (Preferences → Webserver, porta 8080) e, na Saída avançada,
   a Screen 1 com Device = **Spout** (o remetente chama "Arena - Screen 1"). A captura é pelo Spout porque
   nesta máquina a leitura da tela por DXGI clareia tudo (HDR) e a GDI devolve quadro parado.
-- **OpenLume** aberto com `npx electron . --remote-debugging-port=9333` (a bancada manda JS pelo CDP e lê o
+- **OpenLux** aberto com `npx electron . --remote-debugging-port=9333` (a bancada manda JS pelo CDP e lê o
   canvas do motor, nunca a tela).
 - Python 3 com `SpoutGL`, `numpy` e `Pillow`; Node 20+.
 
@@ -20,7 +20,7 @@ entra aqui nem no `app/`.
 |---|---|
 | `resolume.mjs` | cliente da API REST: `fichas` (gera `extraido/effects-rest.json` e `FICHAS.md`), `abrir <arquivo>` (camada 1, casa 2), `efeito <nome>`, `valor <controle> <v>`, `limpar` |
 | `capture.py` | captura a saída do Resolume pelo Spout (`py tools/compare/capture.py saida.png [quadros a esperar]`); recusa captura preta |
-| `diff.py` | reduz as duas capturas a 960×540, dá diferença média/máxima por canal e grava Resolume \| OpenLume \| diferença ×4; recusa imagem lisa |
+| `diff.py` | reduz as duas capturas a 960×540, dá diferença média/máxima por canal e grava Resolume \| OpenLux \| diferença ×4; recusa imagem lisa |
 | `compare.mjs` | junta tudo: `node tools/compare/compare.mjs "Threshold" --r "Smoothness=0.4" [--clip arq] [--nome rotulo]` |
 | `medir-threshold.mjs` | sondagem só no Resolume de como o Threshold trata cor e suavidade |
 | `janelas.py` | lista as janelas do Resolume (útil se a captura por janela voltar a ser necessária) |
@@ -34,8 +34,8 @@ entra aqui nem no `app/`.
 - Clipe H.264 a **60 fps** congela no Resolume desta máquina (MF h264); os clipes de teste são a 30 fps.
 - O `drawbox` do ffmpeg não anima com `t`; o quadrado que anda é feito com `overlay=x='100+375*t'`.
 - O Resolume rende a ~30 fps aqui; efeitos de tempo (Trails, Delay RGB) foram comparados **por quadro
-  renderizado**, não por segundo: cada passo do Resolume é um passo do OpenLume.
-- O Spout entrega RGBA **premultiplicado**; o OpenLume também compõe premultiplicado. As capturas comparadas
+  renderizado**, não por segundo: cada passo do Resolume é um passo do OpenLux.
+- O Spout entrega RGBA **premultiplicado**; o OpenLux também compõe premultiplicado. As capturas comparadas
   são "sobre preto" (só RGB). Para conferir o alfa (modos Alfa do Threshold) foi lido o canal A direto do Spout.
 
 ## O que foi medido (lote 1, 2026-10-25)

@@ -1,4 +1,4 @@
-// OpenLume — processo principal (Electron).
+// OpenLux — processo principal (Electron).
 // Serve a pasta app/ por um esquema próprio (app://projecionista/), abre a janela de controle
 // e põe cada janela de saída no monitor que a tela pede.
 const { app, crashReporter, BrowserWindow, Menu, protocol, net, session, screen, ipcMain, shell, desktopCapturer, utilityProcess, MessageChannelMain } = require('electron');
@@ -10,11 +10,24 @@ const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const { LaserCube } = require('./lasercube.js');
 
+// Renomeado de OpenLume para OpenLux (2026-11-01): a pasta de dados leva o nome do produto, então os dados da antiga (preferências,
+// composições, presets, certificado do celular, armazenamento da página) são copiados uma vez para a nova, arquivo por arquivo e sem
+// sobrescrever, pulando os caches. Uma marca na pasta nova evita repetir; a pasta antiga fica intacta.
+try {
+  const velha = path.join(app.getPath('appData'), 'OpenLume'), nova = app.getPath('userData'), marca = path.join(nova, '.migrado-de-openlume');
+  if (fs.existsSync(velha) && !fs.existsSync(marca)) {
+    fs.mkdirSync(nova, { recursive: true });
+    const pular = new Set(['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'Crashpad', 'DevToolsActivePort', 'lockfile', 'SingletonLock', 'SingletonCookie', 'SingletonSocket', 'Network', 'blob_storage', 'Shared Dictionary', 'ShaderCache', 'GrShaderCache', 'Service Worker', 'VideoDecodeStats', 'WebStorage', 'component_crx_cache', 'extensions_crx_cache']);
+    for (const nome of fs.readdirSync(velha)) { if (pular.has(nome)) continue; try { fs.cpSync(path.join(velha, nome), path.join(nova, nome), { recursive: true, force: false, errorOnExist: false }); } catch { } }
+    fs.writeFileSync(marca, new Date().toISOString());
+  }
+} catch { }
+
 // ---------- registro de travamentos ----------
-// Tudo que derruba o programa vai para openlume.log na pasta de dados (menu OpenLume →
+// Tudo que derruba o programa vai para openlux.log na pasta de dados (menu OpenLux →
 // Abrir o registro): erros do processo principal, janela que caiu (com o motivo do Chromium),
 // processo de GPU que caiu, e os erros que a própria janela manda. Os minidumps ficam em crashDumps.
-const LOG_FILE = () => path.join(app.getPath('userData'), 'openlume.log');
+const LOG_FILE = () => path.join(app.getPath('userData'), 'openlux.log');
 let lastCrash = '';
 function logLine(kind, msg) {
   try { const f = LOG_FILE(); try { if (fs.statSync(f).size > 2e6) fs.renameSync(f, f + '.old'); } catch { } fs.appendFileSync(f, new Date().toISOString() + ' [' + kind + '] ' + String(msg).replace(/\r?\n/g, ' | ').slice(0, 4000) + '\n'); } catch { }
@@ -102,7 +115,7 @@ function prepareMedia(src, fmt, onProgress) {
 }
 const PREFS_FILE = () => path.join(app.getPath('userData'), 'prefs.json');
 const COMP_DIR = () => path.join(app.getPath('userData'), 'composicoes');
-const REC_DIR = (dir) => dir || path.join(app.getPath('videos'), 'OpenLume');
+const REC_DIR = (dir) => dir || path.join(app.getPath('videos'), 'OpenLux');
 const safeName = (name) => { const s = String(name).replace(/[\\/:*?"<>|]/g, '').trim(); if (!s) throw new Error('nome vazio'); return s; };
 const ORIGIN = 'app://projecionista';
 const ALLOWED = /^\/[\w./-]+\.(html|css|js|mjs|png|svg|ico|wasm|onnx|txt)$/;
@@ -141,7 +154,7 @@ const presetFile = (name) => {
 function createMain() {
   const win = new BrowserWindow({
     width: 1600, height: 900, minWidth: 1100, minHeight: 680,
-    backgroundColor: '#1b1c1f', title: 'OpenLume', autoHideMenuBar: true,
+    backgroundColor: '#1b1c1f', title: 'OpenLux', autoHideMenuBar: true,
     webPreferences: { ...PREFS, preload: path.join(APP_DIR, 'preload.js') },
   });
   win.webContents.on('render-process-gone', (_e, d) => {
@@ -161,7 +174,7 @@ function createMain() {
     let ext = null;
     if (want === 'auto') ext = screen.getAllDisplays().find(d => d.id !== main.id && !taken.has(d.id)) || null;
     else if (want !== 'window') ext = screen.getAllDisplays().find(d => String(d.id) === want) || null;
-    const base = { backgroundColor: '#000000', title: 'OpenLume — saída', autoHideMenuBar: true, webPreferences: PREFS };
+    const base = { backgroundColor: '#000000', title: 'OpenLux — saída', autoHideMenuBar: true, webPreferences: PREFS };
     const opts = ext
       ? { ...base, x: ext.bounds.x, y: ext.bounds.y, width: ext.bounds.width, height: ext.bounds.height, fullscreen: true, frame: false }
       : { ...base, width: 960, height: 540 };
@@ -236,7 +249,7 @@ app.whenReady().then(async () => {
   try { cert = JSON.parse(fs.readFileSync(certFile, 'utf8')); } catch { }
   const lanIps = () => { const r = []; for (const l of Object.values(os.networkInterfaces())) for (const a of l) if (a.family === 'IPv4' && !a.internal) r.push(a.address); return r; };
   if (!cert || !cert.ips || JSON.stringify(cert.ips) !== JSON.stringify(lanIps())) {
-    try { const sg = require('selfsigned'); const ips = lanIps(); const p = sg.generate([{ name: 'commonName', value: 'OpenLume' }], { days: 3650, keySize: 2048, extensions: [{ name: 'subjectAltName', altNames: [...ips, '127.0.0.1'].map(ip => ({ type: 7, ip })) }] }); cert = { key: p.private, cert: p.cert, ips }; fs.writeFileSync(certFile, JSON.stringify(cert)); } catch (e) { logLine('erro', 'certificado do celular: ' + (e.message || e)); }
+    try { const sg = require('selfsigned'); const ips = lanIps(); const p = sg.generate([{ name: 'commonName', value: 'OpenLux' }], { days: 3650, keySize: 2048, extensions: [{ name: 'subjectAltName', altNames: [...ips, '127.0.0.1'].map(ip => ({ type: 7, ip })) }] }); cert = { key: p.private, cert: p.cert, ips }; fs.writeFileSync(certFile, JSON.stringify(cert)); } catch (e) { logLine('erro', 'certificado do celular: ' + (e.message || e)); }
   }
   const phoneOffers = new Map(); let phoneSeq = 0, phonePort = 0;
   if (cert) {
@@ -247,7 +260,7 @@ app.whenReady().then(async () => {
         let body = ''; req.on('data', (d) => { body += d; if (body.length > 200000) req.destroy(); });
         req.on('end', () => {
           let o; try { o = JSON.parse(body); } catch { res.writeHead(400); res.end('{}'); return; }
-          const id = ++phoneSeq; phoneOffers.set(id, res); res.setTimeout(30000, () => { if (phoneOffers.delete(id)) { res.writeHead(504, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ erro: 'o OpenLume não respondeu' })); } });
+          const id = ++phoneSeq; phoneOffers.set(id, res); res.setTimeout(30000, () => { if (phoneOffers.delete(id)) { res.writeHead(504, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ erro: 'o OpenLux não respondeu' })); } });
           for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed() && w.webContents.getURL().includes('index.html')) w.webContents.send('phone:offer', { id, sdp: String(o.sdp || ''), nome: String(o.nome || 'Celular'), ip: req.socket.remoteAddress });
         }); return;
       }
@@ -281,7 +294,7 @@ app.whenReady().then(async () => {
       win.setIgnoreMouseEvents(true); win.setOpacity(process.env.PROJ_WEB_OPACITY != null ? +process.env.PROJ_WEB_OPACITY : 0);   // PROJ_WEB_OPACITY: só para depurar a captura
       win.webContents.setAudioMuted(true);
       win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-      win.setTitle('OpenLume · página ' + key);
+      win.setTitle('OpenLux · página ' + key);
       win.webContents.on('did-fail-load', (_e, code, desc, u) => { win.__err = code + ' ' + desc + ' ' + String(u).slice(0, 40); });
       win.webContents.on('render-process-gone', (_e, d) => { win.__err = 'renderer: ' + d.reason; });
       webPages.set(key, win);
@@ -324,7 +337,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('log:path', () => LOG_FILE());
   ipcMain.handle('env:test', () => !!process.env.PROJ_TEST);
   ipcMain.handle('app:relaunch', () => { try { fs.writeFileSync(RECOVER_FILE(), 'a placa de vídeo não voltou'); } catch { } app.relaunch(); app.exit(0); });
-  logLine('abriu', 'OpenLume ' + app.getVersion() + ' · Electron ' + process.versions.electron + ' · ' + process.platform + ' ' + process.arch + (app.isPackaged ? ' · instalado' : ' · desenvolvimento'));
+  logLine('abriu', 'OpenLux ' + app.getVersion() + ' · Electron ' + process.versions.electron + ' · ' + process.platform + ' ' + process.arch + (app.isPackaged ? ' · instalado' : ' · desenvolvimento'));
   // diagnóstico: onde cada janela está de verdade (bounds em DIP, tela cheia, monitor que a contém)
   ipcMain.handle('windows', () => BrowserWindow.getAllWindows().map(w => ({ title: w.getTitle(), bounds: w.getBounds(), content: w.getContentBounds(), full: w.isFullScreen(), display: String(screen.getDisplayMatching(w.getBounds()).id) })));
   ipcMain.handle('presets:list', () => {
@@ -380,7 +393,7 @@ app.whenReady().then(async () => {
   let segProc = null;
   ipcMain.on('seg:port', (e) => {
     try {
-      if (!segProc) { segProc = utilityProcess.fork(path.join(__dirname, 'app', 'seg-native.js'), [], { serviceName: 'OpenLume segmentação' }); segProc.on('exit', () => { segProc = null; }); }
+      if (!segProc) { segProc = utilityProcess.fork(path.join(__dirname, 'app', 'seg-native.js'), [], { serviceName: 'OpenLux segmentação' }); segProc.on('exit', () => { segProc = null; }); }
       const { port1, port2 } = new MessageChannelMain();
       segProc.postMessage({ type: 'port' }, [port1]);
       e.sender.postMessage('seg:port', null, [port2]);

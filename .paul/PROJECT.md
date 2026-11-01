@@ -1,10 +1,10 @@
 ---
 description: "Software livre de projeção mapeada de nível profissional, feito por projecionistas de rua e de palco"
 type: Project
-about: "OpenLume"
+about: "OpenLux"
 ---
 
-# OpenLume
+# OpenLux
 
 ## What This Is
 
@@ -14,7 +14,7 @@ WebGL2; Saída avançada com telas, slices, quatro cantos, malha bezier, soft ed
 90 efeitos de vídeo e 6 de áudio; fontes geradas, texto, câmera, GIF, vídeo preparado por
 WebCodecs; decks, grupos, crossfader, BPM, autopilot; APC40 mkII nativa; módulo de laser para o
 LaserCube por Wi-Fi. Três versões sobre o mesmo motor: Windows (Electron, já existe), web e
-Android. O projecionista.app fica parado e vira uma versão brasileira feita em cima do OpenLume.
+Android. O projecionista.app fica parado e vira uma versão brasileira feita em cima do OpenLux.
 
 ## Core Value
 
@@ -117,14 +117,14 @@ teste `PROJ_TEST=<pasta> electron .`; CDP na porta 9333 para verificar a interfa
 | Recomeçar o programa de PC do zero, no jeito do Resolume | Três interfaces reencaixadas do celular foram rejeitadas | 2026-10-13 | Active |
 | Tudo do Resolume entra; poda é do Felipe | Prefere decidir vendo | 2026-10-14 | Active |
 | Maquete HTML aprovada antes de construir telas grandes | Foi o que funcionou (Saída avançada, laser) | 2026-10-14 | Active |
-| Projeto principal passa a ser o OpenLume, GPL-3.0, três versões | Alcance internacional, nome neutro | 2026-10-15 | Active |
+| Projeto principal passa a ser o OpenLux, GPL-3.0, três versões | Alcance internacional, nome neutro | 2026-10-15 | Active |
 | Repositório privado até existir organização no GitHub | Pedido do Felipe | 2026-10-15 | Active |
 
 ## Success Metrics
 
 | Metric | Target | Current | Status |
 |--------|--------|---------|--------|
-| Felipe faz um show inteiro só com o OpenLume (projeção + laser) | 1 show | 0 | Not started |
+| Felipe faz um show inteiro só com o OpenLux (projeção + laser) | 1 show | 0 | Not started |
 | Versões web e Android abrindo o mesmo motor | 3 versões | 1 (Windows) | At risk |
 | Repositório público com colaboradores | público | privado | Not started |
 

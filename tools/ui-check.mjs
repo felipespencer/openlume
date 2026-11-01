@@ -4,8 +4,8 @@
 // Uso: node tools/ui-check.mjs
 const base = 'http://127.0.0.1:' + (process.env.PROJ_CDP || 9333);
 const pages = await (await fetch(base + '/json')).json();
-const page = pages.find(p => p.type === 'page' && p.title === 'OpenLume');
-if (!page) { console.error('janela do OpenLume não achada', pages.map(p => p.title)); process.exit(1); }
+const page = pages.find(p => p.type === 'page' && p.title === 'OpenLux');
+if (!page) { console.error('janela do OpenLux não achada', pages.map(p => p.title)); process.exit(1); }
 const ws = new WebSocket(page.webSocketDebuggerUrl); await new Promise(r => ws.onopen = r);
 let id = 0; const waits = new Map();
 ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && waits.has(d.id)) { waits.get(d.id)(d); waits.delete(d.id); } };
@@ -96,7 +96,7 @@ if (prep.vazia >= 0) {
   check('X do programa pergunta Salvar e fechar / Fechar sem salvar / Cancelar', bts.join('|') === 'Cancelar|Fechar sem salvar|Salvar e fechar', bts.join('|'));
   const c = await centerOf(`[...document.querySelectorAll('.dlgOver .dfoot button')].find(x => x.textContent === 'Cancelar')`);
   await click(c.x, c.y); await wait(200);
-  check('Cancelar fecha só a pergunta; o programa continua', await ev(`document.querySelectorAll('.dlgOver').length`) === 0 && (await (await fetch(base + '/json')).json()).some(p => p.title === 'OpenLume'));
+  check('Cancelar fecha só a pergunta; o programa continua', await ev(`document.querySelectorAll('.dlgOver').length`) === 0 && (await (await fetch(base + '/json')).json()).some(p => p.title === 'OpenLux'));
 }
 const falhas = results.filter(r => !r.ok).length;
 console.log(`\n${results.length} verificações, ${falhas} falha(s) — ${falhas ? 'REPROVADO' : 'APROVADO'}`);
