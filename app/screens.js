@@ -5,7 +5,7 @@
 //   slice  = recorta um pedaço da composição (in: x,y,w,h,rot) e o encaixa na tela
 //            (warp: quatro cantos ou malha bezier), com soft edge, cor e máscara de entrada
 //   máscara = polígono em pixels da tela que apaga (ou preserva, se invertida) uma região
-import { meshFromRect, cornersFromRect, straightenHandles, resampleMesh, meshPoint, bbox, transformPts } from './warp.js';
+import { meshFromRect, cornersFromRect, straightenHandles, resampleMesh, meshFromCorners, cornersOfMesh, straightSegs, keepStraight, surfaceBBox, meshPoint, bbox, transformPts } from './warp.js';
 
 let seq = 1;
 export const nextId = () => seq++;
@@ -17,7 +17,7 @@ export function mkScreen(name, opts = {}) {
 export function mkSlice(name, inRect, outRect) {
   const s = { id: seq++, type: 'slice', name, enabled: true, source: 'comp',
     in: { x: inRect.x, y: inRect.y, w: inRect.w, h: inRect.h, rot: 0 }, flip: { x: false, y: false },
-    warp: { mode: 'corners', curve: true, divX: 2, divY: 2, rot: 0, pts: cornersFromRect(outRect.x, outRect.y, outRect.w, outRect.h) },
+    warp: { mode: 'corners', curve: false, divX: 2, divY: 2, rot: 0, pts: cornersFromRect(outRect.x, outRect.y, outRect.w, outRect.h) },
     soft: { on: false, power: 2, lum: 0.5, gamma: [2.2, 2.2, 2.2], black: 0, grads: [], round: { on: true, r: 0.5 } },   // grads: degradês ajustados à mão; round: arredondado dos automáticos
     color: { bright: 1, contrast: 1, r: 0, g: 0, b: 0 },
     inMask: null, rev: 1 };
@@ -46,12 +46,13 @@ export function defaultScreens(compW, compH) {
 }
 
 // ---------- deformação ----------
-export const outRect = (slice) => bbox(slice.warp.pts);
+export const outRect = (slice) => surfaceBBox(slice);
 export function setWarpMode(slice, mode) {
   const w = slice.warp; if (w.mode === mode) return;
-  const r = outRect(slice);
+  // a forma que o usuário montou atravessa a troca: quatro cantos <-> malha leva os cantos de verdade, não a caixa em volta
+  if (mode === 'mesh') w.pts = meshFromCorners(w.pts, w.divX, w.divY);
+  else w.pts = cornersOfMesh(w.pts, w.divX, w.divY);
   w.mode = mode;
-  w.pts = mode === 'mesh' ? meshFromRect(r.x, r.y, r.w, r.h, w.divX, w.divY) : cornersFromRect(r.x, r.y, r.w, r.h);
   touch(slice);
 }
 export function setDivisions(slice, dx, dy) {
@@ -74,12 +75,13 @@ export function moveAnchor(slice, idx, dx, dy) {
   const w = slice.warp;
   if (w.mode === 'corners') { w.pts[idx][0] += dx; w.pts[idx][1] += dy; touch(slice); return; }
   const cols = 3 * w.divX + 1, rows = 3 * w.divY + 1, r = Math.floor(idx / cols), c = idx % cols;
+  const segs = w.curve ? straightSegs(w.pts, w.divX, w.divY) : null;   // o que era reto continua reto; só o que o usuário curvou acompanha as alças
   for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
     const rr = r + dr, cc = c + dc;
     if (rr < 0 || rr >= rows || cc < 0 || cc >= cols) continue;
     w.pts[rr * cols + cc][0] += dx; w.pts[rr * cols + cc][1] += dy;
   }
-  if (!w.curve) straightenHandles(w.pts, w.divX, w.divY);
+  if (!w.curve) straightenHandles(w.pts, w.divX, w.divY); else keepStraight(w.pts, w.divX, w.divY, segs, r, c);
   touch(slice);
 }
 export function moveHandle(slice, idx, dx, dy) { slice.warp.pts[idx][0] += dx; slice.warp.pts[idx][1] += dy; touch(slice); }

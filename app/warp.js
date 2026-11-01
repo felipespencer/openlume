@@ -50,7 +50,7 @@ export function straightenHandles(pts, divX, divY) {
   for (let c = 0; c < cols; c++) for (let r = 0; r + 3 < rows; r += 3) lerpBetween(P(r, c), P(r + 3, c), P(r + 1, c), P(r + 2, c));
   return pts;
 }
-function lerpBetween(a, b, h1, h2) {
+export function lerpBetween(a, b, h1, h2) {
   h1[0] = a[0] + (b[0] - a[0]) / 3; h1[1] = a[1] + (b[1] - a[1]) / 3;
   h2[0] = a[0] + 2 * (b[0] - a[0]) / 3; h2[1] = a[1] + 2 * (b[1] - a[1]) / 3;
 }
@@ -73,14 +73,98 @@ export function meshPoint(pts, divX, divY, u, v) {
   return [bez(xs[0], xs[1], xs[2], xs[3], t), bez(ys[0], ys[1], ys[2], ys[3], t)];
 }
 
-// Troca o número de divisões mantendo a forma atual: as âncoras novas caem sobre a superfície
-// antiga, as alças ficam retas.
+// Retalho (i,j) da rede: posição e derivadas em (s,t) locais, já em unidades de u e v globais (0..1 na rede toda).
+function patchEval(pts, divX, divY, i, j, s, t) {
+  const cols = 3 * divX + 1, u = 1 - s, v = 1 - t;
+  const Bs = [u * u * u, 3 * s * u * u, 3 * s * s * u, s * s * s], dBs = [-3 * u * u, 3 * u * u - 6 * s * u, 6 * s * u - 3 * s * s, 3 * s * s];
+  const Bt = [v * v * v, 3 * t * v * v, 3 * t * t * v, t * t * t], dBt = [-3 * v * v, 3 * v * v - 6 * t * v, 6 * t * v - 3 * t * t, 3 * t * t];
+  const S = [0, 0], Su = [0, 0], Sv = [0, 0], Suv = [0, 0];
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+    const P = pts[(3 * i + r) * cols + 3 * j + c];
+    for (let k = 0; k < 2; k++) {
+      S[k] += Bt[r] * Bs[c] * P[k]; Su[k] += Bt[r] * dBs[c] * P[k] * divX;
+      Sv[k] += dBt[r] * Bs[c] * P[k] * divY; Suv[k] += dBt[r] * dBs[c] * P[k] * divX * divY;
+    }
+  }
+  return { S, Su, Sv, Suv };
+}
+// Troca o número de divisões MANTENDO a forma: cada retalho novo é montado (Hermite → bezier) a partir da superfície antiga,
+// com posição, tangentes e torção medidas por dentro do próprio retalho; assim as curvas que o usuário puxou não são
+// achatadas e, quando a nova grade é um múltiplo da antiga, a superfície é idêntica.
 export function resampleMesh(pts, divX, divY, newX, newY) {
-  const out = meshFromRect(0, 0, 1, 1, newX, newY);
-  const cols = 3 * newX + 1;
-  for (let r = 0; r <= 3 * newY; r += 3) for (let c = 0; c <= 3 * newX; c += 3)
-    out[r * cols + c] = meshPoint(pts, divX, divY, c / (3 * newX), r / (3 * newY));
-  return straightenHandles(out, newX, newY);
+  const out = meshFromRect(0, 0, 1, 1, newX, newY), cols = 3 * newX + 1, du = 1 / newX, dv = 1 / newY;
+  const at = (u, v, su, sv) => {   // su/sv: de que lado fica o retalho novo (+1: depois do ponto, -1: antes)
+    const jo = Math.max(0, Math.min(divX - 1, Math.floor(u * divX + su * 1e-7))), io = Math.max(0, Math.min(divY - 1, Math.floor(v * divY + sv * 1e-7)));
+    return patchEval(pts, divX, divY, io, jo, Math.max(0, Math.min(1, u * divX - jo)), Math.max(0, Math.min(1, v * divY - io)));
+  };
+  for (let b = 0; b < newY; b++) for (let a = 0; a < newX; a++) {
+    const D = [[null, null], [null, null]];
+    for (let cb = 0; cb < 2; cb++) for (let ca = 0; ca < 2; ca++) D[cb][ca] = at((a + ca) * du, (b + cb) * dv, ca ? -1 : 1, cb ? -1 : 1);
+    for (let k = 0; k < 2; k++) {
+      const S = (cb, ca) => D[cb][ca].S[k], U = (cb, ca) => D[cb][ca].Su[k] * du / 3, V = (cb, ca) => D[cb][ca].Sv[k] * dv / 3, W = (cb, ca) => D[cb][ca].Suv[k] * du * dv / 9;
+      const P = [[], [], [], []];
+      P[0][0] = S(0, 0); P[0][1] = S(0, 0) + U(0, 0); P[0][2] = S(0, 1) - U(0, 1); P[0][3] = S(0, 1);
+      P[3][0] = S(1, 0); P[3][1] = S(1, 0) + U(1, 0); P[3][2] = S(1, 1) - U(1, 1); P[3][3] = S(1, 1);
+      P[1][0] = S(0, 0) + V(0, 0); P[2][0] = S(1, 0) - V(1, 0); P[1][3] = S(0, 1) + V(0, 1); P[2][3] = S(1, 1) - V(1, 1);
+      P[1][1] = S(0, 0) + U(0, 0) + V(0, 0) + W(0, 0); P[1][2] = S(0, 1) - U(0, 1) + V(0, 1) - W(0, 1);
+      P[2][1] = S(1, 0) + U(1, 0) - V(1, 0) - W(1, 0); P[2][2] = S(1, 1) - U(1, 1) - V(1, 1) + W(1, 1);
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) out[(3 * b + r) * cols + 3 * a + c][k] = P[r][c];
+    }
+  }
+  return out;
+}
+// Quatro cantos -> malha: as âncoras caem sobre a perspectiva dos cantos (a forma não vira retângulo) e os lados ficam retos.
+export function meshFromCorners(corners, divX, divY) {
+  const H = homography(corners), cols = 3 * divX + 1, rows = 3 * divY + 1, pts = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) pts.push(r % 3 === 0 && c % 3 === 0 ? applyHomography(H, c / (cols - 1), r / (rows - 1)) : [0, 0]);
+  return straightenHandles(pts, divX, divY);
+}
+// Malha -> quatro cantos: os quatro cantos da malha.
+export function cornersOfMesh(pts, divX, divY) {
+  const cols = 3 * divX + 1, rows = 3 * divY + 1;
+  return [pts[0], pts[cols - 1], pts[rows * cols - 1], pts[(rows - 1) * cols]].map(p => [p[0], p[1]]);
+}
+// Segmentos retos: lados entre âncoras vizinhas cujas alças estão nos terços exatos. Chaves 'h:linha:coluna' e 'v:linha:coluna'
+// (índices da rede de controle, da âncora de partida).
+export function straightSegs(pts, divX, divY) {
+  const cols = 3 * divX + 1, rows = 3 * divY + 1, P = (r, c) => pts[r * cols + c], set = new Set(), e = 0.25;
+  // reto = as duas alças estão em cima da linha entre as âncoras, na ordem certa (não precisam estar nos terços: uma malha
+  // tirada de uma perspectiva tem lados retos com as alças fora dos terços)
+  const ok = (a, b, h1, h2) => {
+    const vx = b[0] - a[0], vy = b[1] - a[1], L2 = vx * vx + vy * vy;
+    if (L2 < 1e-6) return Math.hypot(h1[0] - a[0], h1[1] - a[1]) < e && Math.hypot(h2[0] - a[0], h2[1] - a[1]) < e;
+    const t1 = ((h1[0] - a[0]) * vx + (h1[1] - a[1]) * vy) / L2, t2 = ((h2[0] - a[0]) * vx + (h2[1] - a[1]) * vy) / L2, L = Math.sqrt(L2);
+    const d1 = Math.abs((h1[0] - a[0]) * vy - (h1[1] - a[1]) * vx) / L, d2 = Math.abs((h2[0] - a[0]) * vy - (h2[1] - a[1]) * vx) / L;
+    return d1 < e && d2 < e && t1 > -0.01 && t2 < 1.01 && t1 <= t2 + 0.01;
+  };
+  for (let r = 0; r < rows; r += 3) for (let c = 0; c + 3 < cols; c += 3) if (ok(P(r, c), P(r, c + 3), P(r, c + 1), P(r, c + 2))) set.add('h:' + r + ':' + c);
+  for (let c = 0; c < cols; c += 3) for (let r = 0; r + 3 < rows; r += 3) if (ok(P(r, c), P(r + 3, c), P(r + 1, c), P(r + 2, c))) set.add('v:' + r + ':' + c);
+  return set;
+}
+// Depois de mover a âncora (r,c): os lados que eram retos e tocam nela voltam a ser retos, e o miolo dos retalhos de quatro
+// lados retos volta a ser plano. Os lados que o usuário curvou continuam curvos.
+export function keepStraight(pts, divX, divY, segs, r, c) {
+  const cols = 3 * divX + 1, rows = 3 * divY + 1, P = (rr, cc) => pts[rr * cols + cc];
+  const h = (rr, cc) => { if (cc >= 0 && cc + 3 < cols && segs.has('h:' + rr + ':' + cc)) lerpBetween(P(rr, cc), P(rr, cc + 3), P(rr, cc + 1), P(rr, cc + 2)); };
+  const v = (rr, cc) => { if (rr >= 0 && rr + 3 < rows && segs.has('v:' + rr + ':' + cc)) lerpBetween(P(rr, cc), P(rr + 3, cc), P(rr + 1, cc), P(rr + 2, cc)); };
+  h(r, c - 3); h(r, c); v(r - 3, c); v(r, c);
+  for (let pr = r - 3; pr <= r; pr += 3) for (let pc = c - 3; pc <= c; pc += 3) {
+    if (pr < 0 || pc < 0 || pr + 3 >= rows || pc + 3 >= cols) continue;
+    if (!(segs.has('h:' + pr + ':' + pc) && segs.has('h:' + (pr + 3) + ':' + pc) && segs.has('v:' + pr + ':' + pc) && segs.has('v:' + pr + ':' + (pc + 3)))) continue;
+    const A = P(pr, pc), B = P(pr, pc + 3), C = P(pr + 3, pc + 3), D = P(pr + 3, pc);
+    for (let i = 1; i <= 2; i++) for (let j = 1; j <= 2; j++) {
+      const s = j / 3, t = i / 3, q = P(pr + i, pc + j);
+      q[0] = (1 - t) * ((1 - s) * A[0] + s * B[0]) + t * ((1 - s) * D[0] + s * C[0]);
+      q[1] = (1 - t) * ((1 - s) * A[1] + s * B[1]) + t * ((1 - s) * D[1] + s * C[1]);
+    }
+  }
+}
+// Caixa da superfície de verdade (não a das alças): é a que o Transformar mostra.
+export function surfaceBBox(slice) {
+  const w = slice.warp; if (w.mode !== 'mesh') return bbox(w.pts);
+  const n = 4, pts = [];
+  for (let r = 0; r <= w.divY * n; r++) for (let c = 0; c <= w.divX * n; c++) pts.push(meshPoint(w.pts, w.divX, w.divY, c / (w.divX * n), r / (w.divY * n)));
+  return bbox(pts);
 }
 
 // Vértices da forma de saída: posições (px da tela) e coordenadas locais (u,v) do slice.

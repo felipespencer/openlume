@@ -351,10 +351,12 @@ export class AdvancedOutput {
     if (this.drawing) { this.drawing.pts.push(this.drawing.kind === 'inmask' ? inToLocal(this.sel.item, p) : this.ledSnap(p)); this.draw(); return; }
     const t = e.target.closest('[data-k]'), k = t && t.dataset.k;
     if (!k) { if (this.sel) { this.sel = { screen: this.sel.screen, item: null }; this.selPt = -1; this.refresh(); } return; }
+    const now = performance.now(), L0 = this.lastDown; this.lastDown = { t: now, x: e.clientX, y: e.clientY };
+    if (L0 && now - L0.t < 400 && Math.hypot(e.clientX - L0.x, e.clientY - L0.y) < 6 && this.maskDbl(t, p, L0.item)) { this.lastDown = null; return; }
     const found = this.findItem(t.dataset.id) || this.sel;
     const wasSel = found.item === (this.sel && this.sel.item);
     if (!wasSel) this.select(found.screen, found.item);
-    const it = found.item;
+    const it = found.item; this.lastDown.item = it;   // o item que este clique acertou: o segundo clique do par age nele, mesmo que o up do primeiro tenha passado a seleção adiante
     this.svg.setPointerCapture(e.pointerId);
     this.pushUndo();
     const d = this.drag = { k, i: +t.dataset.i, it, last: p, start: p, wasSel, moved: false };
@@ -425,8 +427,31 @@ export class AdvancedOutput {
   }
   dbl(e) {
     if (this.drawing) { this.finishDrawing(); return; }
-    const t = e.target.closest('[data-k]');
-    if (t && t.dataset.k === 'anchor') { const it = this.sel.item; this.pushUndo(); const r = M.outRect(it); M.resetWarp(it); M.fitOutRect(it, r); this.draw(); this.c.onChange(); }
+    // Duplo clique NÃO zera a malha (arrastar o ponto de novo, rápido, apagava o trabalho): quem zera é o botão "Zerar os pontos".
+  }
+  // Duplo clique nas máscaras (de saída e de entrada): num ponto o apaga (sobram 3, no mínimo); na linha acrescenta um ponto.
+  // Contado aqui, no pointerdown, e não pelo evento dblclick: o editor redesenha o svg a cada clique e o navegador perde o par.
+  maskDbl(t, p, it) {
+    if (!it) return false;
+    const k = t && t.dataset.id == it.id ? t.dataset.k : 'body';   // a linha da máscara pode estar coberta por outro item no segundo clique
+    const inm = it.type === 'slice' && this.tab === 'in' && it.inMask, out = it.type === 'mask' && this.mode === 'pts' && this.tab === 'out';
+    if (!inm && !out) return false;
+    if (!this.sel || this.sel.item !== it) { const f = this.findItem(it.id); if (f) this.select(f.screen, it); }
+    const L = inm ? it.inMask.pts : it.pts, toPx = inm ? (q) => localToIn(it, q) : (q) => q;
+    const touchIt = () => { if (inm) it.inMask.rev++; M.touch(it); };
+    if (k === 'maskpt' || k === 'inmaskpt') {
+      if (L.length <= 3) return true;
+      this.pushUndo(); L.splice(+t.dataset.i, 1); this.selPt = -1; touchIt(); this.c.onChange(); this.draw(); this.renderProps(); return true;
+    }
+    if (k !== 'body') return false;
+    let best = -1, bd = Infinity, bq = null;   // lado mais perto do clique, e o pé da perpendicular
+    for (let i = 0; i < L.length; i++) {
+      const a = toPx(L[i]), b = toPx(L[(i + 1) % L.length]), vx = b[0] - a[0], vy = b[1] - a[1], l2 = vx * vx + vy * vy || 1;
+      const u = Math.max(0, Math.min(1, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / l2)), q = [a[0] + vx * u, a[1] + vy * u], d = Math.hypot(p[0] - q[0], p[1] - q[1]);
+      if (d < bd) { bd = d; best = i; bq = q; }
+    }
+    if (best < 0 || bd * this.scale > 12) return false;   // só perto da linha: duplo clique solto no meio da forma não cria ponto
+    this.pushUndo(); L.splice(best + 1, 0, inm ? inToLocal(it, bq) : bq); this.selPt = best + 1; this.selPtK = inm ? 'inmaskpt' : 'maskpt'; touchIt(); this.c.onChange(); this.draw(); this.renderProps(); return true;
   }
   ledSnap(p) { return this.led ? [Math.round(p[0] / 8) * 8, Math.round(p[1] / 8) * 8] : p; }
   // Ímã: borda do retângulo gruda nas bordas dos outros itens e da tela; grade LED gruda nos 8 px
@@ -646,7 +671,7 @@ export class AdvancedOutput {
           P.appendChild(this.pnum('X', 'Ponto X|Posição do ponto na horizontal, em pixels.', p[0], { min: -99999, max: 99999, step: 1 }, v => M.moveAnchor(s, this.selPt, v - p[0], 0)));
           P.appendChild(this.pnum('Y', 'Ponto Y|Posição do ponto na vertical, em pixels.', p[1], { min: -99999, max: 99999, step: 1 }, v => M.moveAnchor(s, this.selPt, 0, v - p[1])));
         }
-        const z = el('button', 'wide', 'Zerar os pontos'); z.type = 'button'; z.dataset.help = 'Zerar os pontos|Devolve a malha ao retângulo. Duplo clique num ponto faz o mesmo.';
+        const z = el('button', 'wide', 'Zerar os pontos'); z.type = 'button'; z.dataset.help = 'Zerar os pontos|Devolve a malha ao retângulo.';
         z.onclick = () => { this.pushUndo(); const r = M.outRect(s); M.resetWarp(s); M.fitOutRect(s, r); this.c.onChange(); this.refresh(); }; P.appendChild(z);
       }
       const rm = el('button', 'wide', 'Apagar este slice'); rm.type = 'button'; rm.onclick = () => this.removeItem(it); P.appendChild(rm);
