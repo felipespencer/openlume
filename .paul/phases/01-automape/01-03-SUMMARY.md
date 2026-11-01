@@ -3,9 +3,9 @@ phase: 01-automape
 plan: 03
 status: complete
 completed: 2026-10-22
-description: "O Automape dentro do OpenLux: Saída › Automape…, malha projetada de verdade, foto do disco ou exemplos, editor ponto a ponto com bezier, máscaras e slices com contorno na Saída avançada; IA só nos exemplos"
+description: "O Automape dentro do OpenLume: Saída › Automape…, malha projetada de verdade, foto do disco ou exemplos, editor ponto a ponto com bezier, máscaras e slices com contorno na Saída avançada; IA só nos exemplos"
 type: Summary
-about: "OpenLux"
+about: "OpenLume"
 ---
 
 # 01-03 SUMMARY: Automape no programa

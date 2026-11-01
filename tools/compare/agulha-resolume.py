@@ -1,5 +1,5 @@
 # Põe o clipe do Resolume parado em posições conhecidas (0, 50%, 100%) e grava a captura do Transport de cada uma,
-# para copiar a agulha da linha do tempo no OpenLux. Precisa do clipe rampa.mp4 na camada 1, coluna 2, selecionado.
+# para copiar a agulha da linha do tempo no OpenLume. Precisa do clipe rampa.mp4 na camada 1, coluna 2, selecionado.
 import json, urllib.request, ctypes, ctypes.wintypes as w, time, os
 from PIL import ImageGrab
 T = os.environ['TEMP']

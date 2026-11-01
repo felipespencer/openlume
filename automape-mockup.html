@@ -2,12 +2,12 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>OpenLux — maquete do Automape</title>
+<title>OpenLume — maquete do Automape</title>
 <!--
   Maquete do Automape (plano 01-01). Mostra o fluxo inteiro: menu Saída › Automape… → aviso de onde
   fotografar → envio da foto → diálogo que fatia a foto em slices. O fatiamento aqui já é de verdade
   (bloco "AM", funções puras), pronto para virar app/automape.js. Visual copiado do programa
-  (app/style.css) para a maquete parecer o OpenLux.
+  (app/style.css) para a maquete parecer o OpenLume.
 -->
 <style>
   :root{
@@ -167,8 +167,8 @@
 <body>
 
 <div id="top">
-  <span class="logo">OPEN<b>LUX</b></span>
-  <div id="menubar"><button class="mb">OpenLux</button><button class="mb">Composição</button><button class="mb">Deck</button><button class="mb">Grupo</button><button class="mb">Camada</button><button class="mb">Coluna</button><button class="mb">Clipe</button><button class="mb on" id="mbSaida">Saída</button><button class="mb">Atalhos</button><button class="mb">Ver</button></div>
+  <span class="logo">OPEN<b>LUME</b></span>
+  <div id="menubar"><button class="mb">OpenLume</button><button class="mb">Composição</button><button class="mb">Deck</button><button class="mb">Grupo</button><button class="mb">Camada</button><button class="mb">Coluna</button><button class="mb">Clipe</button><button class="mb on" id="mbSaida">Saída</button><button class="mb">Atalhos</button><button class="mb">Ver</button></div>
   <span class="st">Sem nome</span>
   <span class="sp"></span>
   <span class="st" id="outState">saída fechada</span><button type="button">Abrir saída</button>
@@ -255,7 +255,7 @@
         <li><b>Segure a câmera do celular logo acima da lente do projetor</b>, olhando para onde ele aponta. Dali a foto vê a cena quase do mesmo ponto que o projetor, e é isso que faz o mapa sair certo.</li>
         <li><b>Fotografe com a malha inteira dentro da foto.</b> A borda clara é o limite da luz: pode sobrar parede em volta, não pode cortar a borda.</li>
       </ol>
-      <p class="dtext">O OpenLux lê a foto com IA e diz o que tem ali: janelas, portas, sofá, mesa, quadros, lareira. Você escolhe o que cada coisa vira: quadrado preto no projetor (máscara de saída), slice com conteúdo próprio, ou nada. Funciona em fachada de prédio e dentro de casa. Depois você ajusta o que quiser, como sempre.</p>
+      <p class="dtext">O OpenLume lê a foto com IA e diz o que tem ali: janelas, portas, sofá, mesa, quadros, lareira. Você escolhe o que cada coisa vira: quadrado preto no projetor (máscara de saída), slice com conteúdo próprio, ou nada. Funciona em fachada de prédio e dentro de casa. Depois você ajusta o que quiser, como sempre.</p>
     </div>
     <div class="dfoot"><button type="button" data-close="ov1">Cancelar</button><span class="sp"></span><button type="button" id="btnGrid">Mostrar a malha</button><button type="button" class="primary" id="btnToPhoto">Escolher a foto…</button></div>
   </div>
@@ -1368,7 +1368,7 @@ function countWords() {
 const STEPS = [
   { title: 'O que é o Automape', next: 'Começar', build(b) {
       b.appendChild(ilus());
-      b.appendChild(el('p', 'lead', 'Você tira <b>uma foto</b> do que o projetor ilumina. O OpenLux lê a foto com IA, descobre o que tem ali (janelas, portas, sofá, mesa, quadros…) e monta o mapa na Saída avançada. Leva uns dois minutos.'));
+      b.appendChild(el('p', 'lead', 'Você tira <b>uma foto</b> do que o projetor ilumina. O OpenLume lê a foto com IA, descobre o que tem ali (janelas, portas, sofá, mesa, quadros…) e monta o mapa na Saída avançada. Leva uns dois minutos.'));
       b.appendChild(el('p', '', 'Depois desta tela são seis passos. Em cada um há uma coisa só para fazer, e uma dica embaixo explicando o porquê.'));
     }, tip: '<b>Dica.</b> Funciona em fachada de prédio e dentro de casa. Depois de pronto, tudo continua ajustável na Saída avançada, como sempre.' },
   { title: 'Ligue o projetor e mostre a malha', build(b) {

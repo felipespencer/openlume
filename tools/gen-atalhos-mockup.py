@@ -1,4 +1,4 @@
-# Gera atalhos-mockup.html: a maquete do modo "Atalhos de teclado" sobre uma captura real do OpenLux.
+# Gera atalhos-mockup.html: a maquete do modo "Atalhos de teclado" sobre uma captura real do OpenLume.
 # Entrada (em %TEMP%): om.png (captura 1584x861) e om.json (retângulos dos elementos, de tools/drive.mjs eval).
 import json, base64, os, sys
 T = os.environ['TEMP']

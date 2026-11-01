@@ -1,10 +1,10 @@
-// Bancada lado a lado: o mesmo clipe e o mesmo efeito no Resolume (API REST) e no OpenLux (CDP, porta 9333),
+// Bancada lado a lado: o mesmo clipe e o mesmo efeito no Resolume (API REST) e no OpenLume (CDP, porta 9333),
 // captura das duas saídas e diferença por pixel.
 // Uso: node tools/compare/compare.mjs "<efeito do Resolume>" [--clip arquivo] [--r "Controle=valor"]... [--o "chave=valor"]... [--nome rotulo] [--espera quadros]
-//   --r muda um controle no Resolume (nome como na ficha); --o muda o parâmetro do efeito no OpenLux (chave do effects*.js).
-//   Sem --o, usa o mapa rparams do efeito do OpenLux (controle do Resolume -> chave) para levar os mesmos valores.
+//   --r muda um controle no Resolume (nome como na ficha); --o muda o parâmetro do efeito no OpenLume (chave do effects*.js).
+//   Sem --o, usa o mapa rparams do efeito do OpenLume (controle do Resolume -> chave) para levar os mesmos valores.
 // Precisa: Resolume com servidor web e a janela "Display" (Saída avançada, Device: Windowed) visível;
-//          OpenLux aberto com `npx electron . --remote-debugging-port=9333`.
+//          OpenLume aberto com `npx electron . --remote-debugging-port=9333`.
 // Sai em tools/compare/saida/<rotulo>.png e imprime o número. Não usa código do Resolume.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -27,11 +27,11 @@ function args(argv) {
 }
 const kv = s => { const i = s.indexOf('='); return [s.slice(0, i), s.slice(i + 1)]; };
 
-// avalia JS na janela de controle do OpenLux
+// avalia JS na janela de controle do OpenLume
 async function olEval(expr) {
   const pages = await (await fetch('http://127.0.0.1:9333/json')).json();
-  const page = pages.find(p => p.type === 'page' && p.title.includes('OpenLux') && !p.url.includes('output.html'));
-  if (!page) throw new Error('OpenLux não está aberto com --remote-debugging-port=9333');
+  const page = pages.find(p => p.type === 'page' && p.title.includes('OpenLume') && !p.url.includes('output.html'));
+  if (!page) throw new Error('OpenLume não está aberto com --remote-debugging-port=9333');
   const ws = new WebSocket(page.webSocketDebuggerUrl); await new Promise(r => ws.onopen = r);
   const res = await new Promise(r => { ws.onmessage = m => { const d = JSON.parse(m.data); if (d.id === 1) r(d); }; ws.send(JSON.stringify({ id: 1, method: 'Runtime.evaluate', params: { expression: expr, awaitPromise: true, returnByValue: true } })); });
   ws.close();
@@ -39,13 +39,13 @@ async function olEval(expr) {
   return res.result.result.value;
 }
 
-// no OpenLux: clipe na camada 1, casa 2; só esse efeito na camada; espera N quadros; devolve o PNG do motor
-async function openlux(a, valoresR) {
+// no OpenLume: clipe na camada 1, casa 2; só esse efeito na camada; espera N quadros; devolve o PNG do motor
+async function openlume(a, valoresR) {
   const clip = path.resolve(a.clip).replace(/\\/g, '/');
   const expr = `(async () => {
     const P = window.projecionista, L = P.state.layers[0], S = ms => new Promise(r => setTimeout(r, ms));
     const def = P.EFFECTS.find(e => (e.rname || e.name) === ${JSON.stringify(a.efeito)});
-    if (!def) throw new Error('o OpenLux não tem o efeito ' + ${JSON.stringify(a.efeito)});
+    if (!def) throw new Error('o OpenLume não tem o efeito ' + ${JSON.stringify(a.efeito)});
     const c = L.clips[1];
     if (!c || c.path !== ${JSON.stringify(clip)}) { await P.putPath(0, 1, ${JSON.stringify(clip)}, ${JSON.stringify(path.basename(clip))}); }
     P.trigger(0, 1);
@@ -86,12 +86,12 @@ for (let tent = 1; ; tent++) {
 }
 fs.rmSync(rPng + '.b.png', { force: true });
 
-// OpenLux
-const o = await openlux(a, valoresR);
-const oPng = path.join(OUT, rotulo + '.openlux.png');
+// OpenLume
+const o = await openlume(a, valoresR);
+const oPng = path.join(OUT, rotulo + '.openlume.png');
 fs.writeFileSync(oPng, Buffer.from(o.png.split(',')[1], 'base64'));
 
 // diferença
 const lado = path.join(OUT, rotulo + '.png');
 const num = JSON.parse(execFileSync('py', [path.join(HERE, 'diff.py'), rPng, oPng, lado]).toString());
-console.log(JSON.stringify({ efeito: a.efeito, rotulo, resolume: valoresR, openlux: o.params, ...num, imagem: path.relative(ROOT, lado) }));
+console.log(JSON.stringify({ efeito: a.efeito, rotulo, resolume: valoresR, openlume: o.params, ...num, imagem: path.relative(ROOT, lado) }));

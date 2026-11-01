@@ -1,4 +1,4 @@
-// OpenLux — janela de controle.
+// OpenLume — janela de controle.
 // Estado: uma composição com camadas; cada camada tem uma casa por coluna e mostra um clipe
 // por vez. Regras de uso (definidas pelo usuário em 2026-10-13):
 //   - clicar na miniatura ou no nome (rodapé) dispara o clipe do começo, sempre (mudado em 2026-10-14; antes o rodapé só mostrava a prévia);
@@ -36,7 +36,7 @@ const D = window.projDesktop || null;
 // vídeos preparados decodificam por software, salvo preferência: na placa, abrir as saídas derrubava o processo de GPU
 window.__projSoftDecode = true;
 if (D) D.prefs.get().then(p => { window.__projSoftDecode = !p.hwDecode; }).catch(() => { });
-// registro: tudo que dá errado na janela vai para o processo principal (openlux.log)
+// registro: tudo que dá errado na janela vai para o processo principal (openlume.log)
 const logW = (kind, msg) => { try { if (D && D.log) D.log.write(kind, msg); } catch { } };
 addEventListener('error', (e) => logW('erro', (e.message || '') + ' @ ' + (e.filename || '') + ':' + (e.lineno || 0) + (e.error && e.error.stack ? ' | ' + e.error.stack : '')));
 addEventListener('unhandledrejection', (e) => logW('promise', (e.reason && (e.reason.stack || e.reason.message)) || String(e.reason)));
@@ -88,7 +88,7 @@ addEventListener('beforeunload', () => { try { if (sessionStorage.getItem('projR
   let crash = ''; try { crash = await D.log.lastCrash(); } catch { }
   if (!why && !crash) return;
   try { const j = await D.comps.load('_automatica'); await loadComposition(j, state.name); toast('O programa reabriu depois de travar (' + (crash || 'placa de vídeo') + ') e recuperou a composição automática. Registro: Projecionista → Abrir o registro.'); }
-  catch { toast('O programa reabriu depois de travar' + (crash ? ': ' + crash : '') + '. Veja OpenLux → Abrir o registro.'); }
+  catch { toast('O programa reabriu depois de travar' + (crash ? ': ' + crash : '') + '. Veja OpenLume → Abrir o registro.'); }
 })();
 // a cada minuto: memória da janela e o que está no ar, para achar vazamentos
 setInterval(() => { const m = performance.memory; logW('memoria', (m ? Math.round(m.usedJSHeapSize / 1048576) + ' MB de JS' : '?') + ' · ' + state.layers.filter(L => L.on >= 0).length + ' no ar · ' + state.layers.reduce((a, L) => a + L.clips.filter(Boolean).length, 0) + ' clipes · ' + state.decks.length + ' decks · fps ' + state.settings.fps); }, 60000);
@@ -159,7 +159,7 @@ async function putCapture(li, col, cap) {
     const s = await askText('YouTube', 'Endereço do vídeo ou da live', 'https://www.youtube.com/watch?v='); if (!s) return;
     const id = youtubeId(s); if (!id) { toast('Não achei o id do vídeo nesse endereço'); return; }
     // o player embutido, sem controles, em loop; começa mudo porque o navegador escondido não deixa som (o áudio vem pela sua mesa, não daqui)
-    const port = D && D.localPort ? await D.localPort() : 0; if (!port) { toast('Servidor local do OpenLux não subiu'); return; }
+    const port = D && D.localPort ? await D.localPort() : 0; if (!port) { toast('Servidor local do OpenLume não subiu'); return; }
     cap = { url: 'http://127.0.0.1:' + port + '/yt.html?v=' + id, w: 1920, h: 1080, youtube: id };   // yt.html embute o player num iframe, servida por http (o YouTube recusa embed solto ou sem referer http: erros 152 e 153)
   }
   if (cap.web && !cap.url) { const url = await askText('Página web', 'Endereço', 'https://'); if (!url || url === 'https://') return; cap = { url: /^https?:\/\//.test(url) ? url : 'https://' + url, w: 1920, h: 1080 }; }
@@ -175,7 +175,7 @@ async function putPhone(li, col) {
   openDialog({ title: 'Celular como câmera', buttons: [{ label: 'Fechar', primary: true }], build: (body) => {
     body.append(el('p', 'dtext', 'No celular, na mesma rede Wi-Fi, abra este endereço e toque em "Enviar câmera":'));
     for (const u of info.urls) body.appendChild(el('p', 'dtext big', u));
-    body.append(el('p', 'dtext', 'O navegador vai avisar que o certificado é do próprio OpenLux: aceite (Avançado → continuar). A imagem entra na casa escolhida assim que o celular ligar.'));
+    body.append(el('p', 'dtext', 'O navegador vai avisar que o certificado é do próprio OpenLume: aceite (Avançado → continuar). A imagem entra na casa escolhida assim que o celular ligar.'));
   } });
 }
 if (D && D.phone) D.phone.onOffer(async (o) => {
@@ -973,7 +973,7 @@ function askClose() {
   if (document.querySelector('.dlgOver')) return;   // já há um diálogo na tela (ou a própria pergunta)
   const nome = state.name;
   openDialog({
-    title: 'Fechar o OpenLux', width: 460,
+    title: 'Fechar o OpenLume', width: 460,
     build: (body) => body.appendChild(el('p', 'dtext', nome ? 'Salvar as mudanças na composição "' + nome + '" antes de fechar?' : 'A composição ainda não tem nome. Salvar antes de fechar?')),
     buttons: [
       { label: 'Cancelar' },
@@ -1127,7 +1127,7 @@ function preferencesDialog() {
     title: 'Preferências', width: 520,
     build: (body, K) => {
       body.appendChild(K.phead('Gravações e instantâneos'));
-      body.appendChild(K.ptext('Pasta', 'Pasta|Onde ficam as gravações e os instantâneos. Vazio = Vídeos\\OpenLux.', p.recDir, v => { p.recDir = v; }));
+      body.appendChild(K.ptext('Pasta', 'Pasta|Onde ficam as gravações e os instantâneos. Vazio = Vídeos\\OpenLume.', p.recDir, v => { p.recDir = v; }));
       body.appendChild(K.phead('BPM'));
       body.appendChild(K.pnum('Nudge', 'Nudge do BPM|Quantos por cento o BPM sobe ou desce enquanto você segura ◁| ou |▷.', p.nudgePct, { min: 1, max: 50, step: 1, unit: ' %', bar: true, reset: 5 }, v => { p.nudgePct = v; }));
       body.appendChild(K.phead('Vídeos preparados'));
@@ -1143,7 +1143,7 @@ async function aboutDialog() {
   const ua = /Chrome\/([\d.]+)/.exec(navigator.userAgent), ev = /Electron\/([\d.]+)/.exec(navigator.userAgent);
   const info = D && D.info ? await D.info().catch(() => null) : null;
   const versao = info ? 'Versão ' + info.version + (info.packaged ? ' (instalado)' : ' (desenvolvimento)') : 'Versão web';
-  openDialog({ title: 'Sobre o OpenLux', width: 420, build: (body) => { body.appendChild(el('p', 'dtext big', versao)); body.appendChild(el('p', 'dtext', 'OpenLux — projeção e laser ao vivo, no jeito de trabalhar do Resolume. Software livre (GPL-3.0) de Felipe Spencer, 2026. github.com/felipespencer/openlume')); body.appendChild(el('p', 'dtext', 'Electron ' + (ev ? ev[1] : '?') + ' · Chromium ' + (ua ? ua[1] : '?') + ' · WebGL2 · WebCodecs')); }, buttons: [{ label: 'Fechar', primary: true }] });
+  openDialog({ title: 'Sobre o OpenLume', width: 420, build: (body) => { body.appendChild(el('p', 'dtext big', versao)); body.appendChild(el('p', 'dtext', 'OpenLume — projeção e laser ao vivo, no jeito de trabalhar do Resolume. Software livre (GPL-3.0) de Felipe Spencer, 2026. github.com/felipespencer/openlume')); body.appendChild(el('p', 'dtext', 'Electron ' + (ev ? ev[1] : '?') + ' · Chromium ' + (ua ? ua[1] : '?') + ' · WebGL2 · WebCodecs')); }, buttons: [{ label: 'Fechar', primary: true }] });
 }
 
 // ---------- painéis e navegador ----------
@@ -1237,7 +1237,7 @@ const clipMenuItems = () => { const s = selectedCell(), k = s ? s.clip : null, i
     { label: 'Preparar (H.264 todo intra)', disabled: !isV || !k.path || k.prepared || !D, fn: withClip((c, l, col) => prepareClip(l, col, 'h264')) },
     { label: 'Instantâneo do clipe (PNG)', disabled: !k, fn: () => snapshot('clip') }]; };
 const menuDefs = () => [
-  { label: 'OpenLux', items: () => [
+  { label: 'OpenLume', items: () => [
     { label: 'Preferências…', key: 'Ctrl+,', fn: preferencesDialog }, '-',
     { label: 'Abrir o registro de travamentos', disabled: !D, fn: () => D.log.show() }, '-',
     { label: 'Sobre', fn: aboutDialog }, '-',

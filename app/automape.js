@@ -417,7 +417,7 @@ export class Automape {
     return [
       { title: 'O que é o Automape', next: 'Começar', build(b) {
           b.appendChild(el('div', 'am-ilus')).innerHTML = ILUS;
-          b.appendChild(el('p', 'lead')).innerHTML = 'Você tira <b>uma foto</b> do que o projetor ilumina. O OpenLux lê a foto com IA, descobre o que tem ali (janelas, portas, sofá, mesa, quadros…) e monta o mapa na Saída avançada. Leva uns dois minutos.';
+          b.appendChild(el('p', 'lead')).innerHTML = 'Você tira <b>uma foto</b> do que o projetor ilumina. O OpenLume lê a foto com IA, descobre o que tem ali (janelas, portas, sofá, mesa, quadros…) e monta o mapa na Saída avançada. Leva uns dois minutos.';
           b.appendChild(el('p', '', 'Depois desta tela são seis passos. Em cada um há uma coisa só para fazer, e uma dica embaixo explicando o porquê.'));
         }, tip: '<b>Dica.</b> Funciona em fachada de prédio e dentro de casa. Depois de pronto, tudo continua ajustável na Saída avançada, como sempre.' },
       { title: 'Ligue o projetor e mostre a malha', build(b) {

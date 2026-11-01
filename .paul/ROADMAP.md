@@ -1,14 +1,14 @@
 ---
-description: "OpenLux — milestone and phase structure"
+description: "OpenLume — milestone and phase structure"
 type: Roadmap
-about: "OpenLux"
+about: "OpenLume"
 ---
 
-# Roadmap: OpenLux
+# Roadmap: OpenLume
 
 ## Overview
 
-O OpenLux já nasceu com o grosso do Resolume feito (release 0.1.0 para Windows em 2026-10-15).
+O OpenLume já nasceu com o grosso do Resolume feito (release 0.1.0 para Windows em 2026-10-15).
 Este roadmap começa daí: o próximo marco leva o programa do "funciona no PC do Felipe" ao
 "mapeia sozinho, está provado no equipamento real e sai nas três versões". O `ROADMAP.md` da
 raiz continua sendo a lista detalhada do que veio do Resolume e do que está feito.
@@ -56,18 +56,18 @@ sem biblioteca pesada vs. modelo ONNX; como alinhar a foto ao quadro do projetor
 - [x] 01-01: maquete `automape-mockup.html` com o fatiamento da foto funcionando; aprovação do Felipe
 - [x] 01-02: REC vira clipe (botão REC na barra; a gravação entra na grade) — pedido de 2026-10-22, feito antes do Automape no programa
 - [x] 01-03: `app/automape.js` + Saída › Automape… + botão na Saída avançada + malha projetada + editor + máscaras e slices de verdade; selftest e verificação por CDP
-- [ ] 01-04: IA em fotos novas (SAM local em ONNX ou Claude) e MCP do OpenLux (servidor MCP exposto pelo programa: ler foto, criar slices/máscaras, mexer na composição) para o Claude e outros agentes operarem o programa; o Automape vira uma ferramenta dele (pedido de 2026-10-21, a confirmar)
+- [ ] 01-04: IA em fotos novas (SAM local em ONNX ou Claude) e MCP do OpenLume (servidor MCP exposto pelo programa: ler foto, criar slices/máscaras, mexer na composição) para o Claude e outros agentes operarem o programa; o Automape vira uma ferramenta dele (pedido de 2026-10-21, a confirmar)
 - [ ] 01-05: IA de profundidade na foto (modelo monocular em ONNX, como o "tirar o fundo"): separar superfícies por profundidade e prévia 3D do mapeamento (pedido de 2026-10-21, a confirmar)
 
 ### Phase 2: Efeitos do Resolume
 
-**Goal:** todos os efeitos, fontes e mixers do Resolume no OpenLux, iguais por fora (mesmo
+**Goal:** todos os efeitos, fontes e mixers do Resolume no OpenLume, iguais por fora (mesmo
 nome, mesmos controles, mesmas faixas, mesmos presets) e iguais na tela, conferidos lado a lado
 com o Resolume com os mesmos valores. Pedido de 2026-10-25 ("não quero efeitos próprios, quero
 copiar"): copiar o COMPORTAMENTO, escrevendo cada efeito do zero; nada de shader, patch `.wired`
 ou código tirado do Resolume (repo público GPL; risco de remoção do repositório).
 **Depends on:** Phase 1 (ordem de prioridade do Felipe: antes de "Celular e plugins")
-**Research:** Likely (como capturar o Resolume e o OpenLux com os mesmos valores e comparar a
+**Research:** Likely (como capturar o Resolume e o OpenLume com os mesmos valores e comparar a
 imagem automaticamente; licença de cada modelo de `ai-models/` antes de embarcar)
 
 **Scope:**
@@ -79,14 +79,14 @@ imagem automaticamente; licença de cada modelo de `ai-models/` antes de embarca
 - Ficha e controles no modelo do Wire: tipo (fonte/efeito/mixer), nome, autor, descrição, identificador, controles em ordem e grupos com mínimo/máximo/unidade/tipo de controle, presets
 
 **Plans:**
-- [x] 02-01: bancada lado a lado (REST do Resolume + CDP do OpenLux + captura + diferença por pixel), fichas de controles pela API, e o 1º lote igualado: Delay RGB, Trails, Threshold — fechado em 2026-10-30; de quebra Background Removal, Shape Mask, YouTube e celular (SUMMARY)
+- [x] 02-01: bancada lado a lado (REST do Resolume + CDP do OpenLume + captura + diferença por pixel), fichas de controles pela API, e o 1º lote igualado: Delay RGB, Trails, Threshold — fechado em 2026-10-30; de quebra Background Removal, Shape Mask, YouTube e celular (SUMMARY)
 - [ ] 02-02 em diante: lotes dos mais usados (lista a combinar), Wire (CRT, Strokes, Tilt Shift, Grid Cloner…), profundidade
 
 ### Phase 3: Celular e plugins
 
-**Goal:** o celular vira controle do OpenLux pela rede (QR code, nada para instalar) com quatro
+**Goal:** o celular vira controle do OpenLume pela rede (QR code, nada para instalar) com quatro
 modos — Desenhar, Toque, Pads e Controle —, em pé e deitado; o desenho do celular é um clipe;
-o OpenLux ganha um sistema de plugins (pasta com `plugin.js`: fonte ou efeito, parâmetros,
+o OpenLume ganha um sistema de plugins (pasta com `plugin.js`: fonte ou efeito, parâmetros,
 toque) e os primeiros quatro plugins são de física em tempo real: Fluido (fogo, fumaça, tinta),
 Partículas, Rastro neon e Bolinhas. Pedido de 2026-10-25, a partir de um reel de plugin de
 física para o Resolume controlado pelo celular.
@@ -97,7 +97,7 @@ por QR; como carregar plugins de uma pasta com segurança; simulação de fluido
 
 **Scope:**
 - Maquete aprovada antes de construir (feita em 2026-10-25: `plugins-celular-mockup.html`)
-- Sistema de plugins: pasta `Documentos/OpenLux/plugins`, plugin aparece em Fontes/Efeitos, controles no painel Clipe e no celular, ligáveis a MIDI/som/Autopilot
+- Sistema de plugins: pasta `Documentos/OpenLume/plugins`, plugin aparece em Fontes/Efeitos, controles no painel Clipe e no celular, ligáveis a MIDI/som/Autopilot
 - Celular: página servida pelo programa, QR code em "Conectar celular…", vários celulares e vários dedos
 - Modos do celular: Desenhar (cores, espessura, borracha, some aos poucos, novo, limpar), Toque (dedo vira mão no plugin no ar; Explosão, Limpar, Auto), Pads (só os clipes, grandes, uma camada por vez, disparo do começo), Controle (master, opacidade por camada, parâmetros do que está no ar)
 - Clipe de desenho: guarda os traços com o tempo; disparar refaz o desenho no ritmo em que foi feito
@@ -140,7 +140,7 @@ com `OutputPresentation` para o projetor.
 
 ### Phase 7: Saída avançada
 
-**Goal:** a Saída avançada do OpenLux vai além do Resolume onde o Felipe pede: emendas (soft edge) como
+**Goal:** a Saída avançada do OpenLume vai além do Resolume onde o Felipe pede: emendas (soft edge) como
 degradês com alça puxados na própria imagem, quatro por slice, seleção sem surpresa na sobreposição, e o
 que mais surgir dos testes dele com projetores de verdade.
 **Depends on:** nada (executada em 2026-10-30, fora da ordem das fases, porque os pedidos vieram

@@ -5,7 +5,7 @@ status: complete
 completed: 2026-10-22
 description: "Botão REC na barra de cima; ao parar, a gravação vira clipe na primeira casa vazia da camada selecionada; VP8 para não pesar; teste embutido mede o FPS"
 type: Summary
-about: "OpenLux"
+about: "OpenLume"
 ---
 
 # 01-02 SUMMARY: REC vira clipe

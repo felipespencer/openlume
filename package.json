@@ -1,8 +1,8 @@
 {
-  "name": "openlux",
-  "productName": "OpenLux",
-  "version": "0.2.0-beta.39",
-  "description": "OpenLux: software livre de VJ e projeção mapeada, no jeito do Resolume",
+  "name": "openlume",
+  "productName": "OpenLume",
+  "version": "0.2.0-beta.40",
+  "description": "OpenLume: software livre de VJ e projeção mapeada, no jeito do Resolume",
   "license": "GPL-3.0",
   "main": "main.js",
   "scripts": {
@@ -12,8 +12,8 @@
   },
   "author": "Felipe Spencer",
   "build": {
-    "appId": "app.openlux",
-    "productName": "OpenLux",
+    "appId": "app.openlume",
+    "productName": "OpenLume",
     "directories": {
       "output": "dist"
     },
@@ -57,7 +57,7 @@
       "perMachine": false,
       "runAfterFinish": true,
       "createDesktopShortcut": true,
-      "shortcutName": "OpenLux",
+      "shortcutName": "OpenLume",
       "additionalLightArgs": [
         "-sval"
       ]
@@ -66,7 +66,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "OpenLux",
+      "shortcutName": "OpenLume",
       "language": "1046"
     }
   },
