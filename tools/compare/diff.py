@@ -1,6 +1,6 @@
 # Compara a saída do Resolume com a do OpenLux: as duas reduzidas a 960x540, diferença média e máxima
 # por canal (0-255) e uma imagem Resolume | OpenLux | diferença (ampliada 4x).
-# Uso: py tools/compare/diff.py resolume.png openlume.png lado-a-lado.png
+# Uso: py tools/compare/diff.py resolume.png openlux.png lado-a-lado.png
 # Recusa imagem lisa (preta ou de uma cor só): é sinal de captura falsa.
 import json, sys
 

@@ -15,9 +15,9 @@ def carrega(prog, v):
         q = np.load(os.path.join(pasta, f'{rotulo}-resolume-{v}.npy')).astype(np.float32) / 255.0
         ts = json.load(open(os.path.join(pasta, f'{rotulo}-resolume-{v}.json')))
     else:
-        raw = np.fromfile(os.path.join(pasta, f'{rotulo}-openlume-{v}.raw'), dtype=np.uint8)
+        raw = np.fromfile(os.path.join(pasta, f'{rotulo}-openlux-{v}.raw'), dtype=np.uint8)
         q = raw.reshape(-1, H, W).astype(np.float32) / 255.0
-        ts = json.load(open(os.path.join(pasta, f'{rotulo}-openlume-{v}.json')))
+        ts = json.load(open(os.path.join(pasta, f'{rotulo}-openlux-{v}.json')))
     ts = np.asarray(ts[:len(q)], dtype=np.float64)
     # reamostra a 30 Hz pelo instante mais próximo
     grade = np.arange(0, min(seg * 1000, ts[-1]) + 1, 1000 / FPS)
@@ -43,7 +43,7 @@ def mede(prog):
 
 res = {}
 tiras = []
-for prog in ('resolume', 'openlume'):
+for prog in ('resolume', 'openlux'):
     try:
         r, s0, sv = mede(prog); res[prog] = r
         for t in (15, 35, 55, 75):

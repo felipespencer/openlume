@@ -10,11 +10,11 @@ const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const { LaserCube } = require('./lasercube.js');
 
-// Renomeado de OpenLume para OpenLux (2026-11-01): a pasta de dados leva o nome do produto, então os dados da antiga (preferências,
+// Renomeado de OpenLux para OpenLux (2026-11-01): a pasta de dados leva o nome do produto, então os dados da antiga (preferências,
 // composições, presets, certificado do celular, armazenamento da página) são copiados uma vez para a nova, arquivo por arquivo e sem
 // sobrescrever, pulando os caches. Uma marca na pasta nova evita repetir; a pasta antiga fica intacta.
 try {
-  const velha = path.join(app.getPath('appData'), 'OpenLume'), nova = app.getPath('userData'), marca = path.join(nova, '.migrado-de-openlume');
+  const velha = path.join(app.getPath('appData'), 'OpenLux'), nova = app.getPath('userData'), marca = path.join(nova, '.migrado-de-openlux');
   if (fs.existsSync(velha) && !fs.existsSync(marca)) {
     fs.mkdirSync(nova, { recursive: true });
     const pular = new Set(['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'Crashpad', 'DevToolsActivePort', 'lockfile', 'SingletonLock', 'SingletonCookie', 'SingletonSocket', 'Network', 'blob_storage', 'Shared Dictionary', 'ShaderCache', 'GrShaderCache', 'Service Worker', 'VideoDecodeStats', 'WebStorage', 'component_crx_cache', 'extensions_crx_cache']);

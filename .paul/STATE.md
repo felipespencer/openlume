@@ -83,7 +83,7 @@ PLAN ──▶ APPLY ──▶ UNIFY
 
 | Blocker | Impact | Resolution Path |
 |---------|--------|-----------------|
-| Organização no GitHub ainda não criada | Repo ficou PÚBLICO em 2026-10-29 (release v0.2.0-beta.1 para o Dell G3); colaboradores seguem sem admin | Felipe cria a org (sugestão: `openlume-app`); eu transfiro o repo |
+| Organização no GitHub ainda não criada | Repo ficou PÚBLICO em 2026-10-29 (release v0.2.0-beta.1 para o Dell G3); colaboradores seguem sem admin | Felipe cria a org (sugestão: `openlux-app`); eu transfiro o repo |
 
 ## Boundaries (Active)
 

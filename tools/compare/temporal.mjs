@@ -29,7 +29,7 @@ ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && waits.has(d.id
 const send = (method, params = {}) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 const ev = async (expr) => { const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); if (r.result.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description || r.result.exceptionDetails.text); return r.result.result.value; };
 
-async function openlumeSerie(tsmooth) {
+async function openluxSerie(tsmooth) {
   // carrega o clipe (uma vez), põe o efeito em modo Máscara com a suavidade pedida, dispara do começo e grava N quadros reduzidos
   const b64 = await ev(`(async () => {
     const P = window.projecionista, L = P.state.layers[0], S = ms => new Promise(r => setTimeout(r, ms));
@@ -66,8 +66,8 @@ async function resolumeSerie(tsmooth) {
 
 for (const v of [0, a.valor]) {
   console.log(`Resolume, Temporal Smoothness ${v}…`); await resolumeSerie(v);
-  console.log(`OpenLux, Suavidade no tempo ${v}…`); const s = await openlumeSerie(v);
-  fs.writeFileSync(path.join(OUT, `${a.nome}-openlume-${v}.raw`), s.buf); fs.writeFileSync(path.join(OUT, `${a.nome}-openlume-${v}.json`), JSON.stringify(s.ts));
+  console.log(`OpenLux, Suavidade no tempo ${v}…`); const s = await openluxSerie(v);
+  fs.writeFileSync(path.join(OUT, `${a.nome}-openlux-${v}.raw`), s.buf); fs.writeFileSync(path.join(OUT, `${a.nome}-openlux-${v}.json`), JSON.stringify(s.ts));
 }
 ws.close();
 const rel = execFileSync('py', ['-I', path.join(HERE, 'temporal.py'), OUT, a.nome, String(a.valor), String(a.n)]).toString();

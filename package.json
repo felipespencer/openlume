@@ -12,7 +12,7 @@
   },
   "author": "Felipe Spencer",
   "build": {
-    "appId": "app.openlume",
+    "appId": "app.openlux",
     "productName": "OpenLux",
     "directories": {
       "output": "dist"

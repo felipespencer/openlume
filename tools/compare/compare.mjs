@@ -40,7 +40,7 @@ async function olEval(expr) {
 }
 
 // no OpenLux: clipe na camada 1, casa 2; só esse efeito na camada; espera N quadros; devolve o PNG do motor
-async function openlume(a, valoresR) {
+async function openlux(a, valoresR) {
   const clip = path.resolve(a.clip).replace(/\\/g, '/');
   const expr = `(async () => {
     const P = window.projecionista, L = P.state.layers[0], S = ms => new Promise(r => setTimeout(r, ms));
@@ -87,11 +87,11 @@ for (let tent = 1; ; tent++) {
 fs.rmSync(rPng + '.b.png', { force: true });
 
 // OpenLux
-const o = await openlume(a, valoresR);
-const oPng = path.join(OUT, rotulo + '.openlume.png');
+const o = await openlux(a, valoresR);
+const oPng = path.join(OUT, rotulo + '.openlux.png');
 fs.writeFileSync(oPng, Buffer.from(o.png.split(',')[1], 'base64'));
 
 // diferença
 const lado = path.join(OUT, rotulo + '.png');
 const num = JSON.parse(execFileSync('py', [path.join(HERE, 'diff.py'), rPng, oPng, lado]).toString());
-console.log(JSON.stringify({ efeito: a.efeito, rotulo, resolume: valoresR, openlume: o.params, ...num, imagem: path.relative(ROOT, lado) }));
+console.log(JSON.stringify({ efeito: a.efeito, rotulo, resolume: valoresR, openlux: o.params, ...num, imagem: path.relative(ROOT, lado) }));
