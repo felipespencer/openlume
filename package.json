@@ -1,7 +1,7 @@
 {
   "name": "openlux",
   "productName": "OpenLux",
-  "version": "0.2.0-beta.38",
+  "version": "0.2.0-beta.39",
   "description": "OpenLux: software livre de VJ e projeção mapeada, no jeito do Resolume",
   "license": "GPL-3.0",
   "main": "main.js",
