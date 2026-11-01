@@ -83,10 +83,13 @@ if (prep.vazia >= 0) {
   await ev(`(() => { const p = ${P}; const sc = p.screens()[0]; sc.device = 'window'; sc.enabled = true; p.openOutputs(); return 1; })()`); await wait(900);
   const n = await ev(`window.projDesktop.showOutputs()`);
   check('"Mostrar saídas" alcança a janela de saída', n >= 1, 'janelas=' + n);
-  const bt = await rectOf('#btnOut');
-  const rotulo = await ev(`document.getElementById('btnOut').textContent`);
-  await click(bt.x, bt.y); await wait(500);
-  check('botão "Mostrar saídas" mantém a saída aberta', await ev(`${P}.outWins().length`) === 1 && rotulo === 'Mostrar saídas', 'rótulo=' + rotulo);
+  // o botão da barra liga e desliga a saída: no ar mostra "Fechar saída" (aceso) e fecha; desligada mostra "Abrir saída" e abre
+  const rot = () => ev(`(() => { const b = document.getElementById('btnOut'); return [b.textContent, b.classList.contains('on')]; })()`);
+  let r = await rot(); check('saída no ar: o botão diz "Fechar saída" e fica aceso', r[0] === 'Fechar saída' && r[1] === true, JSON.stringify(r));
+  let bt = await rectOf('#btnOut'); await click(bt.x, bt.y); await wait(900);
+  r = await rot(); check('clicar com a saída no ar a fecha', await ev(`${P}.outWins().length`) === 0 && r[0] === 'Abrir saída' && r[1] === false, JSON.stringify(r));
+  bt = await rectOf('#btnOut'); await click(bt.x, bt.y); await wait(1200);
+  r = await rot(); check('clicar com a saída fechada a abre de novo', await ev(`${P}.outWins().length`) === 1 && r[0] === 'Fechar saída', JSON.stringify(r));
   await ev(`(() => { for (const w of ${P}.outWins()) w.close(); return 1; })()`); await wait(300);
 }
 // 5. fechar o programa: pergunta com três botões; Cancelar só fecha a pergunta

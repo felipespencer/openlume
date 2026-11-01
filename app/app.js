@@ -917,7 +917,13 @@ function openOutputs(quais) {
   if (jaAbertas && D && D.showOutputs) D.showOutputs().catch(() => { });   // "Mostrar saídas": traz as janelas para a frente (o focus() da página não consegue)
   renderScreens();
 }
-$('btnOut').onclick = () => openOutputs();
+// fecha todas as janelas de saída (o botão da barra e o item "Desligada" do menu Saída)
+function closeOutputs() {
+  for (const sc of state.screens) if (sc.win && !sc.win.closed) { sc.win.close(); sc.win = null; delete window.__projStreams[sc.id]; delete window.__projCanvas[sc.id]; }
+  renderScreens();
+}
+// um botão só liga e desliga a saída: desligada, abre; no ar, fecha (e fica aceso enquanto estiver no ar)
+$('btnOut').onclick = () => { if (state.screens.some(sc => sc.win && !sc.win.closed)) closeOutputs(); else openOutputs(); };
 function renderScreens() {
   syncOverlay();
   const list = $('scrList'); list.textContent = '';
@@ -934,7 +940,7 @@ function renderScreens() {
   }
   $('scrCount').textContent = state.screens.length + (state.screens.length === 1 ? ' tela' : ' telas');
   $('outState').textContent = on ? (on === 1 ? 'saída no ar' : on + ' saídas no ar') : 'saída fechada'; $('outState').classList.toggle('on', on > 0);
-  $('btnOut').textContent = on ? 'Mostrar saídas' : 'Abrir saída';
+  $('btnOut').textContent = on ? 'Fechar saída' : 'Abrir saída'; $('btnOut').classList.toggle('on', on > 0); $('btnOut').title = on ? 'Fecha as janelas de saída. A saída continua montada: é só abrir de novo.' : 'Abre uma janela de saída por tela. Com um projetor ligado, ela já abre nele em tela cheia.';
   $('compName').textContent = state.name || 'sem nome';
 }
 setInterval(renderScreens, 1000);
@@ -1312,10 +1318,11 @@ const menuDefs = () => [
     { label: 'Remover todas depois', disabled: c >= COLS - 1, fn: () => { while (COLS > c + 1) removeColumn(COLS - 1); } }]; } },
   { label: 'Clipe', items: clipMenuItems },
   { label: 'Saída', items: () => { const sc = state.screens[0], open = state.screens.some(s => s.win && !s.win.closed); return [
-    { label: 'Desligada', check: !open, fn: () => { for (const s of state.screens) if (s.win && !s.win.closed) s.win.close(); renderScreens(); } },
+    { label: 'Desligada', check: !open, fn: closeOutputs },
     { label: 'Tela cheia', sub: () => displays.length ? displays.map(d => ({ label: d.label, check: open && sc.device === d.id, fn: () => { sc.device = d.id; sc.enabled = true; if (sc.win && !sc.win.closed) sc.win.close(); openOutputs(); } })) : [{ label: 'nenhum monitor listado', disabled: true }] },
     { label: 'Janela', check: open && sc.device === 'window', fn: () => { sc.device = 'window'; sc.enabled = true; if (sc.win && !sc.win.closed) sc.win.close(); openOutputs(); } },
     { label: 'Automático (projetor ligado)', check: open && sc.device === 'auto', fn: () => { sc.device = 'auto'; sc.enabled = true; if (sc.win && !sc.win.closed) sc.win.close(); openOutputs(); } }, '-',
+    { label: 'Mostrar saídas (trazer para a frente)', disabled: !open, fn: () => openOutputs() },
     { label: 'Projetores…', fn: () => projectorWizard(false) },
     { label: 'Avançada…', fn: () => ao.show() },
     { label: 'Automape…', fn: () => automape.open() }, '-',
