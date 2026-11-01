@@ -195,3 +195,21 @@ API da mesma forma.
   Windows avisa "o provedor do arquivo de nuvem não está em execução". Abrir o OneDrive uma vez
   os traria.
 - Os shaders das transições geométricas e o significado dos códigos de curva do Envelope.
+
+## Atalhos de teclado: o modo "Edit Keyboard" (capturado do Arena 7.28 em 2026-11-01)
+
+Menu **Shortcuts → Edit Keyboard** (Ctrl+Shift+K); os outros modos são Edit MIDI (Ctrl+Shift+M), Edit OSC (Ctrl+Shift+O), Edit DMX
+(Ctrl+Shift+X) e **Stop**. Capturas: `atalhos-teclado-modo.png`, `atalhos-teclado-lista-modo.png`, `menu-shortcuts-aberto.png`.
+
+- Ligado o modo, **tudo o que dá para mapear fica tingido** (azul no teclado, verde-água no MIDI): clipes, colunas, botões da camada, transporte,
+  BPM/TAP, barras, valores. O que não é mapeável continua cinza.
+- Aparece uma aba **Shortcuts** à frente das abas da direita (Files, Compositions, Effects…): um **preset** ("Default") no alto, a **lista** de atalhos
+  (caminho do parâmetro à esquerda, tecla à direita; o selecionado em verde-menta; repetido em vermelho; indisponível em cinza), o **inspetor** embaixo
+  e o quadro de Help.
+- **Clicar** num elemento tingido o seleciona (moldura branca) e mostra o inspetor; **apertar uma tecla** o mapeia; o elemento ganha a letra da tecla
+  no canto. **Delete/Backspace** tira o atalho.
+- Inspetor: **Target** (Selected Clip / This Clip / By Position: "selecionado", "esse mesmo" ou "por índice") e **Mode** (`>` ou o valor, Toggle, Value,
+  Piano, Set Range, mouse esquerda-direita, mouse cima-baixo, Invert Mouse, Set Value). Em MIDI: Message, Controller Mode (Relative/Absolute/Button),
+  Invert, Step Size, Loop, MIDI Out velocity/status. Em OSC: endereço de entrada, type tag, saída.
+- Exemplos de caminho: `Composition Layers 1 Clips 2 Connect` (Q); `Composition Selectedclip Transport Position Behaviour Playdirection` (W, Target
+  Selected Clip, Mode `>`).

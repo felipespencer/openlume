@@ -176,10 +176,10 @@ export class Panels {
   transportRows(P, clip) {
     const t = clip.tr, v = mediaOf(clip), S = this.ctx.state, dur = clip.dur || 0;
     P.appendChild(this.phead('Transporte', 'Transporte|Linha do tempo, direção, modo, velocidade, entrada e saída.'));
-    const tl = el('div', 'timeline'); tl.dataset.help = 'Linha do tempo|Arraste para pular. As alças das pontas são a entrada (cut in) e a saída (cut out).';
-    const range = el('div', 'range'), head = el('div', 'head'), hin = el('div', 'hnd in'), hout = el('div', 'hnd out'), txt = el('div', 'ttxt');
-    tl.append(range, head, hin, hout, txt);
-    const place = () => { const i = (t.in / dur) * 100, o = ((t.out || dur) / dur) * 100; range.style.left = i + '%'; range.style.width = Math.max(0, o - i) + '%'; hin.style.left = i + '%'; hout.style.left = o + '%'; head.style.left = (v.currentTime / dur) * 100 + '%'; txt.textContent = fmtT1(v.currentTime) + ' / ' + fmtT1(dur); };
+    const tl = el('div', 'timeline'); tl.dataset.help = 'Linha do tempo|Arraste para pular. Os triângulos das pontas são a entrada (cut in) e a saída (cut out).';
+    const bar = el('div', 'tbar'), range = el('div', 'range'), head = el('div', 'head'), hin = el('div', 'hnd in'), hout = el('div', 'hnd out'), txt = el('div', 'ttxt'), lin = el('div', 'lbl in'), lout = el('div', 'lbl out');
+    bar.appendChild(range); tl.append(bar, head, hin, hout, txt, lin, lout);
+    const place = () => { const i = (t.in / dur) * 100, o = ((t.out || dur) / dur) * 100; range.style.left = i + '%'; range.style.width = Math.max(0, o - i) + '%'; hin.style.left = i + '%'; hout.style.left = o + '%'; lin.style.left = i + '%'; lout.style.left = o + '%'; lin.textContent = 'IN ' + fmtT1(t.in); lout.textContent = 'OUT ' + fmtT1(t.out || dur); head.style.left = (v.currentTime / dur) * 100 + '%'; txt.textContent = fmtT1(v.currentTime); };
     place(); this.tl = { place, clip };
     const drag = (what) => (e) => {
       e.preventDefault(); tl.setPointerCapture(e.pointerId);
@@ -188,18 +188,21 @@ export class Panels {
       at(e); tl.onpointermove = (ev) => { if (tl.hasPointerCapture(ev.pointerId)) at(ev); }; tl.onpointerup = () => { tl.onpointermove = null; this.render(); };
     };
     hin.onpointerdown = drag('in'); hout.onpointerdown = drag('out'); tl.onpointerdown = (e) => { if (e.target === hin || e.target === hout) return; drag('seek')(e); };
-    const row = el('div', 'prow tlrow'); row.append(el('span', 'pl', 'Linha do tempo'), tl); P.appendChild(row);
-    const btn = (txt0, help, on, fn) => { const b = el('button', 'ib' + (on ? ' on' : ''), txt0); b.type = 'button'; b.dataset.help = help; b.onclick = () => { fn(); setTimeout(() => this.render(), 40); }; return b; };
-    const tr = el('div', 'pv tr');
-    tr.append(
+    const row = el('div', 'tlwrap'); row.appendChild(tl); P.appendChild(row);
+    // ◀ ‖ ▶ como no Transport do Resolume (o ativo fica em verde-menta); entrada, saída e quadro a quadro ficam do outro lado
+    const I = { back: '<svg viewBox="0 0 16 16"><path d="M11 2.5v11L3.5 8z"/></svg>', pause: '<svg viewBox="0 0 16 16"><path d="M4 2.5h3v11H4zM9 2.5h3v11H9z"/></svg>', fwd: '<svg viewBox="0 0 16 16"><path d="M5 2.5v11L12.5 8z"/></svg>' };
+    const btn = (key, help, on, fn, svg) => { const b = el('button', 'ib' + (on ? ' on' : '') + (svg ? '' : ' sm')); if (svg) b.innerHTML = svg; else b.textContent = key; b.dataset.k = key; b.type = 'button'; b.dataset.help = help; b.onclick = () => { fn(); setTimeout(() => this.render(), 40); }; return b; };
+    const tr = el('div', 'tbtns'), gl = el('div', 'tg'), gr = el('div', 'tg');
+    gl.append(
+      btn('◀', 'Para trás|Toca de trás para a frente.', t.playing && t.dir < 0, () => playClip(clip, -1, S.speed), I.back),
+      btn('‖', 'Pausar|Para onde está.', !t.playing, () => pauseClip(clip), I.pause),
+      btn('▶', 'Para a frente|Toca normalmente.', t.playing && t.dir > 0, () => playClip(clip, 1, S.speed), I.fwd));
+    gr.append(
       btn('|◀', 'Ir para a entrada|Volta ao ponto de entrada.', false, () => { seekClip(clip, t.in); }),
-      btn('◀', 'Para trás|Toca de trás para a frente.', t.playing && t.dir < 0, () => playClip(clip, -1, S.speed)),
-      btn('‖', 'Pausar|Para onde está.', !t.playing, () => pauseClip(clip)),
-      btn('▶', 'Para a frente|Toca normalmente.', t.playing && t.dir > 0, () => playClip(clip, 1, S.speed)),
       btn('▶|', 'Ir para a saída|Pula para o ponto de saída.', false, () => { seekClip(clip, (t.out || dur) - 0.05); }),
       btn('−1q', 'Um quadro para trás|', false, () => { pauseClip(clip); seekClip(clip, v.currentTime - 1 / 30); }),
       btn('+1q', 'Um quadro para a frente|', false, () => { pauseClip(clip); seekClip(clip, v.currentTime + 1 / 30); }));
-    P.appendChild(this.prow('Tocar', '', tr));
+    tr.append(gl, gr); P.appendChild(tr);
     // formato do Transport do Resolume: tipo, modo, ao voltar, velocidade (0–10) e duração editável (/2 ×2 mexem na velocidade)
     P.appendChild(this.pselect('Tipo', 'Tipo|Linha do tempo: a velocidade é a sua. BPM Sync: a faixa entre a entrada e a saída dura N batidas, presa ao relógio de BPM.', [['timeline', 'Linha do tempo'], ['bpm', 'BPM Sync']], t.sync || 'timeline', v2 => { t.sync = v2; if (v2 !== 'bpm') setRate(clip, S.speed); }));
     if (t.sync === 'bpm') P.appendChild(this.pselect('Batidas', 'Batidas|Quantas batidas a faixa do clipe dura.', BEATS.filter(x => x >= 1).map(x => [String(x), String(x)]), String(t.beats || 8), v2 => { t.beats = +v2; }));

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>OpenLume · maquete do modo Atalhos de teclado</title>
+<style>
+:root{--panel:#1c1c1c;--dim:#8a8a8a;--mint:#7dffd6;--tint:rgba(47,128,196,.42)}
+*{box-sizing:border-box}
+body{margin:0;background:#0d0d0d;color:#e6e6e6;font:12px/1.4 "Segoe UI",system-ui,sans-serif}
+.bar{padding:10px 16px;display:flex;gap:10px;align-items:center;background:#111;border-bottom:1px solid #222;position:sticky;top:0;z-index:50;flex-wrap:wrap}
+.bar b{font-size:13px}
+.bar button{background:#2b2b2b;color:#e6e6e6;border:0;padding:5px 11px;border-radius:3px;cursor:pointer;font:inherit}
+.bar button.on{background:var(--mint);color:#0b0b0d}
+.bar span{color:var(--dim)}
+#stage{position:relative;width:1584px;height:861px;margin:0 auto;background:#000 url(data:image/png;base64,/*IMG*/) no-repeat 0 0}
+.ov{position:absolute;background:var(--tint);outline:1px solid rgba(120,190,255,.45);outline-offset:-1px;pointer-events:none}
+.ov.sel{outline:2px solid #fff;outline-offset:-2px}
+.ov .bd{position:absolute;right:2px;top:1px;font-style:normal;font-weight:700;font-size:11px;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
+body:not(.mode) .ov,body:not(.mode) #cover,body:not(.mode) #pill{display:none}
+#cover{position:absolute;left:1204px;top:540px;width:380px;height:321px;background:var(--panel)}
+#cover .tabs{display:flex;height:26px;background:#232323;border-bottom:1px solid #000}
+#cover .tabs span{flex:1;text-align:center;line-height:26px;color:var(--dim);border-right:1px solid #111;font-size:11.5px}
+#cover .tabs span.act{background:var(--panel);color:#fff}
+.pre{margin:8px 0 6px;display:flex;gap:6px;padding:0 10px}
+.pre .sel{flex:1;height:22px;background:#2b2b2b;padding:0 8px;line-height:22px;border-radius:2px}
+.pre .sel::after{content:"▾";float:right;color:#aaa}
+.pre .mini{width:24px;height:22px;background:#2b2b2b;text-align:center;line-height:22px;border-radius:2px;color:#bbb}
+.list{height:128px;background:#0e0e0e;border-top:1px solid #000;border-bottom:1px solid #000;overflow:hidden}
+.list .row{display:flex;justify-content:space-between;padding:3px 10px;height:22px;line-height:16px;white-space:nowrap;border-bottom:1px solid #151515}
+.list .row b{font-weight:700}
+.list .row.cur{background:var(--mint);color:#0b0b0d}
+.list .row.dup{color:#ff6b6b}
+.list .row.off{color:#666}
+.insp{padding:8px 10px;display:grid;grid-template-columns:54px 1fr;gap:6px 8px;align-items:center;height:76px;background:#1a1a1a}
+.insp .sel{height:20px;background:#2b2b2b;padding:0 8px;line-height:20px;border-radius:2px;width:150px}
+.insp .sel::after{content:"▾";float:right;color:#aaa}
+.insp label{color:#cfcfcf}
+.insp .ck{display:inline-block;width:11px;height:11px;border:1px solid #777;vertical-align:-2px;margin:0 4px 0 12px}
+.help{position:absolute;left:0;right:0;bottom:0;height:58px;background:#1a1a1a;border-top:1px solid #000;padding:5px 8px}
+.help h4{margin:0 0 2px;font-size:12px;font-weight:600}
+.help p{margin:0;color:#aaa;font-size:11px}
+#pill{position:absolute;left:640px;top:36px;background:rgba(10,10,10,.88);border:1px solid #3a7bb5;border-radius:14px;padding:5px 14px;color:#cfe6ff;font-size:12px;z-index:5}
+#pill b{color:#fff}
+#menu{position:absolute;left:566px;top:29px;width:300px;background:#262626;border:1px solid #000;box-shadow:0 6px 18px #000a;display:none;padding:3px 0;z-index:9}
+#menu.open{display:block}
+#menu div{display:flex;justify-content:space-between;padding:5px 14px;color:#ddd}
+#menu div i{font-style:normal;color:#777;font-size:11px}
+#menu hr{border:0;border-top:1px solid #333;margin:3px 0}
+#menu .chk::before{content:"✓ ";color:var(--mint)}
+#menuhl{position:absolute;left:570px;top:0;width:60px;height:29px;background:#3a3a3a;display:none}
+.notes{max-width:1584px;margin:16px auto 40px;padding:0 16px;color:#bdbdbd}
+.notes h3{color:#fff;margin:14px 0 4px}
+.notes li{margin:3px 0}
+code{background:#222;padding:1px 5px;border-radius:2px}
+</style></head>
+<body class="mode">
+<div class="bar"><b>Maquete: modo Atalhos de teclado</b>
+<button id="b1" class="on">Modo ligado</button><button id="b2">Menu Atalhos aberto</button><button id="b3">Modo desligado</button>
+<span>Base: captura real do OpenLume (beta.33 + Transporte novo). Em azul, tudo o que dá para mapear. Cópia do Edit Keyboard do Resolume 7.28.</span></div>
+<div id="stage">
+<!--OVERLAYS-->
+<div id="pill">Modo <b>Teclado</b> · clique num elemento azul e aperte a tecla · <b>Delete</b> tira · <b>Esc</b> sai</div>
+<div id="cover"><div class="tabs"><span class="act">Atalhos</span><span>Arquivos</span><span>Composições</span><span>Efeitos</span><span>Fontes</span><span>Gravar</span></div>
+<div class="pre"><div class="sel">Padrão</div><div class="mini" title="Novo preset">＋</div><div class="mini" title="Duplicar">⧉</div><div class="mini" title="Apagar">✕</div></div>
+<div class="list">
+<div class="row cur"><span>Composição · Camada 5 · Clipe 1 · Tocar</span><b>Q</b></div>
+<div class="row"><span>Composição · Coluna 2 · Tocar a coluna</span><b>2</b></div>
+<div class="row"><span>Composição · Clipe selecionado · Transporte · Direção</span><b>W</b></div>
+<div class="row dup"><span>Composição · Camada 1 · Solo</span><b>S</b></div>
+<div class="row dup"><span>Composição · Camada 2 · Solo</span><b>S</b></div>
+<div class="row off"><span>Composição · Camada 7 · Clipe 3 · Tocar</span><b>E</b></div>
+</div>
+<div class="insp"><label>Alvo</label><div class="sel">Por posição</div><label>Modo</label><div><span class="sel" style="display:inline-block;width:110px">&gt;</span><span class="ck"></span>Piano</div></div>
+<div class="help"><h4>Clipe</h4><p>Aperte uma tecla para tocar este clipe. Delete ou Backspace tira o atalho.</p></div></div>
+<div id="menuhl"></div>
+<div id="menu"><div>Editar teclado… <i>Ctrl+Shift+K</i></div><div>Lista de atalhos… <i></i></div><hr><div>MIDI: APC40 mkII… <i></i></div><div class="chk">Usar a APC40 <i></i></div><hr><div>Parar o modo <i>Esc</i></div></div>
+</div>
+<div class="notes"><h3>O que esta maquete mostra</h3><ul>
+<li><b>Ligar:</b> menu <code>Atalhos → Editar teclado…</code> (Ctrl+Shift+K). Tudo o que dá para mapear fica azul; o resto fica como está. Um aviso curto no alto diz como usar; Esc ou o mesmo menu saem.</li>
+<li><b>Mapear:</b> clicar num elemento azul o seleciona (moldura branca) e mostra os dados no inspetor; apertar uma tecla o mapeia e a letra aparece no canto do elemento. <code>Delete</code> ou <code>Backspace</code> tira.</li>
+<li><b>Aba Atalhos</b> passa à frente das abas da direita enquanto o modo está ligado: preset, lista (caminho à esquerda, tecla à direita; repetido em vermelho; indisponível em cinza), inspetor (Alvo e Modo) e o quadro de ajuda do elemento.</li>
+<li><b>Alvo:</b> <i>Selecionado</i> (o clipe ou camada que estiver selecionado), <i>Este</i> (sempre esse mesmo) ou <i>Por posição</i> (o índice, mesmo se reorganizar). <b>Modo:</b> <code>&gt;</code> dispara; Toggle, Valor e Piano (máximo enquanto segura) para os botões de ligar e desligar.</li>
+<li><b>Fora desta primeira etapa</b> (você escolheu "só o essencial"): controles de valor (sliders) com mouse esquerda-direita, MIDI e OSC. A estrutura já fica pronta para eles.</li>
+<li><b>Com o modo desligado</b>, as teclas mapeadas valem com a janela principal em foco, como os atalhos que já existem. O preset "Padrão" guarda tudo e fica salvo junto com a composição.</li></ul></div>
+<script>
+var b=[b1,b2,b3], menu=document.getElementById('menu'), hl=document.getElementById('menuhl');
+function st(i){ b.forEach(function(x,j){x.classList.toggle('on',i===j)}); document.body.classList.toggle('mode',i!==2); menu.classList.toggle('open',i===1); hl.style.display=i===1?'block':'none'; }
+b1.onclick=function(){st(0)}; b2.onclick=function(){st(1)}; b3.onclick=function(){st(2)};
+</script></body></html>

@@ -1373,6 +1373,8 @@ function loop() {
   for (const L of state.layers) if (L.prev && now - L.prev.t0 >= L.prev.dur) { if (L.clips[L.on] !== L.prev.clip) C.stopClip(L.prev.clip); L.prev = null; }
   // transporte dos vídeos no ar: entrada/saída, modo e direção
   for (const L of state.layers) { const c = liveClip(L); if (c && c.kind === 'video') { if (C.tickTransport(c, dt, layerSpeed(L))) { c.endedAt = now; if (c.tr.mode === 'onceclear') clearAfterOnce.push(L); } } }
+  // o clipe só selecionado (prévia, fora do ar) também obedece ao transporte: ◀, entrada/saída e modo; o "limpa" não tira nada do ar
+  { const s = selectedCell(); if (s && s.clip.kind === 'video' && liveClip(s.L) !== s.clip) C.tickTransport(s.clip, dt, layerSpeed(s.L)); }
   for (const L of clearAfterOnce.splice(0)) eject(state.layers.indexOf(L));   // Play Once & Clear: acabou, a camada sai do ar
   tickXfade(now);
   panels.tick();
