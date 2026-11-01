@@ -179,12 +179,17 @@ export class Panels {
     const tl = el('div', 'timeline'); tl.dataset.help = 'Linha do tempo|Arraste para pular. Os triângulos das pontas são a entrada (cut in) e a saída (cut out).';
     const bar = el('div', 'tbar'), range = el('div', 'range'), head = el('div', 'head'), hin = el('div', 'hnd in'), hout = el('div', 'hnd out'), txt = el('div', 'ttxt'), lin = el('div', 'lbl in'), lout = el('div', 'lbl out');
     bar.appendChild(range); tl.append(bar, head, hin, hout, txt, lin, lout);
-    const place = () => { const i = (t.in / dur) * 100, o = ((t.out || dur) / dur) * 100; range.style.left = i + '%'; range.style.width = Math.max(0, o - i) + '%'; hin.style.left = i + '%'; hout.style.left = o + '%'; lin.style.left = i + '%'; lout.style.left = o + '%'; lin.textContent = 'IN ' + fmtT1(t.in); lout.textContent = 'OUT ' + fmtT1(t.out || dur); head.style.left = (v.currentTime / dur) * 100 + '%'; txt.textContent = fmtT1(v.currentTime); };
+    // a escala (0 a 100%) começa e termina 6 px para dentro da barra, como no Resolume: os triângulos de entrada e saída ficam dentro
+    // das pontas da barra e a agulha, no 100%, termina rente ao fim da barra
+    const X = (f) => 'calc(6px + (100% - 12px) * ' + f + ')';
+    const place = () => { const f0 = t.in / dur, f1 = (t.out || dur) / dur; range.style.left = X(f0); range.style.width = 'calc((100% - 12px) * ' + Math.max(0, f1 - f0) + ')'; hin.style.left = lin.style.left = X(f0); hout.style.left = lout.style.left = X(f1); head.style.left = X(Math.max(0, Math.min(1, v.currentTime / dur))); lin.textContent = 'IN ' + fmtT1(t.in); lout.textContent = 'OUT ' + fmtT1(t.out || dur); txt.textContent = fmtT1(v.currentTime); };
     place(); this.tl = { place, clip };
+    // como no Resolume: se o IN ou o OUT passam pela agulha, ela vem junto (é empurrada para a ponta); fora isso fica onde está
+    const clampHead = () => { const lo = t.in, hi = t.out || dur, cur = v.currentTime; if (cur < lo) seekClip(clip, lo); else if (cur > hi) seekClip(clip, hi); };
     const drag = (what) => (e) => {
       e.preventDefault(); tl.setPointerCapture(e.pointerId);
-      const at = (ev) => { const r = tl.getBoundingClientRect(); const f = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)), s = f * dur;
-        if (what === 'in') t.in = Math.min(s, (t.out || dur) - 0.1); else if (what === 'out') t.out = Math.max(s, t.in + 0.1); else seekClip(clip, s); place(); };
+      const at = (ev) => { const r = tl.getBoundingClientRect(); const f = Math.max(0, Math.min(1, (ev.clientX - r.left - 6) / Math.max(1, r.width - 12))), s = f * dur;
+        if (what === 'in') { t.in = Math.min(s, (t.out || dur) - 0.1); clampHead(); } else if (what === 'out') { t.out = Math.max(s, t.in + 0.1); clampHead(); } else seekClip(clip, s); place(); };
       at(e); tl.onpointermove = (ev) => { if (tl.hasPointerCapture(ev.pointerId)) at(ev); }; tl.onpointerup = () => { tl.onpointermove = null; this.render(); };
     };
     hin.onpointerdown = drag('in'); hout.onpointerdown = drag('out'); tl.onpointerdown = (e) => { if (e.target === hin || e.target === hout) return; drag('seek')(e); };
@@ -214,8 +219,8 @@ export class Panels {
     const drow = this.pnum('Duração', 'Duração|Quanto tempo a faixa entre a entrada e a saída leva para tocar. Mudar aqui muda a velocidade. /2 toca duas vezes mais rápido, ×2 duas vezes mais devagar.', +curDur.toFixed(2), { min: 0.05, max: 3600, step: 0.1, dec: 2, unit: ' s', reset: +faixa.toFixed(2) }, setDur);
     for (const [txt0, k] of [['/2', 0.5], ['×2', 2]]) { const b = el('button', 'mini', txt0); b.type = 'button'; b.title = k < 1 ? 'Metade da duração (velocidade em dobro)' : 'Dobro da duração (metade da velocidade)'; b.onclick = (e) => { e.stopPropagation(); setDur(curDur * k); this.render(); }; drow.querySelector('.pv').appendChild(b); }
     P.appendChild(drow);
-    P.appendChild(this.pnum('Entrada', 'Entrada (cut in)|Onde o clipe começa, em segundos.', t.in, { min: 0, max: dur, step: 0.1, dec: 1, unit: ' s', bar: true, reset: 0 }, v2 => { t.in = Math.min(v2, (t.out || dur) - 0.1); }));
-    P.appendChild(this.pnum('Saída', 'Saída (cut out)|Onde o clipe termina, em segundos.', t.out || dur, { min: 0, max: dur, step: 0.1, dec: 1, unit: ' s', bar: true, reset: dur }, v2 => { t.out = Math.max(v2, t.in + 0.1); }));
+    P.appendChild(this.pnum('Entrada', 'Entrada (cut in)|Onde o clipe começa, em segundos.', t.in, { min: 0, max: dur, step: 0.1, dec: 1, unit: ' s', bar: true, reset: 0 }, v2 => { t.in = Math.min(v2, (t.out || dur) - 0.1); clampHead(); }));
+    P.appendChild(this.pnum('Saída', 'Saída (cut out)|Onde o clipe termina, em segundos.', t.out || dur, { min: 0, max: dur, step: 0.1, dec: 1, unit: ' s', bar: true, reset: dur }, v2 => { t.out = Math.max(v2, t.in + 0.1); clampHead(); }));
     P.appendChild(this.prow('Arquivo', 'Arquivo|Duração do arquivo inteiro.', el('span', 'pinfo', fmtT1(dur))));
     // arquivo preparado (H.264 todo intra ou DXV) toca no reprodutor próprio: ré e pulo lisos
     const prog = this.ctx.preparing(clip);

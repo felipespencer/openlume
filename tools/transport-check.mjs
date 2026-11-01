@@ -49,6 +49,19 @@ await press('−1q'); s2 = await st(); check('−1q volta um quadro', s2.t < s.t
 if (tl) { await click(tl[0] + tl[2] * 0.5, tl[1] + tl[3] / 2); await wait(250); s = await st(); check('clicar no meio da linha do tempo pula para o meio', Math.abs(s.t - 6) < 0.8, JSON.stringify(s)); }
 await press('▶'); await wait(400); s = await st(); check('tocar de novo depois de pular funciona', s.playing && !s.paused, JSON.stringify(s));
 
+// IN/OUT empurram a agulha, como no Resolume (conferido lá: IN além da agulha leva a agulha ao IN; OUT aquém dela leva ao OUT)
+await ev(`(() => { const c = ${clip}; c.tr.in = 0; c.tr.out = c.dur; c.tr.playing = false; c.el.pause(); c.el.currentTime = 2; ${P}.panels.render(); return 1; })()`); await wait(300);
+const rect = (sel) => ev(`(() => { const e = document.querySelector('#clipPan .timeline ${sel}'); const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })()`);
+const dragTo = async (sel, frac, inner) => { const m = await rect(sel), tl2 = await rect(''); const x0 = m[0] + m[2] / 2, y0 = m[1] + m[3] / 2, x1 = tl2[0] + 6 + (tl2[2] - 12) * frac; await mouse('mouseMoved', x0, y0); await mouse('mousePressed', x0, y0); for (let k = 1; k <= 6; k++) await mouse('mouseMoved', x0 + (x1 - x0) * k / 6, y0); await mouse('mouseReleased', x1, y0); await wait(250); };
+await dragTo('.hnd.in', 0.5); s = await ev(`(() => ({ in: ${clip}.tr.in, t: ${clip}.el.currentTime }))()`);
+check('arrastar o IN para depois da agulha leva a agulha junto', s.in > 5 && Math.abs(s.t - s.in) < 0.05, JSON.stringify(s));
+await ev(`(() => { ${clip}.el.currentTime = 9; ${P}.panels.render(); return 1; })()`); await wait(300);
+await dragTo('.hnd.out', 0.6); s = await ev(`(() => ({ out: ${clip}.tr.out, t: ${clip}.el.currentTime }))()`);
+check('arrastar o OUT para antes da agulha leva a agulha junto', s.out < 8 && Math.abs(s.t - s.out) < 0.05, JSON.stringify(s));
+await ev(`(() => { ${clip}.el.currentTime = 6.5; ${P}.panels.render(); return 1; })()`); await wait(300);
+await dragTo('.hnd.in', 0.1); s = await ev(`(() => ({ in: ${clip}.tr.in, t: ${clip}.el.currentTime }))()`);
+check('puxar o IN para longe da agulha não mexe nela', s.in < 2 && Math.abs(s.t - 6.5) < 0.05, JSON.stringify(s));
+
 // o mesmo com o clipe NO AR (disparado): ◀ anda para trás e ‖ para
 await ev(`(() => { ${P}.trigger(0, 0); return 1; })()`); await wait(600);
 await press('▶'); await wait(500); await press('◀'); s = await st(); await wait(700); s2 = await st();
