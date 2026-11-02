@@ -159,7 +159,7 @@ durante o checkpoint do 02-01; registrada como fase própria em 2026-10-30 — "
 
 ## Ideias para um marco futuro
 
-- **OpenLume como webcam** (pergunta de 2026-11-02): o sinal aparecer na lista de câmeras do Google Meet e afins. Hoje dá pelo OBS (captura de janela + Câmera Virtual). Nativo: API de câmera virtual do Windows 11 + DLL própria + envio de quadros; risco principal é a assinatura da DLL (Smart App Control), que pode exigir certificado pago. Avaliação sem teste; entra como fase quando ele decidir.
+- **OpenLume como webcam** (pergunta de 2026-11-02): o sinal aparecer na lista de câmeras do Google Meet e afins. Caminho escolhido: escrever direto na câmera virtual do OBS (DLL assinada do OBS, sem abrir o OBS). Prova de conceito funcionou em 2026-11-02 no Chromium do Electron (1920×1080, 30 qps). Falta: testar a peça nativa no programa instalado, ler a saída sem pesar, conferir no Meet. Vira plano próprio com o ok dele.
 - **Domo / planetário com vários projetores** (pedido de 2026-10-29, "quero deixar esse passo pra depois"):
   3 a 6 projetores na borda do domo, sem lente olho de peixe. Três pedaços: (1) conteúdo em domemaster
   (render das camadas numa esfera + conversor de 360° equirretangular); (2) malha de deformação esférica por
