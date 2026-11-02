@@ -77,7 +77,7 @@ export class Segmenter {
     const p = f.params || {}, id = this.nextId++;   // id do pedido
     this.pending.set(id, f); f._segSent = performance.now(); f._segInflight = (f._segInflight || 0) + 1;
     this.worker.postMessage({ type: 'run', id, fx: f._segId, bitmap, rgba, W: m.W, H: m.H, kind: m.kind, q: m.q, ratio: this.rvm.ratio, reset: m.reset, native: this.native,
-      params: { tsmooth: Math.min(0.98, Math.max(0, p.tsmooth ?? 0)), fill: p.fill >= 0.5, specks: Math.max(0, p.specks || 0), hard: p.hard >= 0.5, soft: Math.max(0, p.soft || 0), refine: Math.max(0, p.refine || 0) } }, rgba ? [rgba.buffer] : [bitmap]);
+      params: { tsmooth: Math.min(0.98, Math.max(0, p.tsmooth ?? 0)), fill: p.fill >= 0.5, specks: Math.max(0, p.specks || 0), hard: p.hard >= 0.5, soft: Math.max(0, p.soft || 0), refine: Math.max(0, p.refine || 0), aspect: this.engine.canvas.width / this.engine.canvas.height } }, rgba ? [rgba.buffer] : [bitmap]);
   }
   // leituras da placa à espera (em ordem, por efeito): quando a placa terminou a mais antiga, os pixels vão ao processo;
   // leitura que não termina em 1 s é descartada

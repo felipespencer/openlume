@@ -205,11 +205,15 @@ module.exports = (win, app, laser) => {
         wiz.px = P.probeScreen(scs[1], [[0.5, 0.5]])[0];
         P.applyProjectors([{ d: { id: 'd1', label: 'P1', w: 1920, h: 1080 }, vertical: false, x: 0, y: 0 }, { d: { id: 'd2', label: 'P2', w: 1920, h: 1080 }, vertical: false, x: 1720, y: 0 }], { open: false }); wiz.emenda = [P.engine.W, P.screens().map(s => s.items[0].soft.on)];
         P.applySettings({ ...P.state.settings, w: 1920, h: 1080 }); P.setScreens(prevScreens); R.wiz = wiz;
-        // tirar o fundo: o modelo ONNX carrega e segmenta um quadro do vídeo; a máscara vira textura do efeito
-        const sg = { ort: !!window.ort }; await P.seg.load(); sg.sessao = !!P.seg.session; sg.erro = P.seg.err;
-        const sv = L.flatMap(x => x.clips).find(c => c && c.kind === 'video' && c.el instanceof HTMLVideoElement && c.el.readyState >= 2);
-        const bf = { id: 'backgroundremoval', params: {}, bypass: false, panim: {} };
-        if (sg.sessao && sv) { const t0s = performance.now(); sg.rodou = await P.seg.run(sv, bf); sg.ms = Math.round(performance.now() - t0s); sg.tex = !!bf._maskTex; sg.erro = P.seg.err; }
+        // tirar o fundo: com o efeito num clipe no ar, o processo do modelo devolve uma máscara, que vira textura do efeito
+        const sg = {}; const sgLi = L.findIndex(x => x.clips.some(c => c && c.kind === 'video')), sgLay = L[sgLi], sgCol = sgLay ? sgLay.clips.findIndex(c => c && c.kind === 'video') : -1, sgClip = sgLay && sgLay.clips[sgCol], sgOn = sgLay && sgLay.on;
+        if (sgClip) {
+          P.trigger(sgLi, sgCol);
+          const sgDef = P.EFFECTS.find(e => e.id === 'backgroundremoval'), sgFx = { id: sgDef.id, params: Object.fromEntries(sgDef.params.map(p => [p.key, p.def])), bypass: false, anim: {}, panim: {} }; (sgClip.fx = sgClip.fx || []).push(sgFx);
+          const sgT0 = performance.now(); while (!sgFx._maskTex && performance.now() - sgT0 < 20000) await new Promise(r => setTimeout(r, 50));
+          sg.ms = Math.round(performance.now() - sgT0); sg.tex = !!sgFx._maskTex; sg.nativo = P.seg.native; sg.erro = P.seg.err; sgClip.fx.splice(sgClip.fx.indexOf(sgFx), 1);
+          if (sgOn !== sgCol) { if (sgOn >= 0) P.trigger(sgLi, sgOn); else P.eject(sgLi); }
+        }
         R.seg = sg;
         // áudio: o vídeo entra no grafo (fonte → efeitos → volume → pan → master → FFT); EQ-3 e LowPass criam nós; a forma FFT segue o nível da faixa
         const au = {}; const av = L.flatMap(x => x.clips).find(c => c && c.kind === 'video' && c.el instanceof HTMLMediaElement);
@@ -430,7 +434,7 @@ module.exports = (win, app, laser) => {
       ok('assistente de projetores', Wz.comp.join() === '3000,1920' && Wz.telas.length === 2 && Wz.telas[0].dev === 'd1' && Wz.telas[0].in.w === 1920 && Wz.telas[1].in.x === 1920 && Wz.telas[1].in.w === 1080 && Wz.telas[1].in.h === 1920 && Wz.emenda[0] === 3640 && Wz.emenda[1].join() === 'true,true',
         'composição ' + Wz.comp.join('×') + '; telas ' + JSON.stringify(Wz.telas.map(t => [t.dev, t.in.x + ',' + t.in.y + ' ' + t.in.w + '×' + t.in.h, 'giro ' + t.rot])) + '; sobrepostos 200 px: ' + Wz.emenda[0] + ' de largura, soft edge ' + Wz.emenda[1].join('/'));
       const Sg = r.seg;
-      ok('tirar o fundo (PP-HumanSeg em ONNX)', Sg.ort && Sg.sessao && Sg.rodou && Sg.tex && !Sg.erro, Sg.erro || ('modelo carregado; um quadro segmentado em ' + Sg.ms + ' ms; máscara na textura ' + Sg.tex));
+      ok('tirar o fundo (modelo nativo e máscara)', Sg.tex && !Sg.erro, Sg.erro || (Sg.tex ? 'primeira máscara em ' + Sg.ms + ' ms, ' + (Sg.nativo ? 'processo nativo' : 'WebGPU') : 'sem máscara em ' + Sg.ms + ' ms; sem clipe de vídeo no ar?'));
       const Au = r.audio;
       ok('áudio: grafo, efeitos de áudio e FFT', Au.ligado && Au.nos === 2 && Au.freq === 500 && Au.fft === 1 && Au.bandas === 5,
         'clipe no grafo ' + Au.ligado + '; EQ-3 + LowPass = ' + Au.nos + ' nós, LowPass em ' + Au.freq + ' Hz; forma FFT com médios a 0,5 → ' + Au.fft + '; contexto ' + Au.ctx);

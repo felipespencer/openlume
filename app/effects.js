@@ -77,4 +77,4 @@ export const effectById = (id) => EFFECTS.find(e => e.id === id);
 // uma instância de efeito numa cadeia (clipe, camada ou composição)
 export function mkFx(id) { const d = effectById(id); if (!d) return null; const params = {}; for (const p of d.params) params[p.key] = p.def; return { id: d.id, params, bypass: false, anim: {} }; }
 // cópia independente de uma instância de efeito (parâmetros e animações na batida)
-export const cloneFx = (f) => ({ ...f, params: { ...f.params }, panim: JSON.parse(JSON.stringify(f.panim || {})) });
+export const cloneFx = (f) => ({ ...Object.fromEntries(Object.entries(f).filter(([k]) => k[0] !== '_')), params: { ...f.params }, panim: JSON.parse(JSON.stringify(f.panim || {})) });   // o _ fica: a cópia não pode dividir textura e memória do recorte com o original

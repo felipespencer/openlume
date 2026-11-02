@@ -304,7 +304,7 @@ export class Engine {
         if (def.mask && f._segWant) {   // o recorte pediu um quadro: sai daqui, da entrada deste efeito, no tamanho do modelo
           const wnt = f._segWant; f._segWant = null;
           try { const rd = this.beginReadTex(src, wnt.W, wnt.H); (f._segReads || (f._segReads = [])).push({ rd, meta: wnt.meta }); if (this.segHook) this.segHook(f); } catch (err) { if (wnt.fail) wnt.fail(); }
-          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.disable(gl.BLEND);   // copyInto religa a mistura: sem isto o efeito desenhava POR CIMA do que sobrou no buffer, e onde a máscara é zero ficava o quadro velho
         }
         dst = this.scratch[1 + (i & 1)];
         if (dst.w !== w || dst.h !== h) { gl.deleteFramebuffer(dst.fb); gl.deleteTexture(dst.t); dst = this.scratch[1 + (i & 1)] = this.fbo(w, h); }

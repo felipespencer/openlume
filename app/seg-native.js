@@ -6,8 +6,7 @@
 //   (RVM, vendor/rvm, fica para a reserva pela WebGPU na janela.)
 // Recebe o quadro já no tamanho do modelo como RGBA (Uint8), devolve a máscara 0..255 já limpa, na ordem do
 // efeito do Resolume 7.28: máscara dura, suavidade no tempo (com portão de movimento), fechar buracos
-// (inundação), filtrar pontinhos (componentes conexos), borda suave (desfoque), refinar borda (erosão e
-// dilatação casadas). O refino guiado pela imagem fica no shader do efeito, na hora de esticar.
+// (inundação), filtrar pontinhos (componentes conexos), borda suave (desfoque), refinar borda (erosão). O refino guiado pela imagem fica no shader do efeito, na hora de esticar.
 const path = require('path');
 let ort = null, ortErr = '';
 try { ort = require('onnxruntime-node'); } catch (e) { ortErr = e.message || String(e); }

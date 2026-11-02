@@ -15,6 +15,8 @@ export const XFADE = () => ({ pos: 0.5, curve: 'linear', behaviour: 'cut', secs:
 // Configurações da composição (menu Composição → Configurações…)
 export const SETTINGS = () => ({ w: 1920, h: 1080, fps: 30, bg: '#000000', desc: '', trig: 'normal', firstCol: false });   // 30 fps por padrão (pedido do Felipe em 2026-10-14); a janela de saída desenha no ritmo do monitor
 
+// campos com _ são internos do motor (texturas, ponteiros; o _maskSrc do recorte aponta de volta para o clipe e fazia o JSON falhar: sem salvar nem autosalvar)
+const semInternos = (k, v) => (k[0] === '_' ? undefined : v);
 export function serializeComposition(state, laser, cols) {
   return JSON.stringify({
     v: 1, name: state.name || 'Composição', cols, colNames: state.colNames || {}, settings: state.settings, master: state.master, speed: state.speed, compFx: state.compFx, compTransform: state.compTransform, compAutopilot: state.compAutopilot,
@@ -25,7 +27,7 @@ export function serializeComposition(state, laser, cols) {
     decks: (state.decks || []).map((d, i) => ({ name: d.name, color: d.color || '', closed: !!d.closed, rows: i === (state.deck || 0) ? null : state.layers.map(L => (d.cells[L.id] || []).map(serializeClip)) })),
     screens: JSON.parse(M.serialize(state.screens)),
     laser: JSON.parse(serializeLaser(laser.frames, laser.settings, laser.frames.indexOf(laser.active))),
-  });
+  }, semInternos);
 }
 // devolve { layers, screens, laser, missing } — os clipes de arquivo que não abriram ficam vazios
 // ctx.reuse(o) (opcional, usado pelo desfazer) devolve um clipe já aberto para aquele registro, em vez de abrir o arquivo de novo
