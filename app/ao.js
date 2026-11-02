@@ -152,7 +152,7 @@ export class AdvancedOutput {
     else if (e.key === 't' || e.key === 'T') { if (this.tab === 'out') this.setMode(this.mode === 'move' ? 'pts' : 'move'); }
     else if (e.key === 'Enter' && this.drawing) this.finishDrawing();
     else if (e.key.startsWith('Arrow') && this.sel && this.sel.item && !this.drawing) { this.nudge(e.key, e.shiftKey ? 10 : 1, e.altKey); e.preventDefault(); }
-    else if (e.key === 'Delete' && this.sel && this.sel.item) { if ((this.tab === 'in' || this.mode === 'move') && this.selG >= 0) this.removeGrad(); else this.removeItem(this.sel.item); }
+    else if (e.key === 'Delete' && this.sel && this.sel.item) { if (this.selG >= 0) this.removeGrad(); else this.removeItem(this.sel.item); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.shiftKey ? this.redo() : this.undo(); e.preventDefault(); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { this.redo(); e.preventDefault(); }
   }
@@ -163,7 +163,7 @@ export class AdvancedOutput {
     const k = this.selPt >= 0 ? this.selPtK : null;
     if (this.tab === 'in' && it.type !== 'slice') return;
     const now = Date.now(); if (now - this.nudgeT > 800) this.pushUndo(); this.nudgeT = now;
-    if ((this.tab === 'in' || this.mode === 'move') && this.selG >= 0 && it.soft.on) {   // degradê selecionado: as setas movem o fim (quadrado); com Alt, o degradê inteiro
+    if (this.selG >= 0 && it.soft.on) {   // degradê selecionado: as setas movem o fim (quadrado); com Alt, o degradê inteiro
       const g0 = this.grads(it)[this.selG]; if (!g0) return;
       const g = M.adoptGrad(it, g0); this.selG = this.grads(it).indexOf(g);
       g.b = [g.b[0] + dx, g.b[1] + dy]; if (alt) g.a = [g.a[0] + dx, g.a[1] + dy]; M.touch(it);
@@ -263,8 +263,12 @@ export class AdvancedOutput {
         svg.appendChild(svgEl('path', { d: outlinePath(item), class: 'slice' + (sel ? ' sel' : ''), 'data-k': 'body', 'data-id': item.id }));
         const b = M.outRect(item), t = svgEl('text', { x: b.x + b.w / 2, y: b.y + b.h / 2, class: 'sname', 'text-anchor': 'middle' }); t.textContent = item.name; svg.appendChild(t);
         if (sel && this.mode === 'move') this.drawHandles(b, item);
-        if (sel && this.mode === 'move' && item.soft.on) this.drawGrads(item);   // as alças da emenda sobre a imagem deformada (não no modo Editar pontos)
-        if (sel && this.mode === 'pts') this.drawMeshPoints(item);
+        if (sel && item.soft.on) this.drawGrads(item);   // as alças da emenda sobre a imagem deformada, também em Editar pontos
+        if (sel && this.mode === 'pts') {
+          this.drawMeshPoints(item);
+          // nó e alça podem cair no mesmo lugar: a alça da emenda (10 px) fica por cima e o nó continua pegável pela margem (22 px)
+          svg.querySelectorAll('[data-k=gA],[data-k=gB],[data-k=gN1],[data-k=gN2]').forEach(e => svg.appendChild(e));
+        }
       } else {
         this.drawPoly(item.pts, 'mask', sel && this.mode === 'pts', item);
         const b = bbox(item.pts), t = svgEl('text', { x: b.x + b.w / 2, y: b.y + b.h / 2, class: 'mname', 'text-anchor': 'middle' }); t.textContent = item.name; svg.appendChild(t);
@@ -362,7 +366,7 @@ export class AdvancedOutput {
     const d = this.drag = { k, i: +t.dataset.i, it, last: p, start: p, wasSel, moved: false };
     if (k[0] === 'g' && k.length <= 3) {   // alça de degradê: o automático vira ajustado na hora em que é tocado
       const g0 = this.grads(it)[d.i]; if (!g0) { this.drag = null; return; }
-      this.selG = d.i; d.src = g0; d.g = null; d.g0 = { a: [...g0.a], b: [...g0.b] }; d.lp = this.localPx(it, p);   // só vira ajustado quando mexer de fato (clique parado só seleciona)
+      this.selG = d.i; this.selPt = -1; d.src = g0; d.g = null; d.g0 = { a: [...g0.a], b: [...g0.b] }; d.lp = this.localPx(it, p);   // só vira ajustado quando mexer de fato (clique parado só seleciona)
       this.draw(); this.renderProps(); return;
     }
     this.selG = -1;
@@ -642,7 +646,7 @@ export class AdvancedOutput {
         P.appendChild(this.pnum('Gama azul', 'Gama por cor|Corrige a emenda numa cor só.', s.soft.gamma[2], { min: 1, max: 4, step: 0.05, dec: 2, bar: true, reset: 2.2 }, v => { s.soft.gamma[2] = v; }));
         P.appendChild(this.phead('Compensação de preto', 'Compensação de preto|Levanta o preto do slice fora da emenda, para casar com o preto da área sobreposta.'));
         P.appendChild(this.pnum('Nível', 'Nível de preto|Quanto o preto sobe fora da emenda.', s.soft.black, { min: 0, max: 60, step: 1, bar: true, reset: 0 }, v => { s.soft.black = v; }));
-        if (this.tab === 'in' || this.mode === 'move') this.gradProps(P, s);
+        this.gradProps(P, s);
       }
       if (this.tab === 'in') {
         const icons = el('div', 'pv icons');

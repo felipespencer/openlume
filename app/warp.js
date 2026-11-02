@@ -62,7 +62,8 @@ function bez(p0, p1, p2, p3, t) {
 }
 export function meshPoint(pts, divX, divY, u, v) {
   const cols = 3 * divX + 1;
-  let j = Math.min(divX - 1, Math.floor(u * divX)), i = Math.min(divY - 1, Math.floor(v * divY));
+  // fora de 0..1 (alça de emenda puxada para fora do slice) continua no retalho da beira, por extrapolação: sem o limite de baixo, o índice negativo derrubava o desenho
+  const j = Math.max(0, Math.min(divX - 1, Math.floor(u * divX))), i = Math.max(0, Math.min(divY - 1, Math.floor(v * divY)));
   const s = u * divX - j, t = v * divY - i;
   const P = (r, c) => pts[(3 * i + r) * cols + 3 * j + c];
   const xs = [], ys = [];

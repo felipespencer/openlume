@@ -151,6 +151,45 @@ await ev(`(() => { const p = ${P}, s = p.screens()[1].items[0]; s.soft.grads.pus
 const rt = JSON.parse(await ev(`(() => { const p = ${P}, M = p.M; const s2 = M.deserialize(M.serialize(p.screens())); const g = s2[1].items[0].soft.grads[0]; return JSON.stringify({ n: s2[1].items[0].soft.grads.length, g, round: s2[1].items[0].soft.round }); })()`));
 check('serialize/deserialize preserva o degradê ajustado e o arredondado padrão', rt.n === 1 && rt.g.edge === 'l' && rt.g.a[0] === 300 && rt.g.n2 === 450 && rt.g.roundOn === false && rt.g.round === 0.3 && rt.round.on === true, JSON.stringify(rt));
 
+// 9b. Editar pontos com vários nós (retorno do 07-01): a pontinha da emenda aparece e puxa; o nó no mesmo lugar continua pegável pela margem
+{
+  await ev(`(() => { const p = ${P}, M = p.M; const sb = p.screens()[1].items[0]; sb.soft.grads = []; M.setWarpMode(sb, 'corners'); M.setWarpMode(sb, 'mesh'); M.setDivisions(sb, 4, 4); M.setCurve(sb, false); M.resetWarp(sb); p.ao.setTab('out'); p.ao.select(p.screens()[1], sb); p.ao.setMode('pts'); p.ao.refresh(); return 1; })()`); await wait(400);
+  const caixa = (sel) => ev(`(() => { const e = document.querySelector('#aoView svg ${sel}'); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width }; })()`);
+  const topo = (b) => ev(`(() => { const e = document.elementFromPoint(${b.x}, ${b.y}); const g = e && e.closest('[data-k]'); return g ? g.dataset.k : null; })()`);
+  check('Editar pontos: as alças das quatro emendas aparecem com a malha 4×4', await ev(`document.querySelectorAll('#aoView svg [data-k=gB]').length`) === 4 && await ev(`document.querySelectorAll('#aoView svg [data-k=anchor]').length`) === 25);
+  for (const [nome, k] of [['pontinha B', 'gB'], ['bolinha A', 'gA']]) {
+    const b = await caixa(`[data-k=${k}][data-i="0"]`);
+    check(`Editar pontos: ${nome} da emenda fica por cima e é pegável`, await topo(b) === k, `topo=${await topo(b)}`);
+    const pts0 = await ev(`JSON.stringify(${P}.screens()[1].items[0].warp.pts)`), gs0 = JSON.stringify(await grads());
+    await drag(b.x, b.y, b.x + 30, b.y + 20); await wait(200);
+    const iG = await ev(`${P}.ao.selG`), b2 = await caixa(`[data-k=${k}][data-i="${iG}"]`);
+    check(`Editar pontos: arrastar ${nome} muda a emenda, segue o mouse e não mexe nos nós`, b2 && JSON.stringify(await grads()) !== gs0 && await ev(`JSON.stringify(${P}.screens()[1].items[0].warp.pts)`) === pts0 && Math.hypot(b2.x - b.x - 30, b2.y - b.y - 20) <= 2, `selG=${iG} alça ${b2 && [Math.round(b2.x - b.x), Math.round(b2.y - b.y)]}`);
+  }
+  // defeito achado em 2026-11-02: em malha, alça da emenda fora do slice (u ou v negativo) derrubava o desenho e a pontinha parava de responder
+  for (const modo of ['pts', 'move']) {
+    await ev(`(() => { const p = ${P}, sb = p.screens()[1].items[0]; sb.soft.grads = []; p.M.touch(sb); p.ao.setMode('${modo}'); p.ao.selG = -1; p.ao.refresh(); return 1; })()`); await wait(250);
+    const b = await caixa(`[data-k=gB][data-i="0"]`);
+    await drag(b.x, b.y, b.x - 40, b.y - 25); await wait(150);
+    const iG = await ev(`${P}.ao.selG`), b2 = await caixa(`[data-k=gB][data-i="${iG}"]`);
+    check(`malha com ${modo === 'pts' ? 'Editar pontos' : 'Transformar'}: a pontinha puxada para FORA do slice segue o mouse`, b2 && Math.hypot(b2.x - b.x + 40, b2.y - b.y + 25) <= 3 && await ev(`document.querySelectorAll('#aoView svg [data-k=gB]').length`) === 4, `alça ${b2 && [Math.round(b2.x - b.x), Math.round(b2.y - b.y)]}`);
+  }
+  await ev(`(() => { const p = ${P}, sb = p.screens()[1].items[0]; sb.soft.grads = []; p.M.touch(sb); p.ao.setMode('pts'); p.ao.selG = -1; p.ao.refresh(); return 1; })()`); await wait(250);
+  // nó do meio: 4×4 tem 13 por linha; índice do centro
+  const cen = await caixa(`g[data-k=anchor][data-i="84"]`), p0 = JSON.parse(await ev(`JSON.stringify(${P}.screens()[1].items[0].warp.pts[84])`));
+  await drag(cen.x, cen.y, cen.x + 20, cen.y + 20); await wait(200);
+  const p1 = JSON.parse(await ev(`JSON.stringify(${P}.screens()[1].items[0].warp.pts[84])`));
+  check('Editar pontos: o nó do meio continua arrastável com as alças à vista', Math.abs(p1[0] - p0[0]) > 5 && Math.abs(p1[1] - p0[1]) > 5, `${p0} -> ${p1}`);
+  // nó embaixo de alça: pego pela margem de 22 px
+  const gb = await caixa(`[data-k=gB][data-i="0"]`);
+  const achado = await ev(`(() => { const xs = [...document.querySelectorAll('#aoView svg g[data-k=anchor]')].map(g => { const r = g.getBoundingClientRect(); return { i: +g.dataset.i, x: r.x + r.width / 2, y: r.y + r.height / 2 }; }); let m = null, bd = 1e9; for (const a of xs) { const d = Math.hypot(a.x - ${gb.x}, a.y - ${gb.y}); if (d < bd) { bd = d; m = a; } } return { ...m, d: bd }; })()`);
+  if (achado.d < 3) {
+    const q0 = JSON.parse(await ev(`JSON.stringify(${P}.screens()[1].items[0].warp.pts[${achado.i}])`));
+    await drag(achado.x + 8, achado.y + 8, achado.x + 28, achado.y + 28); await wait(200);
+    const q1 = JSON.parse(await ev(`JSON.stringify(${P}.screens()[1].items[0].warp.pts[${achado.i}])`));
+    check('Editar pontos: nó embaixo da alça é pegável pela margem', Math.abs(q1[0] - q0[0]) > 5, `${q0} -> ${q1}`);
+  } else check('Editar pontos: nesta malha nenhum nó ficou embaixo da alça (caso não testado aqui)', true, `distância ${achado.d.toFixed(1)}`);
+  await ev(`(() => { const p = ${P}; p.ao.setMode('move'); return 1; })()`);
+}
 // 10. Esc cancela a Saída avançada e restaura o que havia ao abrir (sem o degradê de teste)
 // a primeira tecla depois de muito Runtime.evaluate às vezes se perde (flake conhecido do CDP): até três Esc, conferindo entre eles
 for (let i = 0; i < 3 && await ev(`${P}.ao.open`); i++) { await key('Escape', 'Escape', 27); await wait(300); }
