@@ -235,7 +235,7 @@ fechar embaixo). Ctrl+Z desfaz, Ctrl+Y refaz; a barra de espaço arrasta a vista
 - **Slice** recorta um pedaço da composição (aba Entrada: posição, tamanho, giro, fonte) e o
   encaixa na superfície (aba Saída: posição, tamanho, giro, espelhar).
 - **Deformação**: quatro cantos (perspectiva) ou malha de curvas. Na malha, "Pontos" deixa
-  arrastar cada âncora; com "Curva" aparecem as alças da âncora escolhida. Duplo clique numa
+  arrastar cada âncora; com "Bezier" aparecem as alças da âncora escolhida. Duplo clique numa
   âncora zera a malha. T alterna Transformar e Pontos.
 - **Soft edge**: liga a emenda entre dois projetores. A largura vem da sobreposição dos
   recortes na composição; potência, luminância, gama (geral e por cor) e nível de preto

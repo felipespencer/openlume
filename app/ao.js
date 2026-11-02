@@ -662,7 +662,7 @@ export class AdvancedOutput {
         const mesh = s.warp.mode === 'mesh', dx = mesh ? s.warp.divX : 0, dy = mesh ? s.warp.divY : 0;
         const setDiv = (nx, ny) => { nx = Math.max(0, Math.min(10, nx | 0)); ny = Math.max(0, Math.min(10, ny | 0)); if (!nx && !ny) M.setWarpMode(s, 'corners'); else { M.setWarpMode(s, 'mesh'); M.setDivisions(s, Math.max(1, nx), Math.max(1, ny)); } this.selPt = -1; };
         P.appendChild(this.phead('Deformação', 'Deformação|Divisões criam uma malha de pontos para encaixar a imagem em superfícies curvas. Com zero divisões, só os quatro cantos.'));
-        P.appendChild(this.pselect('Modo de ponto', 'Modo de ponto|Reta ou curva (bezier) entre os pontos da malha.', [['line', 'Reta'], ['curve', 'Curva']], s.warp.curve ? 'curve' : 'line', v => M.setCurve(s, v === 'curve')));
+        P.appendChild(this.pselect('Modo de ponto', 'Modo de ponto|Reta: os pontos da malha se ligam por linhas retas (padrão). Bezier: cada ponto ganha alças para curvar as linhas.', [['line', 'Reta'], ['curve', 'Bezier']], s.warp.curve ? 'curve' : 'line', v => M.setCurve(s, v === 'curve')));
         P.appendChild(this.pnum('Divisões X', 'Divisões X|Quantos pontos de deformação na horizontal.', dx, { min: 0, max: 10, step: 1 }, v => setDiv(v, dy)));
         P.appendChild(this.pnum('Divisões Y', 'Divisões Y|Quantos pontos de deformação na vertical.', dy, { min: 0, max: 10, step: 1 }, v => setDiv(dx, v)));
         if (this.selPt >= 0 && s.warp.pts[this.selPt]) {
