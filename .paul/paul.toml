@@ -21,7 +21,7 @@ status = "in_progress"
 plans_completed = 0
 
 [loop]
-position = "PLAN"
+position = "APPLY"
 plan = "08-01"
 plan_path = "phases/08-webcam-virtual/08-01-PLAN.md"
 
@@ -31,4 +31,4 @@ groom = true
 [stats]
 total_plans = 5
 total_phases = 0
-last_activity = "2026-11-02T13:30:00-03:00"
+last_activity = "2026-11-02T13:45:00-03:00"
