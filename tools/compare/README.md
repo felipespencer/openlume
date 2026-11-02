@@ -51,7 +51,7 @@ entra aqui nem no `app/`.
 
 ## O que foi medido (lote 2, 2026-11-02, Resolume 7.28.1, 1920×1080)
 
-Limite combinado antes de escrever: Tilt Shift até 1,5/255 de média; CRT e Acuarela, sem meta por pixel: o CRT tem fósforo menor que um pixel e a Acuarela
+Limite, definido só depois da primeira medição: Tilt Shift até 1,5/255 de média. CRT e Acuarela ficaram sem meta por pixel: o CRT tem fósforo menor que um pixel e a Acuarela
 muda sozinha, então valem a estatística e a conferência lado a lado. Ferramentas: `sondas/varre.mjs` (varredura), `sondas/tilt*.py`, `sondas/crt_*.py`, `sondas/acu.mjs` (estatística), `lote2-check.mjs` (mouse real).
 
 - **Tilt Shift**: a imagem é misturada com uma cópia desfocada, m = limite(4 × Falloff² × r + 4 × Focus − 2), r = distância vertical até Position (cima = 0). Gaussiana de sigma 8,73 px × Blur.
