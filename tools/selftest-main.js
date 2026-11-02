@@ -215,6 +215,21 @@ module.exports = (win, app, laser) => {
           if (sgOn !== sgCol) { if (sgOn >= 0) P.trigger(sgLi, sgOn); else P.eject(sgLi); }
         }
         R.seg = sg;
+        // lote 2 de efeitos: compila, sai imagem e a imagem difere da entrada (Tilt Shift, CRT, Acuarela)
+        const l2 = {}, l2Li = L.findIndex(x => x.clips.some(c => c && c.kind === 'video')), l2Lay = L[l2Li], l2Col = l2Lay ? l2Lay.clips.findIndex(c => c && c.kind === 'video') : -1, l2Clip = l2Lay && l2Lay.clips[l2Col], l2On = l2Lay && l2Lay.on;
+        const l2Med = () => { const c = document.createElement('canvas'); c.width = 64; c.height = 36; const x = c.getContext('2d'); x.drawImage(P.engine.canvas, 0, 0, 64, 36); return x.getImageData(0, 0, 64, 36).data; };
+        if (l2Clip) {
+          P.trigger(l2Li, l2Col); await new Promise(r => setTimeout(r, 300)); const antes = l2Med();
+          for (const nome of ['Tilt Shift', 'CRT', 'Acuarela']) {
+            const def = P.EFFECTS.find(e => e.name === nome); if (!def) { l2[nome] = 'não existe'; continue; }
+            const fx = { id: def.id, params: Object.fromEntries(def.params.map(p => [p.key, p.def])), bypass: false, anim: {}, panim: {} }; (l2Clip.fx = l2Clip.fx || []).push(fx);
+            await new Promise(r => setTimeout(r, 900)); const d = l2Med(); let dif = 0, soma = 0; for (let i = 0; i < d.length; i += 4) { dif += Math.abs(d[i] - antes[i]); soma += d[i]; }
+            l2[nome] = { dif: Math.round(dif / (d.length / 4)), media: Math.round(soma / (d.length / 4)), json: JSON.stringify(fx).includes('"id"') };
+            l2Clip.fx.splice(l2Clip.fx.indexOf(fx), 1);
+          }
+          if (l2On !== l2Col) { if (l2On >= 0) P.trigger(l2Li, l2On); else P.eject(l2Li); }
+        }
+        R.lote2 = l2;
         // áudio: o vídeo entra no grafo (fonte → efeitos → volume → pan → master → FFT); EQ-3 e LowPass criam nós; a forma FFT segue o nível da faixa
         const au = {}; const av = L.flatMap(x => x.clips).find(c => c && c.kind === 'video' && c.el instanceof HTMLMediaElement);
         P.audio.attach(av); au.ligado = !!(av.srcNode && av.gainNode && av.panNode); av.afx = [P.mkAudioFx('eq3'), P.mkAudioFx('lowpass')]; P.C.rebuildAudioFx(av); au.nos = (av.afxNodes || []).length;
@@ -435,6 +450,7 @@ module.exports = (win, app, laser) => {
         'composição ' + Wz.comp.join('×') + '; telas ' + JSON.stringify(Wz.telas.map(t => [t.dev, t.in.x + ',' + t.in.y + ' ' + t.in.w + '×' + t.in.h, 'giro ' + t.rot])) + '; sobrepostos 200 px: ' + Wz.emenda[0] + ' de largura, soft edge ' + Wz.emenda[1].join('/'));
       const Sg = r.seg;
       ok('tirar o fundo (modelo nativo e máscara)', Sg.tex && !Sg.erro, Sg.erro || (Sg.tex ? 'primeira máscara em ' + Sg.ms + ' ms, ' + (Sg.nativo ? 'processo nativo' : 'WebGPU') : 'sem máscara em ' + Sg.ms + ' ms; sem clipe de vídeo no ar?'));
+      for (const nome of ['Tilt Shift', 'CRT', 'Acuarela']) { const q = r.lote2 && r.lote2[nome]; ok('efeito ' + nome + ' no ar', q && q.media > 0 && q.dif >= 1 && q.json, JSON.stringify(q)); }
       const Au = r.audio;
       ok('áudio: grafo, efeitos de áudio e FFT', Au.ligado && Au.nos === 2 && Au.freq === 500 && Au.fft === 1 && Au.bandas === 5,
         'clipe no grafo ' + Au.ligado + '; EQ-3 + LowPass = ' + Au.nos + ' nós, LowPass em ' + Au.freq + ' Hz; forma FFT com médios a 0,5 → ' + Au.fft + '; contexto ' + Au.ctx);

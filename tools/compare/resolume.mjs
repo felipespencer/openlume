@@ -77,7 +77,7 @@ async function fichas() {
   fs.writeFileSync(path.join(dir, 'effects-rest.json'), JSON.stringify(out, null, 1));
   // FICHAS.md: texto nosso descrevendo os controles (o JSON cru fica fora do git)
   const fmt = x => x == null ? '' : typeof x === 'number' ? String(+x.toFixed(4)) : String(x);
-  let md = '# Fichas dos efeitos de vídeo do Resolume\n\nTiradas da API REST do Resolume Arena 7.26 (`GET /effects` + cada efeito posto na camada 1) por\n`node tools/compare/resolume.mjs fichas`. Servem para igualar os controles dos efeitos do OpenLume.\n"Opacity" é a mistura do próprio efeito; aparece em todos.\n';
+  let md = '# Fichas dos efeitos de vídeo do Resolume\n\nTiradas da API REST do Resolume Arena 7.28.1 (`GET /effects` + cada efeito posto na camada 1) por\n`node tools/compare/resolume.mjs fichas`. Servem para igualar os controles dos efeitos do OpenLume.\n"Opacity" é a mistura do próprio efeito; aparece em todos.\n';
   for (const e of out) {
     // a descrição é texto do Resolume: fica só no JSON (fora do git)
     md += `\n## ${e.nome}\n\n`;

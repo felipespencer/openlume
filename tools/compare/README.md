@@ -7,7 +7,7 @@ entra aqui nem no `app/`.
 
 ## O que precisa
 
-- **Resolume Arena 7.26** com o servidor web ligado (Preferences → Webserver, porta 8080) e, na Saída avançada,
+- **Resolume Arena 7.28** com o servidor web ligado (Preferences → Webserver, porta 8080) e, na Saída avançada,
   a Screen 1 com Device = **Spout** (o remetente chama "Arena - Screen 1"). A captura é pelo Spout porque
   nesta máquina a leitura da tela por DXGI clareia tudo (HDR) e a GDI devolve quadro parado.
 - **OpenLume** aberto com `npx electron . --remote-debugging-port=9333` (a bancada manda JS pelo CDP e lê o
@@ -48,3 +48,17 @@ entra aqui nem no `app/`.
   máximo entre o novo e o rastro × Feedback.
 - **Delay RGB**: fila de quadros renderizados (com o clipe a 0,5× o atraso em pixels cai pela metade); 0,5 deu
   20 quadros a 30 fps, então 1,0 = 40 quadros; trocar de clipe mostra o clipe novo nos três canais de uma vez.
+
+## O que foi medido (lote 2, 2026-11-02, Resolume 7.28.1, 1920×1080)
+
+Limite combinado antes de escrever: Tilt Shift até 1,5/255 de média; CRT e Acuarela, sem meta por pixel: o CRT tem fósforo menor que um pixel e a Acuarela
+muda sozinha, então valem a estatística e a conferência lado a lado. Ferramentas: `sondas/varre.mjs` (varredura), `sondas/tilt*.py`, `sondas/crt_*.py`, `sondas/acu.mjs` (estatística), `lote2-check.mjs` (mouse real).
+
+- **Tilt Shift**: a imagem é misturada com uma cópia desfocada, m = limite(4 × Falloff² × r + 4 × Focus − 2), r = distância vertical até Position (cima = 0). Gaussiana de sigma 8,73 px × Blur.
+  Saturação em volta do brilho Rec. 601, ganho 1 / (1 − 0,63 × valor). Vinheta 1,75 × (16 u v (1−u)(1−v)) ^ (0,21 × valor), limitada a 1. A suposição antiga de "render em resolução menor" era erro da imagem de prova: linhas de 1 px continuam nítidas no foco.
+  Resultado: padrão 0,52; borda 0,01; saturação 0,17; posição/foco/transição 0,18; vinheta 0,03; quadro real 1,1.
+- **CRT**: coluna = 3 × Left/Right + 2 × Between Slots + 1 unidades; fileira = 2 × (Height Scale + Top/Bottom); o tubo é encaixado na saída (exato em 8 combinações). Fósforo em triângulo, entalhe entre fileiras, ganho 1,45 em Brightness 50, corte em 1. Bloom = máscara × cor da célula, desfocada, ganho 4,85.
+  Resultado: sem bloom 2,42; padrão 10,97; quadro real 7,55; Brightness 25 = 10,75; Brightness 100 = 16,38; Vignette 100 = 8,78.
+  **Diferenças abertas**: Bloom Width 150 = 23,7; Fisheye 100 = 34,9; inclinações só aproximadas; Spread é aproximação; Native não foi comparado; **os 9 presets não entraram** (a API não aplica preset e os valores estão no `.wired`, que não abrimos: dá para lê-los escolhendo cada um na interface do Resolume).
+- **Acuarela**: feedback, a imagem é levada por um fluxo de ruído e a original volta a 6% por quadro; Strength 0 ou Speed 0 deixam a imagem intacta; Gain é ganho de brilho acumulado. É modelo próprio ajustado pela saída, não conta deduzida.
+  Estatística (distância da original D, mudança em 0,5 s T, nitidez N; alvo do Resolume): ver `saida/lote-02` e o SUMMARY do 02-02. Medição final (Resolume → nossa): padrão D 17,9 → 21,4, T 14,1 → 18,3, N 0,39 → 0,60; Gain 0,1 D 29,5 → 33,5, brilho 112 → 115; Strength 1 D 28,4 → 31,9, T 20,7 → 22,3, N 0,36 → 0,73; Density 20 D 18,0 → 17,8, T 13,6 → 13,2, N 0,46 → 0,86. O T do Resolume varia entre rodadas (Strength 1 deu 74 numa e 20,7 noutra). **Diferença aberta**: a nossa fica mais nítida em todos os casos. Reset é um controle 0/1, não botão.

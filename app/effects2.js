@@ -7,7 +7,82 @@ const P = (key, label, def, min, max, step = 0.01, unit = '') => ({ key, label, 
 const HUE = (key, label, def) => P(key, label, def, 0, 1);
 // mesma forma do LIST de effects.js (não dá para importar de lá: effects.js importa este arquivo)
 const LIST = (key, label, opts, ropts, def = 0) => ({ key, label, def, opts, ropts, min: 0, max: opts.length - 1, step: 1, unit: '' });
+// CRT: px por unidade do tubo (igual no shader e no sigma do bloom)
+const crtEscala = (v, w, h) => { const cu = 3 * v.gapX + 2 * v.gapS + 1, ru = 2 * (v.hs + v.gapY); return v.disp >= 0.5 ? 1 : Math.min(w / (v.cols * cu), h / (v.rows * ru)); };
 export const MORE = [
+  // Acuarela do Resolume 7.28: a imagem escorre aos poucos por um fluxo de ruído (com memória do quadro anterior) e a imagem nova volta a entrar por Gain.
+  // Muda a cada quadro nos dois programas: a comparação é por estatística (tools/compare/sondas/acu.mjs), não por pixel.
+  { id: 'acuarela', name: 'Acuarela', desc: 'Aquarela: a imagem escorre e se mistura como tinta molhada, num fluxo que não para.', feedback: true,
+    params: [P('gain', 'Ganho', 0.01, 0, 1), P('speed', 'Velocidade', 4, 0, 40, 0.1), P('detail', 'Detalhe', 4, 0, 8, 0.1), P('strength', 'Força', 0.3222, 0, 1), P('density', 'Densidade', 4, 0, 100, 0.1), P('gainx', 'Ganho X', 0.3, 0, 1), P('gainy', 'Ganho Y', 0.3, 0, 1), P('reset', 'Recomeçar', 0, 0, 1, 1)],
+    rparams: { Gain: 'gain', Speed: 'speed', Detail: 'detail', Strength: 'strength', Density: 'density', 'Gain X': 'gainx', 'Gain Y': 'gainy', Reset: 'reset' },
+    glsl: `
+    float vn(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      float h000 = hash(i.xy + i.z * 17.0), h100 = hash(i.xy + vec2(1.0, 0.0) + i.z * 17.0), h010 = hash(i.xy + vec2(0.0, 1.0) + i.z * 17.0), h110 = hash(i.xy + vec2(1.0, 1.0) + i.z * 17.0);
+      float h001 = hash(i.xy + (i.z + 1.0) * 17.0), h101 = hash(i.xy + vec2(1.0, 0.0) + (i.z + 1.0) * 17.0), h011 = hash(i.xy + vec2(0.0, 1.0) + (i.z + 1.0) * 17.0), h111 = hash(i.xy + vec2(1.0, 1.0) + (i.z + 1.0) * 17.0);
+      return mix(mix(mix(h000, h100, f.x), mix(h010, h110, f.x), f.y), mix(mix(h001, h101, f.x), mix(h011, h111, f.x), f.y), f.z); }
+    float fbm(vec2 p, float t){ float a = 0.5, s = 0.0; int n = int(clamp(detail, 0.0, 8.0)) + 1; for (int i = 0; i < n; i++) { s += a * vn(vec3(p, t)); p = p * 2.03 + 11.3; a *= 0.5; } return s; }
+    vec4 fx(vec2 uv){
+      vec4 src = texture(uTex, uv);
+      vec2 p = vec2(uv.x * uRes.x / uRes.y, uv.y) * max(density, 0.01); float t = uTime * speed * ACU_T, e = 0.02;
+      vec2 fl = vec2(fbm(p + vec2(0.0, e), t) - fbm(p - vec2(0.0, e), t), -(fbm(p + vec2(e, 0.0), t) - fbm(p - vec2(e, 0.0), t))) / (2.0 * e);
+      vec2 q = uv + fl * strength * speed * vec2(gainx, gainy) * ACU_K / uRes.y;
+      vec4 pv = texture(uPrev, q);
+      if (reset >= 0.5 || texture(uPrev, vec2(0.5)).a <= 0.0) return src;   // primeiro quadro (a memória começa vazia) ou Recomeçar
+      pv.rgb *= 1.0 + 0.155 * gain;                                          // Gain é ganho de brilho acumulado: em 1 tudo estoura em branco, como no Resolume
+      return clamp(mix(pv, src, ACU_R), 0.0, 1.0); }`.replaceAll('ACU_T', '0.28').replaceAll('ACU_K', '14.0').replaceAll('ACU_R', '0.06') },
+  // CRT do Resolume 7.28, medido na bancada (tools/compare/sondas/crt_*.py). Unidade do tubo: coluna = 3 × Left/Right + 2 × Between Slots + 1; fileira = 2 × (Height Scale + Top/Bottom);
+  // o tubo inteiro é encaixado na saída. Colunas pares e ímpares se deslocam ±¼ de fileira × Shift. Fósforo: triângulo na largura, entalhe entre fileiras,
+  // cor da célula × ganho (1,45 em Brightness 50), limitada a 1; Spread abre a altura do feixe. Bloom: máscara × cor da célula, desfocada por cosseno² de 3,5 × 3 unidades em 50%, ganho 4,85 em 100%.
+  { id: 'crt', name: 'CRT', desc: 'Tubo de TV antiga: máscara de fósforo vermelho, verde e azul, brilho que vaza, curvatura e cantos escuros.',
+    params: [P('cols', 'Colunas', 340, 1, 720, 1), P('rows', 'Fileiras', 115, 1, 240, 1), P('shiftc', 'Deslocamento', 100, 0, 100, 1, ' %'), P('vig', 'Vinheta', 0, 0, 100, 1, ' %'), P('fish', 'Olho de peixe', 0, 0, 100, 1, ' %'), P('spread', 'Espalhar', 50, 0, 100, 1, ' %'), P('bright', 'Brilho', 50, 1, 100, 1, ' %'),
+      P('bloomA', 'Bloom: quantidade', 100, 0, 100, 1, ' %'), P('bloomW', 'Bloom: largura', 50, 0, 300, 1, ' %'), P('bloomH', 'Bloom: altura', 50, 0, 300, 1, ' %'),
+      P('gapS', 'Entre fendas', 1, 0, 2, 0.01, ' px'), P('gapX', 'Esquerda/Direita', 1, 0, 5, 0.01, ' px'), P('gapY', 'Cima/Baixo', 1, 0, 5, 0.01, ' px'),
+      LIST('cL', 'Cor esquerda', ['R', 'G', 'B'], ['R', 'G', 'B'], 0), P('pL', 'Força esquerda', 1, 0, 1), P('tL', 'Inclinação esquerda', 0, -1, 1, 0.01, ' x'),
+      LIST('cM', 'Cor do meio', ['R', 'G', 'B'], ['R', 'G', 'B'], 1), P('pM', 'Força do meio', 1, 0, 1), P('tM', 'Inclinação do meio', 0, -1, 1, 0.01, ' x'),
+      LIST('cR', 'Cor direita', ['R', 'G', 'B'], ['R', 'G', 'B'], 2), P('pR', 'Força direita', 1, 0, 1), P('tR', 'Inclinação direita', 0, -1, 1, 0.01, ' x'),
+      P('hs', 'Escala da altura', 4, 1, 10, 0.01, ' x'), LIST('disp', 'Exibição', ['Encaixar na saída', 'Nativo'], ['Fit to Output', 'Native'], 0)],
+    rparams: { Columns: 'cols', Rows: 'rows', Shift: 'shiftc', Vignette: 'vig', Fisheye: 'fish', Spread: 'spread', Brightness: 'bright', 'Bloom Amount': 'bloomA', 'Bloom Width': 'bloomW', 'Bloom Height': 'bloomH', 'Between Slots': 'gapS', 'Left/Right': 'gapX', 'Top/Bottom': 'gapY', 'Color Left': 'cL', 'Power Left': 'pL', 'Tilt Left': 'tL', 'Color Middle': 'cM', 'Power Middle': 'pM', 'Tilt Middle': 'tM', 'Color Right': 'cR', 'Power Right': 'pR', 'Tilt Right': 'tR', 'Height Scale': 'hs', 'Display Mode': 'disp' },
+    gauss: (v, w, h) => { const s = crtEscala(v, w, h); return v.bloomA > 0 ? [3.5 * s * (0.5 + 0.5 * v.bloomW / 50), 3 * s * (0.5 + 0.5 * v.bloomH / 50), true] : [0, 0]; },
+    stage: `vec4 fx(vec2 uv){
+      vec2 p = (uv - 0.5) * 2.0; p *= 1.0 + fish * 0.0007 * (dot(p, p) - 1.0); vec2 q = p * 0.5 + 0.5;
+      float cu = 3.0 * gapX + 2.0 * gapS + 1.0, ru = 2.0 * (hs + gapY);
+      float s = disp >= 0.5 ? 1.0 : min(uRes.x / (cols * cu), uRes.y / (rows * ru));
+      vec2 org = (uRes - vec2(cols * cu, rows * ru) * s) * 0.5;
+      float X = (q.x * uRes.x - org.x) / s, Y = ((1.0 - q.y) * uRes.y - org.y) / s;
+      float gain = 1.45 * pow(bright / 50.0, 0.84), sigma = 1.6 / pow(max(1.0 - spread / 100.0, 0.001), 2.86);
+      vec3 out3 = vec3(0.0); float c0 = floor(X / cu);
+      for (float dc = -1.0; dc <= 1.0; dc += 1.0) { float col = c0 + dc; if (col < 0.0 || col >= cols) continue;
+        float odd = mod(col, 2.0), YY = Y + 0.5 + (odd < 0.5 ? 0.25 : -0.25) * ru * shiftc / 100.0, row = floor(YY / ru);
+        if (row < 0.0 || row >= rows) { if (shiftc <= 0.0) continue; row = clamp(row, 0.0, rows - 1.0); }
+        vec4 t = texture(uTex, vec2((col + 0.5) / cols, 1.0 - (row + 0.5) / rows));
+        float fy = fract(YY / ru), dy = (fy - 0.5) * ru, nt = gapY > 0.0 ? clamp((0.5 - abs(fy - 0.5)) * ru / gapY, 0.0, 1.0) : 1.0, A = exp(-dy * dy / (sigma * sigma));
+        for (int k = 0; k < 3; k++) {
+          float fk = float(k), ch = k == 0 ? cL : k == 1 ? cM : cR, pw = k == 0 ? pL : k == 1 ? pM : pR, tl = k == 0 ? tL : k == 1 ? tM : tR;
+          float cx = col * cu + 0.5 + fk * (gapX + gapS) + tl * dy, tent = 1.0 - abs(X - cx) / max(gapX, 0.89); if (tent <= 0.0) continue;
+          int ci = int(ch + 0.5); out3[ci] += tent * nt * pw * min(1.0, t[ci] * gain * A) * (uPass > 0.5 ? t[ci] : 1.0);
+        }
+      }
+      return vec4(out3, 1.0); }`,
+    glsl: `vec4 fx(vec2 uv){
+      vec3 c = texture(uMid, uv).rgb + 4.85 * bloomA / 100.0 * pow(bright / 50.0, 0.6) * pow(max(bloomW, 1.0) / 50.0, 0.29) * texture(uPrev, uv).rgb;
+      float f = 16.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);
+      float vt = clamp((f - 0.08) / 0.62, 0.0, 1.0); c *= mix(1.0, 1.0 - pow(1.0 - vt, 2.2), vig / 100.0);
+      return vec4(clamp(c, 0.0, 1.0), 1.0); }` },
+  // Tilt Shift do Resolume 7.28, medido na bancada (tools/compare/sondas/tilt*.py; 1920×1080). r = distância vertical até Position.
+  // A linha mistura a imagem nítida com a desfocada: m = limite(4 × Falloff² × r + 4 × Focus − 2). Desfoque gaussiano, sigma 8,73 px × Blur.
+  // Saturação em volta do brilho Rec. 601, ganho 1 / (1 − 0,63 × valor). Vinheta: 1,75 × (16 u v (1−u)(1−v)) ^ (0,21 × valor), limitada a 1.
+  { id: 'tiltshift', name: 'Tilt Shift', desc: 'Efeito miniatura: uma faixa nítida, o resto desfocado, com mais saturação e cantos escurecidos.',
+    params: [P('blur', 'Desfoque', 0.9, 0, 1), P('pos', 'Posição', 0.5, 0, 1), P('focus', 'Foco', 0.4, 0, 1), P('falloff', 'Transição', 1, 0, 1), P('sat', 'Saturação', 0.7, 0, 1), P('vig', 'Vinheta', 0.5, 0, 1)],
+    rparams: { Blur: 'blur', Position: 'pos', Focus: 'focus', Falloff: 'falloff', Saturation: 'sat', Vignette: 'vig' },
+    gauss: (v, w, h) => 8.73 * v.blur * h / 1080,
+    glsl: `vec4 fx(vec2 uv){
+      float r = abs(1.0 - uv.y - pos), m = clamp(4.0 * falloff * falloff * r + 4.0 * focus - 2.0, 0.0, 1.0);
+      vec4 c = mix(texture(uTex, uv), texture(uPrev, uv), blur > 0.0 ? m : 0.0);
+      float L = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+      c.rgb = clamp(L + (c.rgb - L) / (1.0 - 0.63 * sat), 0.0, max(c.a, 0.0));
+      float f = 16.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);
+      c.rgb *= min(1.0, 1.75 * pow(max(f, 1e-6), 0.21 * vig));
+      return c; }` },
   { id: 'backgroundremoval', name: 'Background Removal', desc: 'Tira o fundo e deixa só a pessoa, para webcam ou qualquer clipe: os mesmos controles, presets e modelos do Resolume 7.28. Qualidade Baixa: PP-HumanSeg 192; Média: PP-MattingV2 512; Alta: MODNet-HRNet 640 (os dois últimos rodam na placa de vídeo pelo DirectML). Dica: ponha antes do Transform.', mask: true,
     params: [P('refine', 'Refinar borda', 0.5, 0, 1), P('soft', 'Borda suave', 0.5, 0, 1), P('fill', 'Fechar buracos', 1, 0, 1, 1), P('hard', 'Máscara dura', 0, 0, 1, 1), P('specks', 'Filtrar pontinhos', 0.1, 0, 1), P('tsmooth', 'Suavidade no tempo', 0.1, 0, 1), LIST('mode', 'Modo', ['Alfa', 'Máscara'], ['Alpha', 'Mask']), P('invert', 'Inverter', 0, 0, 1, 1), LIST('quality', 'Qualidade do modelo', ['Baixa', 'Média', 'Alta'], ['Low', 'Medium', 'High'], 1)],
     rparams: { 'Refine Edge': 'refine', 'Soft Edge': 'soft', 'Fill Holes': 'fill', 'Hard Mask': 'hard', 'Filter Specks': 'specks', 'Temporal Smoothness': 'tsmooth', Mode: 'mode', Invert: 'invert', 'Model Quality': 'quality' },

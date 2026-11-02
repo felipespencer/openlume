@@ -123,7 +123,7 @@ await ev(`(() => { const p = ${P}; const sc = p.screens()[1]; p.ao.select(sc, sc
 
 // 8c. aba Saída (07-01): as alças aparecem sobre o slice deformado e arrastar lá muda o degradê em pixels do recorte
 {
-  await ev(`(() => { const p = ${P}, M = p.M; const sb = p.screens()[1].items[0]; sb.warp.pts = [[100, 50], [980, 120], [1000, 1850], [80, 1900]]; M.touch(sb); p.ao.setTab('out'); p.ao.select(p.screens()[1], sb); p.ao.selG = 0; p.ao.refresh(); return 1; })()`); await wait(400);
+  await ev(`(() => { const p = ${P}, M = p.M; const sb = p.screens()[1].items[0]; sb.warp.pts = [[100, 50], [980, 120], [1000, 1850], [80, 1900]]; M.touch(sb); p.ao.setTab('out'); p.ao.setMode('move'); p.ao.select(p.screens()[1], sb); p.ao.selG = 0; p.ao.refresh(); return 1; })()`); await wait(400);
   const esperado = JSON.parse(await ev(`(async () => { const p = ${P}; const { localToOut } = await import('./warp.js'); const sb = p.screens()[1].items[0], g = p.ao.grads(sb)[0]; return JSON.stringify(localToOut(sb, g.a[0] / sb.in.w, g.a[1] / sb.in.h).map(Math.round)); })()`));
   const desenhado = JSON.parse(await ev(`(() => { const e = document.querySelector('#aoView svg [data-k=gA]'); return JSON.stringify([Math.round(+e.getAttribute('cx')), Math.round(+e.getAttribute('cy'))]); })()`));
   check('aba Saída: a bolinha é desenhada onde a deformação leva o começo do degradê (trapézio)', Math.abs(esperado[0] - desenhado[0]) <= 1 && Math.abs(esperado[1] - desenhado[1]) <= 1 && await n('gA') === 4 && await n('gM') === 4, `esperado ${esperado} desenhado ${desenhado}`);

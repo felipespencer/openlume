@@ -270,10 +270,26 @@ export class Engine {
     if (!pr) {
       // Opacidade do efeito (como no Resolume, todo efeito tem): mistura o resultado com o que entrou
       // efeito com { ring: true } (Delay RGB): recebe três quadros mais antigos da própria entrada, um por canal
-      const fs = FX_HEAD + 'uniform float uFxOp;\n' + (def.ring ? 'uniform sampler2D uDelR; uniform sampler2D uDelG; uniform sampler2D uDelB;\n' : '') + def.params.map(uDecl).join('\n') + '\n' + EFFECT_HELPERS + def.glsl + '\nvoid main(){ vec4 r = fx(v); o = uFxOp >= 1.0 ? r : mix(texture(uTex, v), r, uFxOp); }';
-      pr = this.program(VS_QUAD, fs, ['uTex', 'uPrev', 'uRes', 'uTime', 'uFxOp', ...(def.ring ? ['uDelR', 'uDelG', 'uDelB'] : []), ...def.params.map(p => p.key)]); this.fxProg.set(def.id, pr);
+      const fs = FX_HEAD + 'uniform float uFxOp;\n' + (def.ring ? 'uniform sampler2D uDelR; uniform sampler2D uDelG; uniform sampler2D uDelB;\n' : '') + (def.stage ? 'uniform sampler2D uMid;\n' : '') + def.params.map(uDecl).join('\n') + '\n' + EFFECT_HELPERS + def.glsl + '\nvoid main(){ vec4 r = fx(v); o = uFxOp >= 1.0 ? r : mix(texture(uTex, v), r, uFxOp); }';
+      pr = this.program(VS_QUAD, fs, ['uTex', 'uPrev', 'uMid', 'uRes', 'uTime', 'uFxOp', ...(def.ring ? ['uDelR', 'uDelG', 'uDelB'] : []), ...def.params.map(p => p.key)]); this.fxProg.set(def.id, pr);
+      // efeito com { stage }: um primeiro passe gera uma imagem intermediária (uMid), que o { gauss } desfoca para o uPrev (CRT: a máscara de fósforo e o bloom dela)
+      if (def.stage) pr.stage = this.program(VS_QUAD, FX_HEAD + def.params.map(uDecl).join('\n') + '\n' + EFFECT_HELPERS + 'uniform float uPass;\n' + def.stage + '\nvoid main(){ o = fx(v); }', ['uTex', 'uPrev', 'uPass', 'uRes', 'uTime', ...def.params.map(p => p.key)]);
     }
     return pr;
+  }
+  // desfoque gaussiano separável de verdade (dois passes, 3 sigmas para cada lado), para efeito com { gauss: (valores, w, h) => sigma em px }:
+  // o resultado entra no uPrev do efeito. Dois alvos compartilhados bastam: o efeito consome logo em seguida.
+  gaussOf(src, w, h, sigma, sigmaY = sigma, cosseno = false) {
+    const gl = this.gl; sigma = Math.min(128, sigma); sigmaY = Math.min(128, sigmaY); if (!(sigma > 0.01) && !(sigmaY > 0.01)) return src;
+    if (!this.gaussProg) this.gaussProg = this.program(VS_QUAD, `#version 300 es
+precision highp float; in vec2 v; out vec4 o; uniform sampler2D uTex; uniform vec2 uDir; uniform float uSigma; uniform float uCos;
+void main(){ float sg = max(uSigma, 0.01); int R = int(ceil(sg * (uCos > 0.5 ? 1.0 : 3.0))); vec4 s = vec4(0.0); float t = 0.0; for (int i = -R; i <= R; i++) { float x = float(i) / sg, g = uCos > 0.5 ? (abs(x) < 1.0 ? pow(cos(x * 1.5707963), 2.0) : 0.0) : exp(-0.5 * x * x); s += texture(uTex, v + uDir * float(i)) * g; t += g; } o = s / t; }`, ['uTex', 'uDir', 'uSigma', 'uCos']);
+    let G = this.gaussFbo;
+    if (!G || G[0].w !== w || G[0].h !== h) { if (G) for (const q of G) { gl.deleteFramebuffer(q.fb); gl.deleteTexture(q.t); } G = this.gaussFbo = [this.fbo(w, h), this.fbo(w, h)]; }
+    const P = this.gaussProg; gl.useProgram(P.p); gl.viewport(0, 0, w, h); gl.activeTexture(gl.TEXTURE0); gl.uniform1i(P.u.uTex, 0); gl.uniform1f(P.u.uSigma, sigma); gl.uniform1f(P.u.uCos, cosseno ? 1 : 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, G[0].fb); gl.bindTexture(gl.TEXTURE_2D, src); gl.uniform2f(P.u.uDir, 1 / w, 0); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.uniform1f(P.u.uSigma, sigmaY); gl.bindFramebuffer(gl.FRAMEBUFFER, G[1].fb); gl.bindTexture(gl.TEXTURE_2D, G[0].t); gl.uniform2f(P.u.uDir, 0, 1 / h); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    return G[1].t;
   }
   // aplica uma cadeia de efeitos a uma textura w×h; devolve a textura resultante (ou a própria).
   // key: identidade do clipe de onde vem a textura (a fila do Delay RGB recomeça quando o clipe troca)
@@ -284,7 +300,7 @@ export class Engine {
     let src = tex, i = 0;
     for (const f of live) {
       const def = effectById(f.id), pr = this.fxProgram(def);
-      let dst, prev = this.white, ring = null;
+      let dst, prev = this.white, ring = null, midTex = null, stage2 = null;
       if (def.feedback) {   // a saída anterior entra em uPrev; desenha na outra textura do par
         let m = this.fxMem.get(f);
         if (!m || m.w !== w || m.h !== h) { if (m) { for (const q of [m.a, m.b]) { gl.deleteFramebuffer(q.fb); gl.deleteTexture(q.t); } } m = { a: this.fbo(w, h), b: this.fbo(w, h), i: 0, w, h }; this.fxMem.set(f, m); }
@@ -300,6 +316,17 @@ export class Engine {
           const pick = d => m.ring[((m.i - Math.min(d, m.n - 1)) % R + R) % R].t;   // sem quadro tão antigo ainda, vale o mais antigo que há
           ring = del.map(pick);
         }
+        if (def.stage) {
+          const S = pr.stage; let T = this.stageFbo, T2 = this.stageFbo2;
+          if (!T || T.w !== w || T.h !== h) { if (T) for (const q of [T, T2]) { gl.deleteFramebuffer(q.fb); gl.deleteTexture(q.t); } T = this.stageFbo = this.fbo(w, h); T2 = this.stageFbo2 = this.fbo(w, h); }
+          gl.bindFramebuffer(gl.FRAMEBUFFER, T.fb); gl.viewport(0, 0, w, h); gl.useProgram(S.p); gl.uniform1f(S.u.uPass, 0);
+          gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src); gl.uniform1i(S.u.uTex, 0);
+          gl.uniform2f(S.u.uRes, w, h); gl.uniform1f(S.u.uTime, this.time);
+          for (const p of def.params) this.setParam(S, p, this.paramValue(f, p));
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); midTex = T.t;
+          gl.bindFramebuffer(gl.FRAMEBUFFER, T2.fb); gl.uniform1f(S.u.uPass, 1); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); stage2 = T2.t;   // segundo passe: o que o gauss desfoca
+        }
+        if (def.gauss) { const sg = def.gauss(Object.fromEntries(def.params.map(p => [p.key, this.paramValue(f, p)])), w, h); prev = this.gaussOf(stage2 || src, w, h, Array.isArray(sg) ? sg[0] : sg, Array.isArray(sg) ? sg[1] : sg, Array.isArray(sg) && sg[2]); }
         if (def.mask && f._maskTex) prev = f._maskTex;   // Background Removal: a máscara da segmentação
         if (def.mask && f._segWant) {   // o recorte pediu um quadro: sai daqui, da entrada deste efeito, no tamanho do modelo
           const wnt = f._segWant; f._segWant = null;
@@ -313,6 +340,7 @@ export class Engine {
       gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fb); gl.viewport(0, 0, w, h);
       gl.useProgram(pr.p);
       if (ring) for (let k = 0; k < 3; k++) { gl.activeTexture(gl.TEXTURE2 + k); gl.bindTexture(gl.TEXTURE_2D, ring[k]); gl.uniform1i(pr.u[['uDelR', 'uDelG', 'uDelB'][k]], 2 + k); }
+      if (midTex) { gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, midTex); gl.uniform1i(pr.u.uMid, 2); }
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, prev); gl.uniform1i(pr.u.uPrev, 1);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src); gl.uniform1i(pr.u.uTex, 0);
       gl.uniform2f(pr.u.uRes, w, h); gl.uniform1f(pr.u.uTime, this.time);
