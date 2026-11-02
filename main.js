@@ -386,6 +386,17 @@ app.whenReady().then(async () => {
       e.sender.postMessage('seg:port', null, [port2]);
     } catch (err) { logLine('erro', 'seg nativo: ' + (err.message || err)); }
   });
+  // Webcam virtual: outro utilityProcess, que escreve os quadros na câmera virtual do OBS; a janela fala direto com ele
+  let camProc = null;
+  ipcMain.on('webcam:port', (e) => {
+    try {
+      if (!camProc) { camProc = utilityProcess.fork(path.join(__dirname, 'app', 'webcam-native.js'), [], { serviceName: 'OpenLume webcam' }); camProc.on('exit', () => { camProc = null; }); }
+      const { port1, port2 } = new MessageChannelMain();
+      camProc.postMessage({ type: 'port' }, [port1]);
+      e.sender.postMessage('webcam:port', null, [port2]);
+    } catch (err) { logLine('erro', 'webcam: ' + (err.message || err)); }
+  });
+  ipcMain.handle('webcam:obsSite', () => shell.openExternal('https://obsproject.com/download'));
   laser.on('status', (s) => { if (!win.isDestroyed()) win.webContents.send('laser:status', s); });
   laser.on('error', (m) => { if (!win.isDestroyed()) win.webContents.send('laser:error', m); });
   if (process.env.PROJ_TEST) require('./tools/selftest-main.js')(win, app, laser);

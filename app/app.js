@@ -21,6 +21,7 @@ import { AUTOPILOT, GROUP, XFADE, serializeComposition, deserializeComposition, 
 import { Menubar, openDialog, askText, confirmBox, installShortcuts, shortcutsDialog } from './menus.js';
 import { KeyMap } from './keymap.js';
 import { Automape } from './automape.js';
+import { WebcamOut } from './webcam.js';
 import { initSplitters } from './splitters.js';
 import { paintScan } from './laser-model.js';
 import { BPM, SNAPS, advance, tap, resync, setBpm, click, effBpm } from './beat.js';
@@ -1333,6 +1334,7 @@ const menuDefs = () => [
     { label: 'Identificar telas', fn: () => { ao.identify(); if (!open) toast('Abra a saída para ver o nome em cada tela'); } },
     { label: 'Mostrar Test Card', check: !!state.testCard, fn: toggleTestCard },
     { label: 'Mostrar malha do Automape (área total de projeção)', check: !!state.mesh, fn: () => setAutomapeGrid(!state.mesh) },
+    { label: 'Webcam virtual (aparece como câmera no Meet e afins)', check: !!(webcam && webcam.on), disabled: !(webcam && webcam.disponivel), fn: () => alternarWebcam() },
     { label: 'Instantâneo da composição (PNG)', fn: () => snapshot('comp') }]; } },
   { label: 'Atalhos', items: () => [{ label: 'Editar teclado', key: 'Ctrl+Shift+K', check: keymap.on, fn: () => keymap.toggle() }, { label: 'Atalhos fixos…', fn: () => shortcutsDialog(SHORTCUTS) }, { label: 'MIDI: APC40 mkII…', fn: midiDialog }, { label: 'Usar a APC40', check: apc.enabled, fn: () => apc.setEnabled(!apc.enabled) }] },
   { label: 'Ver', items: () => [
@@ -1397,6 +1399,7 @@ function loop() {
   // espelho do laser: o desenho do LaserCube vai para a projeção
   { const s = selectedCell(); for (const L of state.layers) { const c = liveClip(L); for (const m of [c, s && s.clip]) if (m && m.kind === 'lasermirror' && m.paintedAt !== now) { m.paintedAt = now; paintScan(m.el.getContext('2d'), 1080, 1080, laser.scanNow(now), false); m.rev++; } } }
   engine.render(state.layers, engine.neededLayers(state.screens), now);
+  webcam.tick();
   // monitor e prévia são cópias de 1080p: com saídas abertas (e sem gravar), o monitor vai a cada 2 quadros e a prévia a cada 3
   const nOut = state.screens.filter(sc => sc.win && !sc.win.closed).length, gravando = recorder.state === 'recording';
   if (!nOut || gravando || loop.frames % 2 === 0) engine.blit(monCtx);
@@ -1413,17 +1416,28 @@ function loop() {
   tickAutopilot(now);
   requestAnimationFrame(loop);
 }
+const webcam = new WebcamOut(engine, D);
 buildBpmBar();
 loop();
 
 render();
 
+// Webcam virtual pela câmera do OBS: liga e desliga pelo menu Saída; o que impede de ligar vira um aviso, sem mexer no resto do programa
+async function alternarWebcam() {
+  if (webcam.on) { await webcam.desligar(); toast('Webcam virtual desligada'); return; }
+  const r = await webcam.ligar();
+  if (r.ok) { toast('Webcam virtual ligada: escolha "OBS Virtual Camera" no programa de vídeo'); return; }
+  const aviso = { 'sem-obs': ['A webcam virtual usa a câmera do OBS Studio, que não está instalado neste computador. Instale o OBS (é de graça) e tente de novo; ele não precisa ficar aberto.', true],
+    ocupada: ['A câmera virtual já está em uso. Se o OBS estiver aberto com "Iniciar câmera virtual" ligado, desligue lá e tente de novo.', false],
+    nativo: ['Não deu para ligar a webcam virtual neste computador. ' + (r.erro || ''), false] }[r.motivo] || ['Não deu para ligar a webcam virtual.', false];
+  openDialog({ title: 'Webcam virtual', width: 460, buttons: [...(aviso[1] && D && D.webcamObsSite ? [{ label: 'Baixar o OBS', fn: () => D.webcamObsSite() }] : []), { label: 'Fechar', primary: true }], build: (body) => { body.appendChild(el('p', 'dtext', aviso[0])); } });
+}
 // usado pelo teste automático (tools/selftest-main.js); não é interface de usuário
 // sliders Aqua: o trilho nativo não tem "enchimento", então a variável --p (posição, em %) é mantida aqui para todos os input[type=range]
 // (os valores também mudam por código, sem evento: por isso a conferência periódica)
 function aquaSliders() { const sync = () => { for (const r of document.querySelectorAll('input[type=range]')) { const mn = +r.min || 0, mx = r.max === '' ? 100 : +r.max, p = mx > mn ? Math.max(0, Math.min(1, (+r.value - mn) / (mx - mn))) * 100 : 0, v = p.toFixed(1) + '%'; if (r.style.getPropertyValue('--p') !== v) r.style.setProperty('--p', v); } }; addEventListener('input', sync, true); setInterval(sync, 120); sync(); }
 aquaSliders();
-window.projecionista = { keymap, putPhone, frames: () => loop.total || 0, undo: undoComp, redo: redoComp, markUndo, hist, recordingToClip, automape, setAutomapeGrid, automapeGridOn, menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, addDeck, switchDeck, removeDeck, duplicateDeck, newGroup, setLayerGroup, removeGroup, duplicateGroup, addLayerToGroup, fadeTo, bpm: state.bpm, tapBpm: (t) => tap(state.bpm, t), pending: () => pending.length, apc, stepClip, EFFECTS, audio, mkAudioFx, seg, applyProjectors, projectorWizard, autosave, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
+window.projecionista = { webcam, alternarWebcam, keymap, putPhone, frames: () => loop.total || 0, undo: undoComp, redo: redoComp, markUndo, hist, recordingToClip, automape, setAutomapeGrid, automapeGridOn, menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, addDeck, switchDeck, removeDeck, duplicateDeck, newGroup, setLayerGroup, removeGroup, duplicateGroup, addLayerToGroup, fadeTo, bpm: state.bpm, tapBpm: (t) => tap(state.bpm, t), pending: () => pending.length, apc, stepClip, EFFECTS, audio, mkAudioFx, seg, applyProjectors, projectorWizard, autosave, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
   probe: (pts) => engine.probe(state.layers, pts),
   probeScreen: (sc, pts) => engine.probeScreen(sc, state.layers, state.screens, pts),
   serialize: () => serializeComposition(state, laser, COLS), load: loadComposition, reset: resetComposition,

@@ -230,6 +230,7 @@ module.exports = (win, app, laser) => {
           if (l2On !== l2Col) { if (l2On >= 0) P.trigger(l2Li, l2On); else P.eject(l2Li); }
         }
         R.lote2 = l2;
+        R.webcam = { on: P.webcam.on, disp: P.webcam.disponivel, rd: !!P.webcam.rd };
         // áudio: o vídeo entra no grafo (fonte → efeitos → volume → pan → master → FFT); EQ-3 e LowPass criam nós; a forma FFT segue o nível da faixa
         const au = {}; const av = L.flatMap(x => x.clips).find(c => c && c.kind === 'video' && c.el instanceof HTMLMediaElement);
         P.audio.attach(av); au.ligado = !!(av.srcNode && av.gainNode && av.panNode); av.afx = [P.mkAudioFx('eq3'), P.mkAudioFx('lowpass')]; P.C.rebuildAudioFx(av); au.nos = (av.afxNodes || []).length;
@@ -451,6 +452,7 @@ module.exports = (win, app, laser) => {
       const Sg = r.seg;
       ok('tirar o fundo (modelo nativo e máscara)', Sg.tex && !Sg.erro, Sg.erro || (Sg.tex ? 'primeira máscara em ' + Sg.ms + ' ms, ' + (Sg.nativo ? 'processo nativo' : 'WebGPU') : 'sem máscara em ' + Sg.ms + ' ms; sem clipe de vídeo no ar?'));
       for (const nome of ['Tilt Shift', 'CRT', 'Acuarela']) { const q = r.lote2 && r.lote2[nome]; ok('efeito ' + nome + ' no ar', q && q.media > 0 && q.dif >= 1 && q.json, JSON.stringify(q)); }
+      ok('webcam virtual desligada ao abrir, sem leitura da placa', r.webcam && !r.webcam.on && r.webcam.disp && !r.webcam.rd, JSON.stringify(r.webcam));
       const Au = r.audio;
       ok('áudio: grafo, efeitos de áudio e FFT', Au.ligado && Au.nos === 2 && Au.freq === 500 && Au.fft === 1 && Au.bandas === 5,
         'clipe no grafo ' + Au.ligado + '; EQ-3 + LowPass = ' + Au.nos + ' nós, LowPass em ' + Au.freq + ' Hz; forma FFT com médios a 0,5 → ' + Au.fft + '; contexto ' + Au.ctx);

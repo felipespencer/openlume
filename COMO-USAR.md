@@ -313,3 +313,8 @@ composição, slices em polígono.
 O modelo de composição, camada, coluna e clipe foi estudado a partir do que o Resolume publica
 com o programa: a descrição da API REST e a composição de exemplo. Nenhum código do Resolume
 foi copiado nem descompilado.
+
+## Webcam virtual
+
+Saída › **Webcam virtual** manda a composição para a câmera "OBS Virtual Camera", que aparece no Google Meet, no Zoom e em outros programas de vídeo.
+Precisa do [OBS Studio](https://obsproject.com/download) instalado no computador; ele não precisa ficar aberto. A imagem vai sempre em 1920×1080 a 30 quadros por segundo, sem som; composição fora de 16:9 ganha barras pretas. Se o próprio OBS estiver com "Iniciar câmera virtual" ligado, desligue lá primeiro.

@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld('projDesktop', {
   phone: { info: () => ipcRenderer.invoke('phone:info'), onOffer: (fn) => ipcRenderer.on('phone:offer', (_e, o) => fn(o)), answer: (id, sdp, erro) => ipcRenderer.invoke('phone:answer', id, sdp, erro) },
   // Background Removal nativo: pede a porta ao processo principal; ela chega à página por window.postMessage (ports)
   segPort: () => { ipcRenderer.once('seg:port', (e) => { window.postMessage({ type: 'seg:port' }, '*', e.ports); }); ipcRenderer.send('seg:port'); },
+  // webcam virtual: a porta do processo que escreve na câmera do OBS, do mesmo jeito que a do recorte; e o site para baixar o OBS
+  webcamPort: () => { ipcRenderer.once('webcam:port', (e) => { window.postMessage({ type: 'webcam:port' }, '*', e.ports); }); ipcRenderer.send('webcam:port'); },
+  webcamObsSite: () => ipcRenderer.invoke('webcam:obsSite'),
   // caminho no disco de um arquivo solto na janela (para salvar a composição por caminho)
   pathOf: (file) => { try { return webUtils.getPathForFile(file) || ''; } catch { return ''; } },
   fs: { roots: () => ipcRenderer.invoke('fs:roots'), list: (dir) => ipcRenderer.invoke('fs:list', dir) },

@@ -565,6 +565,38 @@ void main(){ float sg = max(uSigma, 0.01); int R = int(ceil(sg * (uCos > 0.5 ? 1
     for (let y = 0, z = r.h - 1; y < z; y++, z--) { const a = y * row, b = z * row; tmp.set(buf.subarray(a, a + row)); buf.copyWithin(a, b, b + row); buf.set(tmp, b); }
     return buf;
   }
+  // Webcam virtual: a composição encaixada em W×H (barras pretas, sem esticar) vira NV12 na placa. Quatro bytes por pixel da textura de
+  // W/4 × H×3/2: as linhas de Y primeiro, depois as de UV. Faixa limitada 16–235, como a câmera do OBS espera. A primeira linha lida é a de cima da imagem.
+  beginWebcam(W, H) {
+    const gl = this.gl, w = W / 4, h = H * 3 / 2;
+    if (!this.camProg) this.camProg = this.program(VS_QUAD, `#version 300 es
+precision highp float; in vec2 v; out vec4 o; uniform sampler2D uTex; uniform vec2 uCam; uniform vec2 uFit;
+const vec3 KY = vec3(0.299, 0.587, 0.114), KU = vec3(-0.1687, -0.3313, 0.5), KV = vec3(0.5, -0.4187, -0.0813);   // BT.601: é como o Chromium lê esta câmera (medido com faixas de cor)
+vec3 img(vec2 p){ vec2 u = (p / uCam - 0.5) / uFit + 0.5; if (u.x < 0.0 || u.x > 1.0 || u.y < 0.0 || u.y > 1.0) return vec3(0.0); return texture(uTex, vec2(u.x, 1.0 - u.y)).rgb; }
+float Y(vec3 c){ return (16.0 + 219.0 * dot(c, KY)) / 255.0; }
+void main(){ vec2 f = floor(gl_FragCoord.xy); float x = f.x * 4.0;
+  if (f.y < uCam.y) { o = vec4(Y(img(vec2(x + 0.5, f.y + 0.5))), Y(img(vec2(x + 1.5, f.y + 0.5))), Y(img(vec2(x + 2.5, f.y + 0.5))), Y(img(vec2(x + 3.5, f.y + 0.5)))); return; }
+  float r = (f.y - uCam.y) * 2.0 + 1.0; vec3 a = img(vec2(x + 1.0, r)), b = img(vec2(x + 3.0, r));
+  o = vec4((128.0 + 224.0 * dot(a, KU)) / 255.0, (128.0 + 224.0 * dot(a, KV)) / 255.0, (128.0 + 224.0 * dot(b, KU)) / 255.0, (128.0 + 224.0 * dot(b, KV)) / 255.0); }`, ['uTex', 'uCam', 'uFit']);
+    let f = this.camFbo; if (!f || f.w !== w || f.h !== h) { if (f) { gl.deleteFramebuffer(f.fb); gl.deleteTexture(f.t); } f = this.camFbo = this.fbo(w, h); }
+    const P = this.camProg, car = this.W / this.H, tar = W / H;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, f.fb); gl.viewport(0, 0, w, h); gl.disable(gl.BLEND); gl.useProgram(P.p); gl.bindVertexArray(this.quadVao);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.comp.t); gl.uniform1i(P.u.uTex, 0); gl.uniform2f(P.u.uCam, W, H);
+    gl.uniform2f(P.u.uFit, car > tar ? 1 : car / tar, car > tar ? tar / car : 1);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    const pbo = gl.createBuffer(); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pbo); gl.bufferData(gl.PIXEL_PACK_BUFFER, w * h * 4, gl.STREAM_READ);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, 0); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.enable(gl.BLEND);
+    const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
+    return { sync, pbo, t0: performance.now() };
+  }
+  pollWebcam(r, buf) {
+    const gl = this.gl; if (!r || !r.sync) return null;
+    if (gl.clientWaitSync(r.sync, 0, 0) === gl.TIMEOUT_EXPIRED) return null;
+    gl.deleteSync(r.sync); r.sync = null;
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, r.pbo); gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, buf); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null); gl.deleteBuffer(r.pbo); r.pbo = null;
+    return buf;
+  }
   beginReadClipFrame(c, w, h) { const e = this.tex.get(c.id); return this.beginReadTex(e ? e.t : this.texFor(c), w, h); }
   cancelReadClipFrame(r) { const gl = this.gl; if (!r) return; if (r.sync) gl.deleteSync(r.sync); if (r.pbo) gl.deleteBuffer(r.pbo); r.sync = null; r.pbo = null; }
   copyInto(tex, w, h, opaque) {
