@@ -469,3 +469,21 @@ input[type=range].sa{ height:14px; } input[type=range].sa::-webkit-slider-runnab
 .rprops .prow .pl.hasTgl{ display:flex; align-items:center; justify-content:flex-end; gap:6px; }
 .rprops .tgl{ cursor:pointer; color:#8a8a8a; font-size:9px; width:14px; text-align:center; flex:none; margin-right:auto; padding-left:4px; } .rprops .tgl:hover{ color:#fff; }
 .rprops .prow.grp{ background:#171717; display:flex; } .rprops .prow.grp .pl{ flex:1; width:auto; max-width:none; background:transparent; justify-content:flex-start; } .rprops .prow.grp .pv{ display:none; } .rprops .prow.grp .tgl{ margin-right:0; } .rprops .prow.grp .tgn{ color:var(--rt); }
+
+/* ===== modo Atalhos de teclado (keymap.js; maquete: atalhos-mockup.html) ===== */
+.mapmode .mappable::after{ content:''; position:absolute; inset:0; background:rgba(47,128,196,.42); outline:1px solid rgba(120,190,255,.45); outline-offset:-1px; pointer-events:none; z-index:5; }
+.mapmode .mappable.mapsel::after{ outline:2px solid #fff; outline-offset:-2px; }
+.mapmode .mappable[data-mapkey]::before{ content:attr(data-mapkey); position:absolute; right:3px; top:1px; font:700 11px/1.1 var(--font, system-ui); color:#fff; text-shadow:0 0 3px #000,0 0 3px #000; z-index:6; pointer-events:none; }
+.mapmode .mappable{ cursor:crosshair; }
+#mapPill{ position:fixed; left:50%; top:36px; transform:translateX(-50%); background:rgba(10,10,10,.88); border:1px solid #3a7bb5; border-radius:14px; padding:5px 14px; color:#cfe6ff; font-size:12px; z-index:9000; pointer-events:none; } #mapPill b{ color:#fff; } #mapPill[hidden]{ display:none; }
+.browser.keys{ display:flex; flex-direction:column; padding:0; background:#1c1c1c; }
+.browser.keys .kpre{ display:flex; gap:6px; padding:8px 10px 6px; } .browser.keys .kpre select{ flex:1; height:22px; background:#2b2b2b; color:#e6e6e6; border:0; border-radius:2px; padding:0 6px; font:inherit; }
+.browser.keys .kmini{ width:24px; height:22px; padding:0; border:0; border-radius:2px; background:#2b2b2b; color:#bbb; cursor:pointer; } .browser.keys .kmini:hover{ background:#3a3a3a; color:#fff; }
+.browser.keys .klist{ flex:1; min-height:60px; overflow:auto; background:#0e0e0e; border-top:1px solid #000; border-bottom:1px solid #000; }
+.browser.keys .krow{ display:flex; justify-content:space-between; gap:10px; padding:3px 10px; min-height:22px; line-height:16px; border-bottom:1px solid #151515; cursor:pointer; color:#e6e6e6; } .browser.keys .krow span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.browser.keys .krow.cur{ background:#7dffd6; color:#0b0b0d; } .browser.keys .krow.dup{ color:#ff6b6b; } .browser.keys .krow.dup.cur{ color:#7a0f0f; } .browser.keys .krow.off{ color:#666; }
+.browser.keys .kempty, .browser.keys .khint{ padding:10px; color:#8a8a8a; text-align:center; }
+.browser.keys .kinsp{ padding:8px 10px; display:grid; grid-template-columns:54px 1fr; gap:6px 8px; align-items:center; min-height:70px; background:#1a1a1a; } .browser.keys .kinsp .khint{ grid-column:1 / -1; }
+.browser.keys .kinsp select{ height:20px; background:#2b2b2b; color:#e6e6e6; border:0; border-radius:2px; padding:0 6px; font:inherit; max-width:170px; } .browser.keys .kinsp select:disabled{ opacity:.7; }
+.browser.keys .kmode{ display:flex; align-items:center; gap:10px; } .browser.keys .kpiano{ display:flex; align-items:center; gap:4px; color:#cfcfcf; }
+.browser.keys .khelp{ padding:6px 10px 8px; background:#1a1a1a; border-top:1px solid #000; } .browser.keys .khelp h4{ margin:0 0 2px; font-size:12px; font-weight:600; color:#e6e6e6; } .browser.keys .khelp p{ margin:0; color:#aaa; font-size:11px; }

@@ -131,7 +131,7 @@ limpar, remover, remover todas antes/depois — o número de colunas é livre) �
 (transporte, alvo, estilo de disparo, ignorar coluna, ajuste, miniatura do quadro atual,
 recortar/copiar/colar, efeitos, renomear, limpar, mostrar no Explorer, preparar, instantâneo)
 · **Saída** (desligada, tela cheia por monitor, janela, automático, Avançada…, identificar,
-Test Card, instantâneo) · **Atalhos** (Teclado… lista os atalhos que funcionam) · **Ver**
+Test Card, instantâneo) · **Atalhos** (Editar teclado, Atalhos fixos…, MIDI) · **Ver**
 (Laser, Saída avançada, FPS, painéis e abas). Deck e Grupo entram quando existirem.
 
 **Configurações da composição** (Ctrl+Shift+C): nome, descrição, tamanho (presets de Full HD
@@ -141,6 +141,18 @@ padrão das casas novas, disparar a coluna 1 ao abrir. Tudo vai para o arquivo d
 
 Atalhos: Ctrl+N/O/S/Shift+S, Ctrl+Shift+C, Ctrl+, (preferências), Ctrl+X/C/V (clipe),
 Delete (limpar casa), Enter (disparar casa), Esc (tirar a camada do ar), Ctrl+Q.
+
+**Atalhos de teclado que você mapeia** (modo Edit Keyboard do Resolume): Atalhos → Editar teclado, ou
+Ctrl+Shift+K. Com o modo ligado tudo o que dá para mapear fica azul (clipes, colunas, botões X/B/S e a seleção
+das camadas, o transporte do clipe selecionado e os botões da barra: BPM, crossfader, Laser, REC e Saída).
+Clique num elemento e aperte uma tecla: a letra aparece no canto dele. **Delete** ou **Backspace** tira o
+atalho e **Esc** sai do modo. A aba **Atalhos** (à frente das abas da direita) mostra o preset, a lista (tecla
+repetida em vermelho, elemento que não existe mais em cinza), o **Alvo** (clipes e camadas: *por posição*,
+*este clipe/esta camada*, que acompanha o item se ele mudar de lugar, ou *camada selecionada*) e o **Modo**
+(`>` dispara; **Piano** faz ao apertar e desfaz ao soltar: o clipe toca enquanto a tecla está apertada). Os
+presets (＋ novo, ⧉ duplicar, ✕ apagar) ficam salvos junto com a composição. Fora do modo, a tecla mapeada
+vale com a janela principal em foco (a Saída avançada e o Laser abertos ficam com as teclas deles). Os controles
+de valor (sliders), o MIDI e o OSC entram numa etapa seguinte.
 
 ### Janela
 

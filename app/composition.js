@@ -19,7 +19,7 @@ export function serializeComposition(state, laser, cols) {
   return JSON.stringify({
     v: 1, name: state.name || 'Composição', cols, colNames: state.colNames || {}, settings: state.settings, master: state.master, speed: state.speed, compFx: state.compFx, compTransform: state.compTransform, compAutopilot: state.compAutopilot,
     layers: state.layers.map(L => ({ name: L.name, opacity: L.opacity, blend: L.blend, bypass: L.bypass, autopilot: L.autopilot, fx: L.fx, transform: L.transform, transition: L.transition, transMode: L.transMode, transOpt: L.transOpt, blendOpt: L.blendOpt, group: L.group ?? null, solo: !!L.solo, bus: L.bus || null, on: L.on, clips: L.clips.map(serializeClip) })),
-    groups: state.groups || [], xfade: state.xfade || XFADE(), deck: state.deck || 0,
+    groups: state.groups || [], xfade: state.xfade || XFADE(), deck: state.deck || 0, keymap: state.keymap || null,
     bpm: state.bpm ? { bpm: state.bpm.bpm, snap: state.bpm.snap, metronome: !!state.bpm.metronome, nudgePct: state.bpm.nudgePct } : null, colSnap: state.colSnap || {}, audio: state.audioSettings || AUDIO_SETTINGS(),
     // os clipes das camadas são os do deck atual; os outros decks guardam as suas linhas (uma por camada)
     decks: (state.decks || []).map((d, i) => ({ name: d.name, color: d.color || '', closed: !!d.closed, rows: i === (state.deck || 0) ? null : state.layers.map(L => (d.cells[L.id] || []).map(serializeClip)) })),
@@ -60,5 +60,5 @@ export async function deserializeComposition(json, ctx) {
     decks.push(dk);
   }
   const groups = (d.groups || []).map(g => Object.assign(GROUP(), g, { blendOpt: Object.assign(MIXER_OPT(), g.blendOpt || {}), transform: Object.assign({ x: 0, y: 0, scale: 1, rot: 0 }, g.transform || {}), fx: (g.fx || []).map(f => cloneFx(f)) }));
-  return { groups, decks, deck: d.deck || 0, xfade: Object.assign(XFADE(), d.xfade || {}), bpm: d.bpm || null, colSnap: d.colSnap || {}, audio: Object.assign(AUDIO_SETTINGS(), d.audio || {}), name: d.name, settings: Object.assign(SETTINGS(), d.settings || {}), colNames: d.colNames || {}, master: d.master ?? 1, speed: d.speed ?? 1, compFx: d.compFx || [], compTransform: Object.assign({ x: 0, y: 0, scale: 1, sx: 1, sy: 1, rot: 0 }, d.compTransform || {}), compAutopilot: Object.assign(AUTOPILOT(), d.compAutopilot || {}), layers, screens: d.screens ? M.deserialize({ screens: d.screens.screens || d.screens }) : null, laser: lz, missing };
+  return { groups, keymap: d.keymap || null, decks, deck: d.deck || 0, xfade: Object.assign(XFADE(), d.xfade || {}), bpm: d.bpm || null, colSnap: d.colSnap || {}, audio: Object.assign(AUDIO_SETTINGS(), d.audio || {}), name: d.name, settings: Object.assign(SETTINGS(), d.settings || {}), colNames: d.colNames || {}, master: d.master ?? 1, speed: d.speed ?? 1, compFx: d.compFx || [], compTransform: Object.assign({ x: 0, y: 0, scale: 1, sx: 1, sy: 1, rot: 0 }, d.compTransform || {}), compAutopilot: Object.assign(AUTOPILOT(), d.compAutopilot || {}), layers, screens: d.screens ? M.deserialize({ screens: d.screens.screens || d.screens }) : null, laser: lz, missing };
 }

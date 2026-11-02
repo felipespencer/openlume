@@ -19,6 +19,7 @@ import { Recorder } from './record.js';
 import { mkFx, cloneFx } from './effects.js';
 import { AUTOPILOT, GROUP, XFADE, serializeComposition, deserializeComposition, SETTINGS } from './composition.js';
 import { Menubar, openDialog, askText, confirmBox, installShortcuts, shortcutsDialog } from './menus.js';
+import { KeyMap } from './keymap.js';
 import { Automape } from './automape.js';
 import { initSplitters } from './splitters.js';
 import { paintScan } from './laser-model.js';
@@ -995,7 +996,7 @@ function resetComposition() {
   state.groups.length = 0; state.decks = [mkDeck('Deck 1')]; state.deck = 0; state.xfade = XFADE(); engine.xfade = state.xfade; state.selGroup = null; if (panels.tab === 'group') panels.tab = 'comp';
   Object.assign(state.bpm, BPM(), { taps: [], audio: audio.levels }); state.colSnap = {}; pending.length = 0; syncBpm(); Object.assign(audio.settings, { source: 'comp', gain: 1, fallback: 4 });
   state.layers = [mkLayer(5), mkLayer(4), mkLayer(3), mkLayer(2), mkLayer(1)]; state.name = ''; state.sel = null; state.selLayer = 0; state.master = state.opacity = state.speed = 1; engine.master = 1;
-  engine.compFx = []; engine.compTransform = IDENT_TR(); state.compAutopilot = AUTOPILOT(); state.colNames = {}; setCols(8); applySettings(SETTINGS()); render(); renderScreens();
+  engine.compFx = []; engine.compTransform = IDENT_TR(); state.compAutopilot = AUTOPILOT(); state.colNames = {}; state.keymap = null; keymap.refresh(); setCols(8); applySettings(SETTINGS()); render(); renderScreens();
 }
 async function loadComposition(json, name) {
   const d = await deserializeComposition(json, { mkLayer, toast, setCols, laserClip: (f) => C.laserClip(f, laser.thumbSvg(f)) });
@@ -1006,7 +1007,7 @@ async function loadComposition(json, name) {
   if (d.bpm) Object.assign(state.bpm, { bpm: d.bpm.bpm || 120, snap: d.bpm.snap || 0, metronome: !!d.bpm.metronome, nudgePct: d.bpm.nudgePct || 5 }); state.colSnap = d.colSnap || {}; pending.length = 0; syncBpm(); Object.assign(audio.settings, d.audio); if (audio.settings.source === 'mic') audio.setSource('mic');
   state.decks = d.decks.length ? d.decks.map(k => { const dk = mkDeck(k.name); dk.color = k.color; dk.closed = k.closed; if (k.rows) k.rows.forEach((row, i) => { if (state.layers[i]) dk.cells[state.layers[i].id] = row; }); return dk; }) : [mkDeck('Deck 1')];
   state.deck = Math.min(d.deck || 0, state.decks.length - 1); for (const L of state.layers) state.decks[state.deck].cells[L.id] = L.clips;
-  state.master = d.master; state.opacity = 1; state.speed = d.speed; engine.master = state.master; engine.compFx = d.compFx; engine.compTransform = d.compTransform; state.compAutopilot = d.compAutopilot; state.colNames = d.colNames; applySettings(d.settings);
+  state.keymap = d.keymap; keymap.refresh(); state.master = d.master; state.opacity = 1; state.speed = d.speed; engine.master = state.master; engine.compFx = d.compFx; engine.compTransform = d.compTransform; state.compAutopilot = d.compAutopilot; state.colNames = d.colNames; applySettings(d.settings);
   for (const L of state.layers) if (L.on >= 0 && L.clips[L.on]) C.startClip(L.clips[L.on], layerSpeed(L)); else L.on = -1;
   if (d.screens && d.screens.length) setScreens(d.screens);
   if (d.laser) { laser.frames = d.laser.frames; laser.settings = d.laser.settings; laser.active = d.laser.active; laser.sel = laser.frames[0] || null; if (laser.open) laser.refresh(); }
@@ -1242,6 +1243,9 @@ const clipMenuItems = () => { const s = selectedCell(), k = s ? s.clip : null, i
     { label: 'Mostrar no Explorer', disabled: !k || !k.path || !D, fn: withClip((c) => D.rec.show(c.path)) },
     { label: 'Preparar (H.264 todo intra)', disabled: !isV || !k.path || k.prepared || !D, fn: withClip((c, l, col) => prepareClip(l, col, 'h264')) },
     { label: 'Instantâneo do clipe (PNG)', disabled: !k, fn: () => snapshot('clip') }]; };
+// Atalhos de teclado mapeáveis (modo Edit Keyboard do Resolume): ver keymap.js
+function selectLayer(li) { state.selLayer = li; state.selGroup = state.layers[li].group; panels.tab = 'layer'; render(); }
+const keymap = new KeyMap({ state, trigger, eject, triggerColumn, selectedClip, selectLayer, C, render, toast, browser, textBox: (t, l, v) => askText(t, l, v), editorOpen: () => ao.open || laser.open });
 const menuDefs = () => [
   { label: 'OpenLume', items: () => [
     { label: 'Preferências…', key: 'Ctrl+,', fn: preferencesDialog }, '-',
@@ -1330,7 +1334,7 @@ const menuDefs = () => [
     { label: 'Mostrar Test Card', check: !!state.testCard, fn: toggleTestCard },
     { label: 'Mostrar malha do Automape (área total de projeção)', check: !!state.mesh, fn: () => setAutomapeGrid(!state.mesh) },
     { label: 'Instantâneo da composição (PNG)', fn: () => snapshot('comp') }]; } },
-  { label: 'Atalhos', items: () => [{ label: 'Teclado…', fn: () => shortcutsDialog(SHORTCUTS) }, { label: 'MIDI: APC40 mkII…', fn: midiDialog }, { label: 'Usar a APC40', check: apc.enabled, fn: () => apc.setEnabled(!apc.enabled) }] },
+  { label: 'Atalhos', items: () => [{ label: 'Editar teclado', key: 'Ctrl+Shift+K', check: keymap.on, fn: () => keymap.toggle() }, { label: 'Atalhos fixos…', fn: () => shortcutsDialog(SHORTCUTS) }, { label: 'MIDI: APC40 mkII…', fn: midiDialog }, { label: 'Usar a APC40', check: apc.enabled, fn: () => apc.setEnabled(!apc.enabled) }] },
   { label: 'Ver', items: () => [
     { label: 'Laser', fn: () => laser.show() },
     { label: 'Saída avançada', fn: () => ao.show() }, '-',
@@ -1419,7 +1423,7 @@ render();
 // (os valores também mudam por código, sem evento: por isso a conferência periódica)
 function aquaSliders() { const sync = () => { for (const r of document.querySelectorAll('input[type=range]')) { const mn = +r.min || 0, mx = r.max === '' ? 100 : +r.max, p = mx > mn ? Math.max(0, Math.min(1, (+r.value - mn) / (mx - mn))) * 100 : 0, v = p.toFixed(1) + '%'; if (r.style.getPropertyValue('--p') !== v) r.style.setProperty('--p', v); } }; addEventListener('input', sync, true); setInterval(sync, 120); sync(); }
 aquaSliders();
-window.projecionista = { putPhone, frames: () => loop.total || 0, undo: undoComp, redo: redoComp, markUndo, hist, recordingToClip, automape, setAutomapeGrid, automapeGridOn, menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, addDeck, switchDeck, removeDeck, duplicateDeck, newGroup, setLayerGroup, removeGroup, duplicateGroup, addLayerToGroup, fadeTo, bpm: state.bpm, tapBpm: (t) => tap(state.bpm, t), pending: () => pending.length, apc, stepClip, EFFECTS, audio, mkAudioFx, seg, applyProjectors, projectorWizard, autosave, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
+window.projecionista = { keymap, putPhone, frames: () => loop.total || 0, undo: undoComp, redo: redoComp, markUndo, hist, recordingToClip, automape, setAutomapeGrid, automapeGridOn, menubar, settingsDialog, applySettings, insertColumn, removeColumn, duplicateColumn, insertLayer, duplicateLayer, copyClip, pasteClip, toggleTestCard, addDeck, switchDeck, removeDeck, duplicateDeck, newGroup, setLayerGroup, removeGroup, duplicateGroup, addLayerToGroup, fadeTo, bpm: state.bpm, tapBpm: (t) => tap(state.bpm, t), pending: () => pending.length, apc, stepClip, EFFECTS, audio, mkAudioFx, seg, applyProjectors, projectorWizard, autosave, cols: () => COLS, state, engine, putFiles, putSource, putText, putPath, prepareClip, trigger, eject, triggerColumn, moveClip, clearCell, render, ao, M, C, laser, putLaserClip, panels, browser, recorder, comps,
   probe: (pts) => engine.probe(state.layers, pts),
   probeScreen: (sc, pts) => engine.probeScreen(sc, state.layers, state.screens, pts),
   serialize: () => serializeComposition(state, laser, COLS), load: loadComposition, reset: resetComposition,
