@@ -17,7 +17,7 @@ raiz continua sendo a lista detalhada do que veio do Resolume e do que está fei
 
 **v0.2 Automape e provas no equipamento** (v0.2.0)
 Status: In progress
-Phases: 0 of 7 complete
+Phases: 0 of 8 complete
 
 ## Phases
 
@@ -33,7 +33,8 @@ Phases: 0 of 7 complete
 | 4 | Provas no equipamento (laser e APC40) | TBD | Not started | - |
 | 5 | Versão web | TBD | Not started | - |
 | 6 | Versão Android | TBD | Not started | - |
-| 7 | Saída avançada | TBD | Planning (executada agora, fora da ordem, a pedido do Felipe) | - |
+| 7 | Saída avançada | TBD | In progress (07-01 aguardando o ok do Felipe) | - |
+| 8 | Webcam virtual | 1 | Planning | - |
 
 ## Phase Details
 
@@ -157,9 +158,17 @@ durante o checkpoint do 02-01; registrada como fase própria em 2026-10-30 — "
 **Plans:**
 - [ ] 07-01: Soft Edge por degradê e seleção na sobreposição (registro do entregue + alças na aba Saída)
 
+### Phase 8: Webcam virtual
+
+**Goal:** a composição do OpenLume aparece como câmera no Google Meet e afins, pela câmera virtual do OBS (DLL assinada do OBS, com o OBS fechado). Pedido de 2026-11-02; prova de conceito funcionou no Chromium do Electron (1920×1080, 30 qps).
+**Depends on:** nada
+**Research:** feita na prova de conceito (formato na memória openlume-webcam-virtual)
+
+**Plans:**
+- [ ] 08-01: Saída › Webcam virtual, peça nativa no instalador, avisos e testes
+
 ## Ideias para um marco futuro
 
-- **OpenLume como webcam** (pergunta de 2026-11-02): o sinal aparecer na lista de câmeras do Google Meet e afins. Caminho escolhido: escrever direto na câmera virtual do OBS (DLL assinada do OBS, sem abrir o OBS). Prova de conceito funcionou em 2026-11-02 no Chromium do Electron (1920×1080, 30 qps). Falta: testar a peça nativa no programa instalado, ler a saída sem pesar, conferir no Meet. Vira plano próprio com o ok dele.
 - **Domo / planetário com vários projetores** (pedido de 2026-10-29, "quero deixar esse passo pra depois"):
   3 a 6 projetores na borda do domo, sem lente olho de peixe. Três pedaços: (1) conteúdo em domemaster
   (render das camadas numa esfera + conversor de 360° equirretangular); (2) malha de deformação esférica por
