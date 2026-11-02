@@ -17,7 +17,7 @@ raiz continua sendo a lista detalhada do que veio do Resolume e do que está fei
 
 **v0.2 Automape e provas no equipamento** (v0.2.0)
 Status: In progress
-Phases: 0 of 8 complete
+Phases: 1 of 8 complete
 
 ## Phases
 
@@ -34,7 +34,7 @@ Phases: 0 of 8 complete
 | 5 | Versão web | TBD | Not started | - |
 | 6 | Versão Android | TBD | Not started | - |
 | 7 | Saída avançada | TBD | In progress (07-01 aguardando o ok do Felipe) | - |
-| 8 | Webcam virtual | 1 | Planning | - |
+| 8 | Webcam virtual | 1/1 | ✅ Complete | 2026-11-02 |
 
 ## Phase Details
 
@@ -165,7 +165,7 @@ durante o checkpoint do 02-01; registrada como fase própria em 2026-10-30 — "
 **Research:** feita na prova de conceito (formato na memória openlume-webcam-virtual)
 
 **Plans:**
-- [ ] 08-01: Saída › Webcam virtual, peça nativa no instalador, avisos e testes
+- [x] 08-01: Saída › Webcam virtual, peça nativa no instalador, avisos e testes — fechado em 2026-11-02 com a beta.46; conferido no Meet pelo Felipe
 
 ## Ideias para um marco futuro
 
@@ -178,4 +178,4 @@ durante o checkpoint do 02-01; registrada como fase própria em 2026-10-30 — "
 
 ---
 *Roadmap created: 2026-10-21*
-*Last updated: 2026-10-30 (02-01 fechado; Fase 7 Saída avançada acrescentada); 2026-10-29 (ideia do domo/planetário anotada para depois); 2026-10-25 (inseridas depois do Automape: Fase 2 "Efeitos do Resolume" e Fase 3 "Celular e plugins"; as seguintes renumeradas)*
+*Last updated: 2026-11-02 (02-02 fechado; Fase 8 Webcam virtual concluída); 2026-10-30 (02-01 fechado; Fase 7 Saída avançada acrescentada); 2026-10-29 (ideia do domo/planetário anotada para depois); 2026-10-25 (inseridas depois do Automape: Fase 2 "Efeitos do Resolume" e Fase 3 "Celular e plugins"; as seguintes renumeradas)*

@@ -15,20 +15,18 @@ status = "in_progress"
 phases = 7
 
 [phase]
-number = 7
-name = "Saída avançada"
+number = 2
+name = "Efeitos do Resolume"
 status = "in_progress"
-plans_completed = 0
+plans_completed = 2
 
 [loop]
-position = "APPLY"
-plan = "08-01"
-plan_path = "phases/08-webcam-virtual/08-01-PLAN.md"
+position = "IDLE"
 
 [satellite]
 groom = true
 
 [stats]
-total_plans = 5
+total_plans = 6
 total_phases = 0
-last_activity = "2026-11-02T13:45:00-03:00"
+last_activity = "2026-11-02T14:00:00-03:00"

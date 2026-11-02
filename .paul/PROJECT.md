@@ -26,11 +26,11 @@ nível profissional.
 | Attribute | Value |
 |-----------|-------|
 | Type | Application |
-| Version | 0.1.0 (release Windows: MSI e zip) |
-| Status | Em uso pelo Felipe; repositório ainda privado |
-| Last Updated | 2026-10-21 |
+| Version | 0.2.0-beta.46 (MSI instalado; release no GitHub até a beta.44) |
+| Status | Em uso pelo Felipe; repositório público desde 2026-10-29 |
+| Last Updated | 2026-11-02 |
 
-**Repositório:** `felipespencer/openlume` (privado por enquanto; colaboradores dobidu e
+**Repositório:** `felipespencer/openlume` (público; colaboradores dobidu e
 fbarretto). Pasta local `OneDrive/Documentos/projecionista-pc`, remote `origin`.
 
 ## Requirements
@@ -47,6 +47,7 @@ fbarretto). Pasta local `OneDrive/Documentos/projecionista-pc`, remote `origin`.
 ### Validated (Shipped)
 
 - [x] Tudo listado em "Feito" no `ROADMAP.md` da raiz, até a release 0.1.0 (Windows) de 2026-10-15
+- [x] Webcam virtual: a composição aparece como câmera no Google Meet, pela câmera do OBS — Fase 8
 
 ### Active (In Progress)
 
@@ -118,7 +119,8 @@ teste `PROJ_TEST=<pasta> electron .`; CDP na porta 9333 para verificar a interfa
 | Tudo do Resolume entra; poda é do Felipe | Prefere decidir vendo | 2026-10-14 | Active |
 | Maquete HTML aprovada antes de construir telas grandes | Foi o que funcionou (Saída avançada, laser) | 2026-10-14 | Active |
 | Projeto principal passa a ser o OpenLume, GPL-3.0, três versões | Alcance internacional, nome neutro | 2026-10-15 | Active |
-| Repositório privado até existir organização no GitHub | Pedido do Felipe | 2026-10-15 | Active |
+| Repositório privado até existir organização no GitHub | Pedido do Felipe | 2026-10-15 | Superseded: público desde 2026-10-29 |
+| Webcam pela câmera virtual do OBS, sem câmera própria | A DLL assinada do OBS dispensa certificado; cada computador precisa do OBS instalado | 2026-11-02 | Active |
 
 ## Success Metrics
 
@@ -126,7 +128,7 @@ teste `PROJ_TEST=<pasta> electron .`; CDP na porta 9333 para verificar a interfa
 |--------|--------|---------|--------|
 | Felipe faz um show inteiro só com o OpenLume (projeção + laser) | 1 show | 0 | Not started |
 | Versões web e Android abrindo o mesmo motor | 3 versões | 1 (Windows) | At risk |
-| Repositório público com colaboradores | público | privado | Not started |
+| Repositório público com colaboradores | público | público; colaboradores sem admin | In progress |
 
 ## Tech Stack / Tools
 
@@ -135,6 +137,7 @@ teste `PROJ_TEST=<pasta> electron .`; CDP na porta 9333 para verificar a interfa
 | Casca | Electron (sem bundler), electron-builder MSI/NSIS/zip | `main.js`, `app/preload.js` |
 | Motor | WebGL2, WebCodecs + mp4box.js, WebAudio, ImageDecoder | `app/engine.js`, `app/player.js` |
 | IA no cliente | onnxruntime-web (WASM), PP-HumanSeg | `app/segment.js`, `app/vendor/` |
+| Webcam | koffi + memória compartilhada da câmera do OBS | `app/webcam-native.js`, `app/webcam.js` |
 | Laser | UDP para LaserCube (protocolo da libLaserdockCore) | `lasercube.js`, `app/laser*.js` |
 | MIDI | Web MIDI, mapa da APC40 mkII | `app/apc40.js` |
 | Vídeo | ffmpeg embarcado (preparar vídeo) | `tools/ffmpeg` |
@@ -144,10 +147,10 @@ teste `PROJ_TEST=<pasta> electron .`; CDP na porta 9333 para verificar a interfa
 
 | Resource | URL |
 |----------|-----|
-| Repository | https://github.com/felipespencer/openlume (privado) |
+| Repository | https://github.com/felipespencer/openlume |
 | Releases | https://github.com/felipespencer/openlume/releases |
 | Rumo detalhado | `ROADMAP.md` na raiz do repositório |
 
 ---
 *PROJECT.md — Updated when requirements or context change*
-*Last updated: 2026-10-21*
+*Last updated: 2026-11-02 after Phase 8*
