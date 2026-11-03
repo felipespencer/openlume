@@ -1,0 +1,131 @@
+<title>Camadas e decks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: o painel das camadas à esquerda da grade, como no Resolume, e a barra de baixo com crossfader e decks. Visual único escuro, como o programa. */
+:root {
+  color-scheme: dark;
+  --bg: #15171b; --panel: #1d2026; --btn: #34363b; --btn-hi: #43464c; --cell: #1b1b1d; --strip: #34363b; --line: #2a2d33;
+  --fg: #e6e8ec; --dim: #8b9099;
+  --teal: #7ff5cf; --teal-ink: #0d2a22; --new: #ffb02e;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 13px/1.45 var(--sans); margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
+h1 { font-size: 18px; margin: 0 0 4px; font-weight: 600; text-wrap: balance; }
+.sub { color: var(--dim); margin: 0 0 16px; max-width: 72ch; }
+.box { overflow-x: auto; border: 1px solid var(--line); background: #101114; padding: 2px; }
+.app { display: grid; grid-template-columns: 300px repeat(4, 92px); gap: 2px; width: max-content; }
+button { all: unset; cursor: pointer; display: grid; place-items: center; background: var(--btn); color: var(--fg); border-radius: 3px; font-size: 12px; }
+button:hover { background: var(--btn-hi); }
+button:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }
+button.on { background: var(--teal); color: var(--teal-ink); }
+/* linha da composição, em cima */
+.comp { display: grid; grid-template-columns: 34px 34px 1fr 26px 26px 26px 26px 34px; gap: 2px; background: var(--panel); padding: 3px; align-items: center; height: 44px; }
+.comp .t { color: var(--dim); font-size: 11px; padding-left: 4px; }
+.colh { background: var(--panel); display: grid; grid-template-rows: 22px 20px; border-radius: 3px; }
+.colh span { display: grid; place-items: center; font-size: 11px; }
+.colh .nm { background: #2a2b30; }
+/* camada: X grande, B e S, mistura embaixo; faixa do nome embaixo de tudo, com A e B do crossfader */
+.layer { background: var(--panel); display: grid; grid-template-columns: 52px 52px 52px 1fr 34px; grid-template-rows: 34px 22px 22px; gap: 2px; padding: 3px; height: 92px; }
+.layer .x { grid-row: 1 / 3; font-size: 18px; }
+.layer .blend { grid-column: 2 / 4; justify-content: space-between; padding: 0 8px; display: flex; align-items: center; font-size: 11px; }
+.layer .fader { grid-column: 4; grid-row: 1 / 3; background: #141518; border-radius: 3px; position: relative; }
+.layer .fader i { position: absolute; left: 6px; right: 6px; bottom: 0; background: #2c6f5c; border-radius: 2px; }
+.layer .fader b { position: absolute; left: 0; right: 0; height: 4px; background: var(--teal); border-radius: 2px; }
+.layer .steps { grid-column: 5; grid-row: 1 / 3; font-size: 10px; }
+.layer .name { grid-column: 1 / 3; background: var(--btn); border-radius: 3px; display: flex; align-items: center; padding: 0 8px; font-size: 12px; cursor: pointer; }
+.layer.sel .name { background: var(--teal); color: var(--teal-ink); }
+.layer .bus { font-size: 11px; }
+.layer .busA { grid-column: 3; } .layer .busB { grid-column: 4; justify-self: start; width: 52px; }
+.layer .nx { grid-column: 5; font-size: 10px; }
+.cell { background: var(--cell); display: grid; grid-template-rows: 1fr 18px; border-radius: 3px; height: 92px; }
+.cell i { display: block; border-radius: 3px 3px 0 0; }
+.cell em { font-style: normal; background: var(--strip); font-size: 11px; padding: 0 5px; line-height: 18px; border-radius: 0 0 3px 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cell.empty em { background: #2a2b2f; }
+/* barra de baixo: crossfader embaixo das camadas, decks embaixo da grade */
+.xf { background: var(--panel); display: grid; grid-template-columns: 26px 1fr 26px; gap: 6px; align-items: center; padding: 3px; height: 30px; }
+.xf .rail { height: 22px; background: #0c0d0f; border-radius: 3px; position: relative; }
+.xf .rail b { position: absolute; top: 0; bottom: 0; width: 12px; margin-left: -6px; background: #2c6f5c; border-radius: 2px; }
+.decks { grid-column: 2 / -1; display: flex; gap: 2px; align-items: center; background: var(--panel); padding: 3px; }
+.decks button { padding: 0 14px; height: 24px; }
+.decks .add { padding: 0 9px; color: var(--dim); }
+.tag { font-size: 10px; color: var(--new); }
+.notes { margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.notes section { background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; min-width: 0; }
+.notes h2 { margin: 0 0 6px; font-size: 13px; }
+.notes ul { margin: 0; padding-left: 18px; color: #c9ccd2; }
+.notes li { margin: 3px 0; }
+.log { margin-top: 10px; color: var(--dim); font-size: 12px; min-height: 18px; }
+</style>
+
+<h1>Camadas e decks como no Resolume</h1>
+<p class="sub">Segunda maquete da grade, para aprovar antes de mexer no programa. Mostra o painel de cada camada e a barra de baixo. Os botões funcionam aqui na maquete: selecionar a camada pelo nome, A e B do crossfader, B e S, trocar de deck.</p>
+
+<div class="box"><div class="app" id="app"></div></div>
+<div class="log" id="log">Clique no nome de uma camada, no A ou no B dela, ou num deck.</div>
+
+<div class="notes">
+  <section>
+    <h2>O que muda na camada</h2>
+    <ul>
+      <li>O nome da camada sai do alto e vai para uma faixa embaixo do painel. A faixa fica verde-água na camada selecionada.</li>
+      <li>X grande para tirar do ar, B e S ao lado, mistura logo abaixo.</li>
+      <li>A e B do crossfader viram botões na faixa do nome. Hoje ficam escondidos no menu da camada.</li>
+      <li>⏮ ⏭ para o clipe anterior e o próximo da camada, que o OpenLume já faz pelo teclado e pela APC40.</li>
+      <li>A opacidade vira um fader no meio do painel, no lugar do controle comprido de hoje.</li>
+    </ul>
+  </section>
+  <section>
+    <h2>O que muda embaixo da grade</h2>
+    <ul>
+      <li>O crossfader encolhe e fica embaixo das camadas, com A, B e ⏮ ⏭ da composição.</li>
+      <li>As abas dos decks sobem para logo abaixo da grade, ao lado do crossfader, com o deck aberto em verde-água.</li>
+      <li>Em cima, a linha da composição: X, B, S e o tocar/pausar de tudo, como a primeira linha do Resolume.</li>
+    </ul>
+  </section>
+  <section>
+    <h2>Fica para você decidir</h2>
+    <ul>
+      <li>O Resolume tem ainda M, A e V por camada (máscara, áudio e vídeo ligados) e T e Alph (transição). O OpenLume tem transição no painel Camada, mas não tem M, A e V. Entram também?</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+const layers = ['Camada 3', 'Camada 2', 'Camada 1'];
+const clips = [[null, null, null, null], [null, 'barras', null, null], ['projetemos_30s_reels', 'f05', 'Lines', null]];
+const thumbs = { projetemos_30s_reels: 'linear-gradient(180deg,#9cc3e8,#4b5a7a) center/30% 100% no-repeat, #000', f05: 'radial-gradient(circle at 50% 38%,#c99b7d 18%,transparent 19%), linear-gradient(#d9d4c8,#d9d4c8) center/70% 100% no-repeat, #000', Lines: 'repeating-linear-gradient(180deg,#fff 0 6px,#222 6px 14px)', barras: 'linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f) center/80% 100% no-repeat, #000' };
+const st = { sel: 2, bus: [null, 'B', 'A'], byp: [false, false, false], solo: [false, false, false], deck: 0, decks: ['PROJETEMOS', 'empty', 'empty'] };
+const say = (t) => { document.getElementById('log').textContent = t; };
+const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+function build() {
+  const app = document.getElementById('app'); app.innerHTML = '';
+  const comp = mk('div', 'comp');
+  comp.append(mk('button', '', '✕'), mk('button', '', 'B'), mk('span', 't', 'Composição'), mk('button', '', 'S'), mk('button', '', '◀'), mk('button', '', '❚❚'), mk('button', '', '▶'), mk('button', '', '⏮⏭'));
+  app.appendChild(comp);
+  for (let c = 0; c < 4; c++) { const h = mk('div', 'colh'); h.append(mk('span', '', clips.some(r => r[c]) ? '▶' : '■'), mk('span', 'nm', 'Coluna ' + (c + 1))); app.appendChild(h); }
+  layers.forEach((n, l) => {
+    const p = mk('div', 'layer' + (st.sel === l ? ' sel' : ''));
+    const x = mk('button', 'x', '✕'); x.title = 'Tira a camada do ar'; x.onclick = () => say(n + ': saiu do ar');
+    const b = mk('button', st.byp[l] ? 'on' : '', 'B'); b.onclick = () => { st.byp[l] = !st.byp[l]; say(n + (st.byp[l] ? ': desligada (bypass)' : ': ligada')); build(); };
+    const s = mk('button', st.solo[l] ? 'on' : '', 'S'); s.onclick = () => { st.solo[l] = !st.solo[l]; say(n + (st.solo[l] ? ': solo' : ': sem solo')); build(); };
+    const fader = mk('div', 'fader'); const fi = mk('i'); fi.style.top = '18%'; const fb = mk('b'); fb.style.top = '18%'; fader.append(fi, fb); fader.title = 'Opacidade';
+    const steps = mk('button', 'steps', '⏮⏭'); steps.title = 'Clipe anterior / próximo da camada';
+    const blend = mk('button', 'blend'); blend.innerHTML = 'Alpha <span>▾</span>';
+    const name = mk('div', 'name', n); name.onclick = () => { st.sel = l; say(n + ' selecionada'); build(); };
+    const a = mk('button', 'bus busA' + (st.bus[l] === 'A' ? ' on' : ''), 'A'); a.onclick = () => { st.bus[l] = st.bus[l] === 'A' ? null : 'A'; say(n + (st.bus[l] ? ' no lado A do crossfader' : ' fora do crossfader')); build(); };
+    const bb = mk('button', 'bus busB' + (st.bus[l] === 'B' ? ' on' : ''), 'B'); bb.onclick = () => { st.bus[l] = st.bus[l] === 'B' ? null : 'B'; say(n + (st.bus[l] ? ' no lado B do crossfader' : ' fora do crossfader')); build(); };
+    const nx = mk('button', 'nx', '⏮⏭');
+    p.append(x, b, s, fader, steps, blend, name, a, bb, nx);
+    app.appendChild(p);
+    clips[l].forEach(cn => { const c = mk('div', 'cell' + (cn ? '' : ' empty')); const i = mk('i'); if (cn) i.style.background = thumbs[cn]; c.append(i, mk('em', '', cn || '')); app.appendChild(c); });
+  });
+  const xf = mk('div', 'xf'); const rail = mk('div', 'rail'); const knob = mk('b'); knob.style.left = '50%'; rail.appendChild(knob); xf.append(mk('button', '', 'A'), rail, mk('button', '', 'B')); app.appendChild(xf);
+  const dk = mk('div', 'decks');
+  st.decks.forEach((d, i) => { const t = mk('button', i === st.deck ? 'on' : '', d); t.onclick = () => { st.deck = i; say('Deck ' + d + ' aberto'); build(); }; dk.appendChild(t); });
+  dk.appendChild(mk('button', 'add', '+'));
+  app.appendChild(dk);
+}
+build();
+</script>
