@@ -28,7 +28,7 @@ nível profissional.
 | Type | Application |
 | Version | 0.2.0-beta.46 (MSI instalado; release no GitHub até a beta.44) |
 | Status | Em uso pelo Felipe; repositório público desde 2026-10-29 |
-| Last Updated | 2026-11-02 |
+| Last Updated | 2026-11-03 |
 
 **Repositório:** `felipespencer/openlume` (público; colaboradores dobidu e
 fbarretto). Pasta local `OneDrive/Documentos/projecionista-pc`, remote `origin`.
@@ -48,6 +48,7 @@ fbarretto). Pasta local `OneDrive/Documentos/projecionista-pc`, remote `origin`.
 
 - [x] Tudo listado em "Feito" no `ROADMAP.md` da raiz, até a release 0.1.0 (Windows) de 2026-10-15
 - [x] Webcam virtual: a composição aparece como câmera no Google Meet, pela câmera do OBS — Fase 8
+- [x] Soft edge por degradê com alça, quatro por slice, nas abas Entrada e Saída (slice em trapézio ou malha) — Fase 7
 
 ### Active (In Progress)
 
@@ -153,4 +154,4 @@ teste `PROJ_TEST=<pasta> electron .`; CDP na porta 9333 para verificar a interfa
 
 ---
 *PROJECT.md — Updated when requirements or context change*
-*Last updated: 2026-11-02 after Phase 8*
+*Last updated: 2026-11-03 after Phase 7*
