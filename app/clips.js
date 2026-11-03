@@ -87,6 +87,22 @@ async function withPlayer(clip, desktop) {
   const a = document.createElement('video'); a.muted = true; a.playsInline = true; a.preload = 'auto'; a.src = clip.url; a.style.display = 'none'; pl.audio = a; clip.el = a;
   return clip;
 }
+// onda do áudio para a miniatura (o Resolume desenha a onda rosa por cima do vídeo com som): decodifica o arquivo
+// uma vez e devolve um SVG 16:9; sem trilha de áudio (ou arquivo grande demais) não há onda
+export async function makeWave(clip) {
+  try {
+    const r = await fetch(clip.url); if (+(r.headers.get('content-length') || 0) > 300e6) return false;
+    const buf = await r.arrayBuffer(); if (buf.byteLength > 300e6) return false;
+    const ab = await new OfflineAudioContext(1, 1, 8000).decodeAudioData(buf);
+    const d = ab.getChannelData(0), N = 120, step = Math.max(1, Math.floor(d.length / N)); let top = 0; const pk = [];
+    for (let i = 0; i < N; i++) { let m = 0; for (let j = i * step, e = Math.min(d.length, j + step); j < e; j += 4) { const v = Math.abs(d[j]); if (v > m) m = v; } pk.push(m); if (m > top) top = m; }
+    if (top < 1e-4) return false;
+    const W = 160, H = 90, cy = 56, A = 15, dx = W / N; let path = '';
+    pk.forEach((m, i) => { const h = Math.max(0.4, (m / top) * A); path += `M${(i * dx + dx / 2).toFixed(1)} ${(cy - h).toFixed(1)}v${(2 * h).toFixed(1)}`; });
+    clip.wave = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="M0 ${cy}H${W}" stroke="#ff6fae" stroke-width=".5" opacity=".7"/><path d="${path}" stroke="#ff6fae" stroke-width="${(dx * 0.7).toFixed(2)}"/></svg>`);
+    return true;
+  } catch { return false; }
+}
 // o que toca de verdade: o reprodutor próprio, se houver, senão o <video>
 export const mediaOf = (c) => c.player || c.el;
 // modos de reprodução e "ao voltar" (playmode e playmodeaway do Resolume)

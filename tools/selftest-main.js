@@ -74,9 +74,9 @@ module.exports = (win, app, laser) => {
         P.trigger(1,0); await S(900);
         R.aMaisB=P.probe(pts);
         R.bToca=!L[1].clips[0].el.paused;
-        // clique no rodapé: só seleciona, não troca o que está no ar
+        // clique no nome (rodapé): seleciona e manda para a Prévia, sem trocar o que está no ar (como no Resolume, 2026-11-03)
         const antes=L[0].on; document.querySelector('.cell[data-layer="0"][data-col="1"] .nm').click(); await S(200);
-        R.rodape={on:L[0].on===1, sel:P.state.sel, prev:!!document.querySelector('#prevScr canvas, #prevScr img'), nome:document.getElementById('prevName').textContent};
+        R.rodape={on:L[0].on===antes, sel:P.state.sel, prev:!!document.querySelector('#prevScr canvas, #prevScr img'), nome:document.getElementById('prevName').textContent};
         // casa vazia: a camada fica preta
         document.querySelector('.cell[data-layer="1"][data-col="5"]').click(); await S(200);
         R.vaziaPreta={on:L[1].on, pausado:L[1].clips[0].el.paused, px:P.probe(pts)};
@@ -147,7 +147,7 @@ module.exports = (win, app, laser) => {
         P.ao.removeItem(s2); const n1=sc.items.length; P.ao.undo(); await S(100); R.desfazer={depoisApagar:n1, depoisDesfazer:P.screens()[0].items.length, refazer:(P.ao.redo(), P.screens()[0].items.length)}; P.ao.undo();
         // ---------- efeitos, fontes, texto, transição, autopilot, composição ----------
         // efeito na camada: inverter o vermelho dá ciano
-        P.trigger(0,3); await S(200); const semFx=P.probe(mid)[0];
+        P.trigger(0,3); P.state.pv={l:0,c:3}; P.render(); await S(200); const semFx=P.probe(mid)[0];   // a Prévia mostra a casa mandada pelo nome (state.pv), como no Resolume
         L[0].fx.push({id:'invertrgb',params:{r:1,g:1,b:1},bypass:false}); const comFx=P.probe(mid)[0]; await S(120); const pv=document.querySelector('#prevScr canvas'); const prevFx=pv?[...pv.getContext('2d').getImageData(960,540,1,1).data].slice(0,3):null; L[0].fx=[];
         // efeito na composição
         P.engine.compFx.push({id:'threshold',params:{level:0.2},bypass:false}); const compFx=P.probe([[0.5,0.5],[0.05,0.5]]); P.engine.compFx=[];
@@ -400,7 +400,7 @@ module.exports = (win, app, laser) => {
       ok('disparar toca o vídeo', r.aAnda && nz(r.soA[0]) && nz(r.soA[1]), 'centro ' + r.soA[0] + ', lateral ' + r.soA[1]);
       ok('camadas misturadas na proporção certa', r.bToca && nz(r.aMaisB[0]) && r.aMaisB[0].join() !== r.soA[0].join() && Math.abs(r.aMaisB[1][0] - r.soA[1][0]) < 12 && Math.abs(r.aMaisB[1][1] - r.soA[1][1]) < 12,
         'vídeo em pé por cima: centro mudou para ' + r.aMaisB[0] + '; na lateral segue o de baixo ' + r.aMaisB[1]);
-      ok('rodapé seleciona e dispara do começo', r.rodape.on && r.rodape.sel.l === 0 && r.rodape.sel.c === 1 && r.rodape.prev && /64×48/.test(r.rodape.nome), 'prévia: ' + r.rodape.nome);
+      ok('nome seleciona e manda para a Prévia sem disparar', r.rodape.on && r.rodape.sel.l === 0 && r.rodape.sel.c === 1 && r.rodape.prev && /64×48/.test(r.rodape.nome), 'prévia: ' + r.rodape.nome);
       ok('casa vazia deixa a camada preta', r.vaziaPreta.on === -1 && r.vaziaPreta.pausado && nz(r.vaziaPreta.px[0]) && nz(r.vaziaPreta.px[1]) && r.vaziaPreta.px[0].join() !== r.aMaisB[0].join(),
         'camada do meio fora do ar e vídeo pausado; a de baixo continua');
       ok('coluna', r.coluna.on.join() === '1,-1,-1,-1,-1' && r.coluna.px[0][0] > 200 && r.coluna.px[0][1] < 40 && r.coluna.px[1].join() === '0,0,0',

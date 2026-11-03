@@ -1,6 +1,7 @@
 :root{
   --bg:#1b1c1f; --bg2:#232428; --bg3:#2c2d32; --line:#3a3b41; --txt:#d6d7db; --dim:#8b8d95; --ghost:#5a5c64;
   --accent:#39FF14; --sel:#FF2D95; --warn:#FFB02E;   /* sel: rosa-choque da seleção */
+  --live:#7ff5cf; --live-ink:#0d2a22;   /* verde-água do Resolume na grade: no ar = contorno, selecionado = faixa cheia */
 }
 *{ box-sizing:border-box; }
 /* listas que abrem (<select>): o Chromium pinta a lista com a cor de fundo do select; com fundo transparente ficava branca com letra clara */
@@ -79,6 +80,15 @@ input[type=range]{ accent-color:var(--accent); height:14px; margin:0; }
   background:#1f2024; border-bottom:1px solid var(--line); border-right:1px solid var(--line); color:var(--dim); font-size:11px; }
 button.gh:hover{ color:var(--txt); background:var(--bg3); }
 .gh.on{ color:#0b0b0d; background:var(--accent); font-weight:700; }
+/* cabeçalho da coluna, como no Resolume: ▶ (ou ■ na vazia) dispara, o nome seleciona */
+.colh{ position:sticky; top:0; z-index:2; height:38px; display:grid; grid-template-rows:20px 17px; background:#1f2024; border-bottom:1px solid var(--line); border-right:1px solid var(--line); box-shadow:inset 0 0 0 1px transparent; }
+.colh .gh.col{ position:static; height:auto; border:0; background:none; font-size:12px; color:var(--txt); }
+.colh .cn{ border:0; border-radius:0; background:#2a2b30; color:var(--txt); font-size:11px; padding:0 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.colh .cn:hover, .colh .gh.col:hover{ background:var(--bg3); }
+.colh.on{ box-shadow:inset 0 0 0 1px var(--live); } .colh.on .gh.col{ color:var(--live); }
+.colh.was{ box-shadow:inset 0 0 0 1px #c9ccd2; }
+.colh.sel .cn, .colh.sel .cn:hover{ background:var(--live); color:var(--live-ink); }
+#grid > .gh.corner, #grid > .gh.sceneH{ height:38px; }
 .gh.corner{ justify-content:space-between; padding:0 6px 0 10px; }
 .gh.corner button{ height:18px; padding:0 7px; font-size:11px; }
 .lh{ display:grid; grid-template-columns:auto minmax(0,1fr); gap:5px 6px; align-content:center; padding:6px 8px; cursor:pointer;
@@ -92,21 +102,19 @@ button.gh:hover{ color:var(--txt); background:var(--bg3); }
 .lh .nm .num{ display:inline-block; min-width:18px; height:16px; line-height:16px; margin-right:6px; padding:0 4px; border-radius:3px; background:var(--bg3); color:var(--txt); font-size:10px; text-align:center; } .lh.sel .nm .num{ background:var(--sel); color:#0b0b0d; }
 .lh input[type=range]{ grid-column:1 / -1; width:100%; }
 .lh select.blend{ grid-column:1 / -1; width:100%; height:18px; padding:0 4px; font-size:10px; background:var(--bg3); color:var(--txt); border:1px solid var(--line); border-radius:3px; }
-.cell{ position:relative; padding:5px; display:flex; flex-direction:column; gap:3px; cursor:pointer;
+.cell{ position:relative; padding:2px; display:flex; flex-direction:column; gap:0; cursor:pointer;
   background:var(--bg); border-bottom:1px solid var(--line); border-right:1px solid var(--line); }
-.cell.empty .th{ border:1px dashed var(--line); background:none; }
-.cell.empty.sel .th{ border:1px solid var(--sel); }
 .cell.over{ outline:2px dashed var(--accent); outline-offset:-3px; background:#1e2a1c; }
-/* a miniatura tem o formato da composição (16:9): um clipe 16:9 ocupa a casa inteira, sem faixas */
-.cell .th{ flex:none; width:100%; aspect-ratio:16/9; border-radius:2px; border:2px solid transparent; background:#000 center / contain no-repeat; pointer-events:none; }
-.cell .nm{ font-size:10px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:1px 2px; border-radius:2px; }
-.cell.full .nm:hover{ background:var(--bg3); color:var(--txt); }
-.cell.on .th{ border-color:var(--accent); }
-.cell.on .nm{ color:var(--accent); }
-.cell.sel .nm{ background:var(--sel); color:#0b0b0d; font-weight:700; }   /* rodapé rosa cheio: este clipe é o que está na prévia */
-.cell.full.sel .nm:hover{ background:var(--sel); color:#0b0b0d; }
-.cell.sel{ box-shadow:inset 0 0 0 2px var(--sel); }   /* linha rosa-choque ao redor do clipe selecionado */
-.cell.sel .th{ border-color:var(--sel); } .cell.on.sel .th{ border-color:var(--accent); }
+/* como no Resolume: miniatura de ponta a ponta e o nome numa faixa colada embaixo */
+.cell .th{ flex:none; width:100%; aspect-ratio:16/9; border-radius:2px 2px 0 0; border:2px solid transparent; background:#1b1b1d center / contain no-repeat; pointer-events:none; }
+.cell.full .th{ background-color:#000; }
+.cell .nm{ font-size:10px; line-height:15px; height:15px; color:var(--txt); background:#34363b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 4px; border-radius:0 0 2px 2px; }
+.cell.empty .nm{ background:#2a2b2f; }
+.cell.full .nm:hover{ background:#43464c; }
+.cell.on .th{ border-color:var(--live); }                     /* no ar: contorno verde-água */
+.cell.sel .nm, .cell.full.sel .nm:hover{ background:var(--live); color:var(--live-ink); }   /* selecionado: faixa cheia */
+.cell.pv .nm{ box-shadow:inset 0 0 0 1px #fff; }            /* na Prévia: fio branco na faixa */
+.cell.empty.sel{ box-shadow:inset 0 0 0 1px #6d7178; }
 
 #mons{ display:grid; grid-template-rows:auto auto 1fr; gap:8px; padding:8px; background:var(--bg2); min-height:0; overflow:auto; }
 .mon .cap{ display:flex; justify-content:space-between; gap:8px; color:var(--dim); font-size:10px; letter-spacing:.08em; text-transform:uppercase; margin-bottom:3px; }

@@ -259,6 +259,7 @@ function eject(li) { const L = state.layers[li]; C.stopClip(liveClip(L)); L.ghos
 function triggerColumn(col, onlyGroup, now) {   // onlyGroup: id do grupo, para o disparo de coluna do grupo
   const snap = snapOf(col);
   if (snap > 0 && !now) return queueTrigger({ col, onlyGroup: onlyGroup ?? null }, snap);
+  if (onlyGroup == null) state.colOn = col;
   state.layers.forEach((L, li) => {
     if (onlyGroup != null && L.group !== onlyGroup) return;
     if (L.ignoreColumn || (onlyGroup == null && (groupOf(L) || {}).ignoreColumn) || (L.clips[col] && L.clips[col].ignoreColumn)) return;   // a camada, o grupo ou a casa ignora o disparo de coluna
@@ -531,7 +532,7 @@ function playAll(dir) { for (const L of state.layers) { const c = liveClip(L); i
 function stopAll() { state.layers.forEach((_, li) => eject(li)); }
 // instantâneo: PNG da composição (ou do clipe selecionado) na pasta das gravações
 async function snapshot(what) {
-  const cv = what === 'clip' ? prevCanvas : monCanvas; if (what === 'clip' && !selectedCell()) { toast('Selecione um clipe'); return; }
+  const cv = what === 'clip' ? prevCanvas : monCanvas; if (what === 'clip' && !previewCell()) { toast('Mande um clipe para a Prévia (clique no nome dele)'); return; }
   const blob = await new Promise(r => cv.toBlob(r, 'image/png')); const bytes = new Uint8Array(await blob.arrayBuffer());
   const name = (what === 'clip' ? 'clipe' : 'composicao') + '-' + new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '').replace(/(\d{8})/, '$1-') + '.png';
   if (!D) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); return; }
@@ -595,6 +596,8 @@ function selectedCell() {
   return L && idx >= 0 && L.clips[idx] ? { L, idx, clip: L.clips[idx] } : null;
 }
 function selectedClip() { const c = selectedCell(); return c ? c.clip : null; }
+// a Prévia mostra a casa mandada pelo nome (Previewing do Resolume), não a seleção
+function previewCell() { const p = state.pv, L = p ? state.layers[p.l] : null; return L && L.clips[p.c] ? { L, idx: p.c, clip: L.clips[p.c] } : null; }
 // autopilot: quando o clipe acaba, a camada passa para o próximo, o anterior ou um ao acaso
 function tickAutopilot(now) {
   let anyOn = false, allEnded = true;
@@ -631,12 +634,15 @@ function render() {
   add.onclick = () => { state.layers.unshift(mkLayer(state.layers.length + 1)); state.selLayer = 0; if (state.sel) state.sel.l++; render(); };
   corner.appendChild(add); g.appendChild(corner);
   for (let c = 0; c < COLS; c++) {
-    const b = el('button', 'gh col', state.colNames[c] || 'Coluna ' + (c + 1)); b.type = 'button'; b.dataset.col = c;
-    const tem = state.layers.filter(L => L.clips[c]);
-    if (tem.length && tem.every(L => L.on === c) && state.layers.every(L => L.clips[c] || L.on < 0)) b.classList.add('on');
-    b.title = 'Dispara a coluna: camada sem clipe nela fica preta';
-    b.onclick = () => triggerColumn(c);
-    g.appendChild(b);
+    // como no Resolume: ▶ (coluna com clipe) ou ■ (vazia) dispara; o nome só seleciona. Contorno verde-água = coluna no ar
+    const tem = state.layers.some(L => L.clips[c]);
+    const h = el('div', 'colh' + (state.colOn === c ? (state.layers.some(L => L.on === c) ? ' on' : ' was') : '') + ((state.selCol ?? 0) === c ? ' sel' : '')); h.dataset.col = c;
+    const b = el('button', 'gh col', tem ? '▶' : '■'); b.type = 'button'; b.dataset.col = c;
+    b.title = tem ? 'Dispara a coluna: camada sem clipe nela fica preta' : 'Coluna vazia: apaga todas as camadas';
+    b.onclick = () => { state.selCol = c; triggerColumn(c); };
+    const cn = el('button', 'cn', state.colNames[c] || 'Coluna ' + (c + 1)); cn.type = 'button'; cn.title = 'Seleciona a coluna, sem disparar';
+    cn.onclick = () => { state.selCol = c; render(); };
+    h.append(b, cn); g.appendChild(h);
   }
   { const sc = el('div', 'gh sceneH', 'Layer'); sc.title = 'Nona coluna, como na APC40: o botão de cada linha (Scene Launch) seleciona a layer (camada)'; g.appendChild(sc); }
   let lastG = null;
@@ -671,11 +677,12 @@ function render() {
     g.appendChild(lh);
     for (let c = 0; c < COLS; c++) {
       const clip = L.clips[c], sel = state.sel && state.sel.l === li && state.sel.c === c;
-      const cell = el('div', 'cell ' + (clip ? 'full' : 'empty') + (clip && L.on === c ? ' on' : '') + (sel ? ' sel' : '') + (clip && clip.kind === 'laser' ? ' laser' : '') + (clip && pending.some(q => q.col === c && (q.li === li || (q.li == null && (q.onlyGroup == null || q.onlyGroup === L.group)))) ? ' wait' : ''));
+      const cell = el('div', 'cell ' + (clip ? 'full' : 'empty') + (clip && L.on === c ? ' on' : '') + (sel ? ' sel' : '') + (state.pv && state.pv.l === li && state.pv.c === c && clip ? ' pv' : '') + (clip && clip.kind === 'laser' ? ' laser' : '') + (clip && pending.some(q => q.col === c && (q.li === li || (q.li == null && (q.onlyGroup == null || q.onlyGroup === L.group)))) ? ' wait' : ''));
       cell.dataset.layer = li; cell.dataset.col = c;
       if (clip) {
         const th = el('div', 'th'); if (clip.thumb) th.style.backgroundImage = 'url("' + clip.thumb + '")'; else if (clip.kind === 'source') th.textContent = '∿';
-        const nm = el('div', 'nm', clip.name);
+        if (clip.wave) th.style.backgroundImage = 'url("' + clip.wave + '"), ' + th.style.backgroundImage;   // onda do áudio por cima, como no Resolume
+        const nm = el('div', 'nm', (clip.kind === 'video' || clip.kind === 'image') ? clip.name.replace(/\.[a-z0-9]{2,4}$/i, '') : clip.name);   // o Resolume mostra o nome sem a extensão
         cell.append(th, nm);
         cell.title = clip.kind === 'laser' ? clip.name + ' · laser' : clip.name + ' · ' + clip.w + '×' + clip.h;
         cell.draggable = true;
@@ -688,7 +695,7 @@ function render() {
       }
       // estilo de disparo: normal dispara; alternar tira do ar se já estiver; piano fica no ar só enquanto segura
       cell.onclick = (e) => {
-        if (clip && e.target.classList.contains('nm')) { state.selLayer = li; state.sel = { l: li, c }; trigger(li, c); return; }   // rodapé: seleciona, mostra a prévia e dispara do começo
+        if (clip && e.target.classList.contains('nm')) { state.selLayer = li; state.sel = { l: li, c }; state.pv = { l: li, c }; previewPath = ''; render(); return; }   // nome: seleciona e manda para a Prévia, sem mexer no que está no ar (como no Resolume)
         if (clip && clip.trig === 'piano') return;
         if (clip && clip.trig === 'toggle' && L.on === c) { eject(li); return; }
         trigger(li, c);
@@ -731,7 +738,7 @@ let prevKey = '';
 const prevCanvas = document.createElement('canvas'); prevCanvas.width = COMP_W; prevCanvas.height = COMP_H;
 const prevCtx = prevCanvas.getContext('2d');
 function renderPreview() {
-  const clip = selectedClip(), key = clip ? 'c' + clip.id : previewPath ? 'p' + previewPath : '';
+  const pvc = previewCell(), clip = pvc ? pvc.clip : null, key = clip ? 'c' + clip.id : previewPath ? 'p' + previewPath : '';
   if (key !== prevKey) {
     prevKey = key;
     const p = $('prevScr'); p.textContent = '';
@@ -744,7 +751,20 @@ function renderPreview() {
   $('prevName').textContent = clip ? (clip.kind === 'laser' ? 'laser · ' : clip.kind === 'source' ? 'fonte · ' : clip.w + '×' + clip.h + ' · ') + clip.name : previewPath ? 'arquivo · ' + previewName : '—';
 }
 let previewPath = '', previewName = '';
-function previewFile(path, name) { previewPath = path; previewName = name; state.sel = null; render(); }
+// gerador (fonte) não tem arquivo: a miniatura sai de um quadro desenhado pelo motor, um clipe por quadro
+const thumbCv = document.createElement('canvas'); thumbCv.width = 160; thumbCv.height = 90;
+function thumbSources() {
+  for (const L of state.layers) for (const c of L.clips) if (c && c.kind === 'video' && !c.anim && c.url && !c.waveTried) { c.waveTried = true; C.makeWave(c).then(ok => { if (ok) render(); }); }
+  for (const L of state.layers) {
+    const i = L.clips.findIndex(c => c && c.kind === 'source' && !c.thumb);
+    if (i < 0) continue;
+    const clip = L.clips[i];
+    try { engine.previewLayer(L, i); thumbCv.getContext('2d').drawImage(engine.canvas, 0, engine.canvas.height - engine.H, engine.W, engine.H, 0, 0, 160, 90); clip.thumb = thumbCv.toDataURL('image/jpeg', 0.8); }
+    catch { clip.thumb = 'x'; }
+    render(); return;
+  }
+}
+function previewFile(path, name) { previewPath = path; previewName = name; state.sel = null; state.pv = null; render(); }
 
 // ---------- telas e saídas ----------
 // Cada tela (ver screens.js) tem o seu canvas 2D; a janela de saída dela recebe o stream
@@ -1223,7 +1243,7 @@ function midiDialog() {
 }
 // ---------- barra de menus (no formato do Resolume) ----------
 const selL = () => state.layers[state.selLayer] ? state.selLayer : 0;
-const selC = () => state.sel ? state.sel.c : 0;
+const selC = () => state.selCol ?? (state.sel ? state.sel.c : 0);   // menu Coluna: a coluna selecionada pelo nome (Resolume); sem ela, a da casa selecionada
 const withClip = (fn) => () => { const s = selectedCell(); if (!s) { toast('Selecione um clipe'); return; } fn(s.clip, state.layers.indexOf(s.L), s.idx); };
 // itens do menu Clipe da barra; o botão direito numa casa abre os mesmos itens para aquele clipe
 const clipMenuItems = () => { const s = selectedCell(), k = s ? s.clip : null, isV = k && k.kind === 'video'; return [
@@ -1397,13 +1417,14 @@ function loop() {
   loop.total = (loop.total || 0) + 1;
   if (now - (loop.fpsAt || 0) >= 1) { if (!$('fpsBox').hidden) $('fpsBox').textContent = loop.frames + ' fps · ' + state.layers.filter(L => L.on >= 0).length + ' no ar · ' + COLS + ' colunas'; loop.frames = 0; loop.fpsAt = now; }
   // espelho do laser: o desenho do LaserCube vai para a projeção
-  { const s = selectedCell(); for (const L of state.layers) { const c = liveClip(L); for (const m of [c, s && s.clip]) if (m && m.kind === 'lasermirror' && m.paintedAt !== now) { m.paintedAt = now; paintScan(m.el.getContext('2d'), 1080, 1080, laser.scanNow(now), false); m.rev++; } } }
+  { const s = previewCell(); for (const L of state.layers) { const c = liveClip(L); for (const m of [c, s && s.clip]) if (m && m.kind === 'lasermirror' && m.paintedAt !== now) { m.paintedAt = now; paintScan(m.el.getContext('2d'), 1080, 1080, laser.scanNow(now), false); m.rev++; } } }
   engine.render(state.layers, engine.neededLayers(state.screens), now);
   webcam.tick();
   // monitor e prévia são cópias de 1080p: com saídas abertas (e sem gravar), o monitor vai a cada 2 quadros e a prévia a cada 3
   const nOut = state.screens.filter(sc => sc.win && !sc.win.closed).length, gravando = recorder.state === 'recording';
   if (!nOut || gravando || loop.frames % 2 === 0) engine.blit(monCtx);
-  const pc = selectedCell();
+  thumbSources();
+  const pc = previewCell();
   if (pc && pc.clip.kind !== 'laser' && prevCanvas.isConnected && (!nOut || loop.frames % 3 === 0)) { engine.previewLayer(pc.L, pc.idx); engine.blit(prevCtx); }
   for (const sc of state.screens) {
     const open = sc.win && !sc.win.closed;
