@@ -32,7 +32,8 @@ const L = (k) => ev(`JSON.stringify((() => { const L = ${P}.state.layers[${k}]; 
 const lh = (k) => `#grid .lh[data-layer="${k}"]`;
 
 // ---------- AC-1: painel da camada ----------
-check('painel tem X, B, S, mistura, fader, ⏮ ⏭, nome, A e B', await ev(`(() => { const e = document.querySelector('${lh(li)}'); return !!(e && e.querySelector('.x') && e.querySelector('.by') && e.querySelector('.so') && e.querySelector('select.blend') && e.querySelector('.fader') && e.querySelector('.st.pv') && e.querySelector('.st.nx') && e.querySelector('.nm') && e.querySelectorAll('.bus').length === 2); })()`));
+check('painel tem X, B, S, mistura, faders M e V, T, Alph, |◀ ▶|, nome, A e B', await ev(`(() => { const e = document.querySelector('${lh(li)}'); return !!(e && e.querySelector('.x') && e.querySelector('.by') && e.querySelector('.so') && e.querySelector('select.blend') && e.querySelector('.fader.m') && e.querySelector('.fader.v') && e.querySelector('.tt') && e.querySelector('select.alph') && e.querySelector('.st.pv') && e.querySelector('.st.nx') && e.querySelector('.nm') && e.querySelectorAll('.bus').length === 2); })()`));
+check('camada sem clipe com som não mostra o fader A (como no Resolume)', await ev(`!document.querySelector('${lh(li)} .fader.a') && !!document.querySelector('${lh(li)} .fader.none')`));
 await click(lh(li3) + ' .nm');
 check('clicar no nome da camada 3 a seleciona', await ev(`${P}.state.selLayer`) === li3);
 check('a faixa do nome da selecionada fica verde-água', await ev(`getComputedStyle(document.querySelector('${lh(li3)} .nm')).backgroundColor === 'rgb(127, 245, 207)'`));
@@ -47,11 +48,22 @@ await click(lh(li) + ' .st.nx');
 check('⏭ põe no ar o próximo clipe da camada', (await L(li)).on === 1, 'on=' + (await L(li)).on);
 await click(lh(li) + ' .st.pv');
 check('⏮ volta ao clipe anterior', (await L(li)).on === 0, 'on=' + (await L(li)).on);
-{ const r = await rect(lh(li) + ' .fader'); await drag(r.x, r.t + 2, r.x, r.t + r.h * 0.5); }
+{ const r = await rect(lh(li) + ' .fader.v'); await drag(r.x, r.t + 2, r.x, r.t + r.h * 0.5); }
 const op = (await L(li)).op;
 check('arrastar o fader até a metade deixa a opacidade perto de 0,5', Math.abs(op - 0.5) < 0.08, op.toFixed(3));
 await click(lh(li) + ' .nm');
 check('o painel Camada mostra o mesmo valor', await ev(`(() => { const t = document.getElementById('panels') || document.body; return t.textContent.includes(String(Math.round(${op} * 100))); })()`));
+{ const r = await rect(lh(li) + ' .fader.m'); await drag(r.x, r.t + 2, r.x, r.t + r.h * 0.75); }
+const ms = await ev(`${P}.state.layers[${li}].master`);
+check('arrastar o fader M muda o master da camada', Math.abs(ms - 0.25) < 0.08, ms.toFixed(3));
+{ const r = await rect(lh(li) + ' .fader.m'); await mouse('mouseMoved', r.x, r.y, { buttons: 0 }); await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: r.x, y: r.y, button: 'left', buttons: 1, clickCount: 2 }); await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: r.x, y: r.y, button: 'left', buttons: 0, clickCount: 2 }); await S(250); }
+check('duplo clique no M volta a 100%', await ev(`${P}.state.layers[${li}].master`) === 1);
+{ const r = await rect(lh(li) + ' .tt'); await drag(r.l + 1, r.y, r.l + r.w * 0.5, r.y); }
+const tr = await ev(`${P}.state.layers[${li}].transition`);
+check('arrastar o T muda a duração da transição', Math.abs(tr - 5) < 1, tr + ' s');
+await ev(`(() => { const s = document.querySelector('${lh(li)} select.alph'); s.focus(); return 1; })()`);
+check('Alph mostra o modo da transição da camada', await ev(`document.querySelector('${lh(li)} select.alph').value === (${P}.state.layers[${li}].transMode || 'alpha')`));
+await ev(`(() => { const L = ${P}.state.layers[${li}]; L.transition = 0; ${P}.render(); return 1; })()`);
 await click(lh(li) + ' .by');
 check('B (bypass) desliga a camada', (await L(li)).by === true);
 await click(lh(li) + ' .by');
@@ -63,6 +75,13 @@ check('✕ tira a camada do ar', (await L(li)).on === -1);
 
 // ---------- AC-2: composição, crossfader e decks ----------
 const C = '#grid .gh.corner.comp';
+{ const r = await rect(C + ' .hf.m'); await drag(r.l + r.w - 2, r.y, r.l + r.w * 0.5, r.y); }
+check('fader M da composição muda o master', Math.abs(await ev(`${P}.state.master`) - 0.5) < 0.08, String(await ev(`${P}.state.master`)));
+await ev(`(() => { const p = ${P}; p.state.master = 1; p.engine.master = 1; p.render(); return 1; })()`);
+{ const r = await rect(C + ' .hf.s'); await drag(r.l + r.w * 0.23, r.y, r.l + r.w * 0.5, r.y); }
+const sp = await ev(`${P}.state.speed`);
+check('fader S da composição muda a velocidade', sp > 1.6 && sp < 2.4, sp + '×');
+await ev(`(() => { const p = ${P}; p.state.speed = 1; p.render(); return 1; })()`);
 check('linha da composição tem ✕, B, ◀ ‖ ▶ e |◀ ▶|', await ev(`(() => { const e = document.querySelector('${C}'); return !!e && ['✕', 'B', '◀', '‖', '▶', '|◀', '▶|'].every(t => [...e.querySelectorAll('button')].some(b => b.textContent === t)); })()`));
 await ev(`(() => { const p = ${P}; p.trigger(${li}, 1); return 1; })()`); await S(300);   // Gradient: nunca preto no meio
 const px = () => ev(`JSON.stringify(${P}.probe ? ${P}.probe([[0.5, 0.5]])[0] : null)`);

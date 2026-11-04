@@ -20,7 +20,7 @@ const semInternos = (k, v) => (k[0] === '_' ? undefined : v);
 export function serializeComposition(state, laser, cols) {
   return JSON.stringify({
     v: 1, name: state.name || 'Composição', cols, colNames: state.colNames || {}, settings: state.settings, master: state.master, compBypass: !!state.compBypass, speed: state.speed, compFx: state.compFx, compTransform: state.compTransform, compAutopilot: state.compAutopilot,
-    layers: state.layers.map(L => ({ name: L.name, opacity: L.opacity, blend: L.blend, bypass: L.bypass, autopilot: L.autopilot, fx: L.fx, transform: L.transform, transition: L.transition, transMode: L.transMode, transOpt: L.transOpt, blendOpt: L.blendOpt, group: L.group ?? null, solo: !!L.solo, bus: L.bus || null, on: L.on, clips: L.clips.map(serializeClip) })),
+    layers: state.layers.map(L => ({ name: L.name, master: L.master ?? 1, volume: L.volume ?? 1, opacity: L.opacity, blend: L.blend, bypass: L.bypass, autopilot: L.autopilot, fx: L.fx, transform: L.transform, transition: L.transition, transMode: L.transMode, transOpt: L.transOpt, blendOpt: L.blendOpt, group: L.group ?? null, solo: !!L.solo, bus: L.bus || null, on: L.on, clips: L.clips.map(serializeClip) })),
     groups: state.groups || [], xfade: state.xfade || XFADE(), deck: state.deck || 0, keymap: state.keymap || null,
     bpm: state.bpm ? { bpm: state.bpm.bpm, snap: state.bpm.snap, metronome: !!state.bpm.metronome, nudgePct: state.bpm.nudgePct } : null, colSnap: state.colSnap || {}, audio: state.audioSettings || AUDIO_SETTINGS(),
     // os clipes das camadas são os do deck atual; os outros decks guardam as suas linhas (uma por camada)
@@ -42,7 +42,7 @@ export async function deserializeComposition(json, ctx) {
   const layers = [];
   for (const l of d.layers || []) {
     const L = ctx.mkLayer(l.name || 'Camada');
-    L.opacity = l.opacity ?? 1; L.blend = l.blend || 'normal'; L.bypass = !!l.bypass; L.autopilot = Object.assign(AUTOPILOT(), l.autopilot || {});
+    L.master = l.master ?? 1; L.volume = l.volume ?? 1; L.opacity = l.opacity ?? 1; L.blend = l.blend || 'normal'; L.bypass = !!l.bypass; L.autopilot = Object.assign(AUTOPILOT(), l.autopilot || {});
     L.fx = (l.fx || []).map(f => cloneFx(f)); L.transform = Object.assign({ x: 0, y: 0, scale: 1, rot: 0 }, l.transform || {}); L.transition = l.transition ?? 0; L.transMode = l.transMode || 'alpha'; L.transOpt = Object.assign(MIXER_OPT(), l.transOpt || {}); L.blendOpt = Object.assign(MIXER_OPT(), l.blendOpt || {}); L.group = l.group ?? null; L.solo = !!l.solo; L.bus = l.bus || null;
     for (let i = 0; i < L.clips.length; i++) {
       const o = (l.clips || [])[i];

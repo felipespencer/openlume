@@ -47,7 +47,7 @@ export class AudioEngine {
   }
   apply(c) {
     const a = c.audio; if (!c.gainNode) return;
-    c.gainNode.gain.value = a.mute ? 0 : Math.max(0, Math.min(1, a.vol));
+    c.gainNode.gain.value = a.mute ? 0 : Math.max(0, Math.min(1, a.vol)) * (c._lv ?? 1);   // _lv: fader A da camada (app.js)
     c.panNode.pan.value = Math.max(-1, Math.min(1, a.pan || 0));
     if (c.el) { c.el.muted = false; c.el.volume = 1; }   // o volume é do grafo
   }

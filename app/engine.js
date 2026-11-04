@@ -429,7 +429,7 @@ void main(){ float sg = max(uSigma, 0.01); int R = int(ceil(sg * (uCos > 0.5 ? 1
   // efeitos do clipe e da camada, misturada no alvo pelo modo de mistura da camada. target é um fbo {fb, t}.
   drawLayer(L, W, H, target) {
     const gl = this.gl;
-    const op = L.opacity * this.busFactor(L.bus);
+    const op = (L.master ?? 1) * L.opacity * this.busFactor(L.bus);   // M (master) × V (opacidade) da camada, como no Resolume
     if (L.bypass || op <= 0 || (this.soloL && !L.solo)) return;
     const clip = L.on >= 0 ? L.clips[L.on] : (L.ghost || null);   // ghost: o clipe de outro deck que continua no ar
     let k = 1;

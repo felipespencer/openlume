@@ -91,25 +91,35 @@ button.gh:hover{ color:var(--txt); background:var(--bg3); }
 .colh.sel .cn, .colh.sel .cn:hover{ background:var(--live); color:var(--live-ink); }
 #grid > .gh.corner, #grid > .gh.sceneH{ height:38px; }
 /* linha da composição: ✕ B Composição ◀ ‖ ▶ |◀ ▶| + */
-.gh.corner.comp{ display:grid; grid-template-columns:34px 30px minmax(0,1fr) repeat(5, 22px) 20px; gap:2px; padding:3px; justify-content:stretch; cursor:pointer; }
+.gh.corner.comp{ display:grid; grid-template-columns:30px 26px minmax(0,1fr) minmax(0,1fr) repeat(5, 20px) 18px; gap:2px; padding:3px; justify-content:stretch; cursor:pointer; }
 .gh.corner.comp button{ height:auto; padding:0; border-radius:3px; font-size:11px; font-weight:700; }
 .gh.corner.comp .x{ font-size:15px; } .gh.corner.comp .tr{ font-size:10px; }
 .gh.corner.comp button.act{ background:var(--warn); border-color:var(--warn); color:#0b0b0d; }
-.gh.corner.comp .t{ align-self:center; padding-left:4px; color:var(--dim); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.gh.corner.comp.off .t{ color:var(--warn); }
+.gh.corner.comp .hf{ position:relative; display:grid; place-items:center; background:#141518; border:1px solid var(--line); border-radius:3px; cursor:ew-resize; touch-action:none; overflow:hidden; font-size:10px; font-weight:700; color:var(--dim); }
+.gh.corner.comp .hf i{ position:absolute; left:0; top:0; bottom:0; background:#2a2c31; pointer-events:none; } .gh.corner.comp .hf span{ position:relative; pointer-events:none; }
+.gh.corner.comp.off .by{ background:var(--warn); }
 /* painel da camada como no Resolume 7.28: X grande, B e S, mistura embaixo, fader no meio, ⏮ ⏭ à direita e a faixa do
    nome embaixo de tudo, com A e B do crossfader; a faixa fica verde-água na camada selecionada */
-.lh{ display:grid; grid-template-columns:48px 44px 44px minmax(0,1fr) 30px; grid-template-rows:30px 20px 20px; gap:2px; align-content:center; padding:3px; cursor:pointer;
+.lh{ display:grid; grid-template-columns:44px 40px 40px minmax(54px,1fr) 42px 28px; grid-template-rows:30px 20px 20px; gap:2px; align-content:center; padding:3px; cursor:pointer;
   background:var(--bg2); border-bottom:1px solid var(--line); border-right:1px solid var(--line); }
 .lh button{ padding:0; border-radius:3px; font-size:11px; font-weight:700; }
 .lh button.act{ background:var(--warn); border-color:var(--warn); color:#0b0b0d; }
 .lh .x{ grid-column:1; grid-row:1 / 3; font-size:17px; }
 .lh .by{ grid-column:2; grid-row:1; } .lh .so{ grid-column:3; grid-row:1; }
 .lh select.blend{ grid-column:2 / 4; grid-row:2; width:100%; height:20px; padding:0 4px; font-size:10px; background:var(--bg3); color:var(--txt); border:1px solid var(--line); border-radius:3px; }
-.lh .fader{ grid-column:4; grid-row:1 / 3; position:relative; background:#141518; border:1px solid var(--line); border-radius:3px; cursor:ns-resize; touch-action:none; }
-.lh .fader i{ position:absolute; left:5px; right:5px; bottom:0; background:#2c6f5c; border-radius:2px; pointer-events:none; }
-.lh .fader b{ position:absolute; left:0; right:0; height:4px; background:var(--live); border-radius:2px; pointer-events:none; }
-.lh .st{ grid-column:5; font-size:10px; } .lh .st.pv{ grid-row:1; } .lh .st.nx{ grid-row:2; }
+.lh .faders{ grid-column:4; grid-row:1 / 3; display:grid; grid-template-columns:repeat(3, 1fr); gap:2px; }
+.lh .fader{ position:relative; background:#141518; border:1px solid var(--line); border-radius:3px; cursor:ns-resize; touch-action:none; overflow:hidden; }
+.lh .fader.none{ cursor:default; background:#18191c; }
+.lh .fader i{ position:absolute; left:3px; right:3px; bottom:0; background:#2a2c31; border-radius:2px; pointer-events:none; }
+.lh .fader b{ position:absolute; left:0; right:0; height:4px; background:#9aa0a8; border-radius:2px; pointer-events:none; }
+.lh .fader .lb{ position:absolute; left:0; right:0; top:1px; text-align:center; font-size:9px; font-weight:700; color:var(--dim); pointer-events:none; }
+.lh .fader.a b{ background:#c4628f; } .lh .fader.a i{ background:#5a2f45; } .lh .fader.a .lb{ color:#e7a6c4; }
+.lh .fader.v b{ background:var(--live); } .lh .fader.v i{ background:#2c6f5c; } .lh .fader.v .lb{ color:var(--live); }
+.lh .tt{ grid-column:5; grid-row:1; position:relative; display:grid; place-items:center; background:var(--bg3); border-radius:3px; font-size:11px; font-weight:700; cursor:ew-resize; touch-action:none; overflow:hidden; }
+.lh .tt i{ position:absolute; left:0; top:0; bottom:0; background:#2c6f5c; pointer-events:none; } .lh .tt span{ position:relative; pointer-events:none; }
+.lh .tt.on span{ color:var(--live); }
+.lh select.alph{ grid-column:5; grid-row:2; width:100%; height:20px; padding:0 2px; font-size:10px; background:var(--bg3); color:var(--txt); border:1px solid var(--line); border-radius:3px; }
+.lh .st{ grid-column:6; font-size:10px; } .lh .st.pv{ grid-row:1; } .lh .st.nx{ grid-row:2; }
 .lh .nm{ grid-column:1 / 3; grid-row:3; display:flex; align-items:center; padding:0 6px; border-radius:3px; background:var(--bg3); font-weight:600; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .lh.sel .nm{ background:var(--live); color:var(--live-ink); }
 .lh.off .nm{ color:var(--ghost); } .lh.off.sel .nm{ color:var(--live-ink); opacity:.6; }

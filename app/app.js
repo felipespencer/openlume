@@ -44,7 +44,7 @@ addEventListener('error', (e) => logW('erro', (e.message || '') + ' @ ' + (e.fil
 addEventListener('unhandledrejection', (e) => logW('promise', (e.reason && (e.reason.stack || e.reason.message)) || String(e.reason)));
 
 let seq = 1;
-const mkLayer = (n) => ({ id: seq++, name: typeof n === 'string' ? n : 'Camada ' + n, opacity: 1, blend: 'normal', bypass: false, on: -1, clips: Array(COLS).fill(null), autopilot: AUTOPILOT(), fx: [], transform: IDENT_TR(), transition: 0, transMode: 'alpha', transOpt: MIXER_OPT(), blendOpt: MIXER_OPT(), prev: null, group: null, solo: false, bus: null, ghost: null });
+const mkLayer = (n) => ({ id: seq++, name: typeof n === 'string' ? n : 'Camada ' + n, master: 1, volume: 1, opacity: 1, blend: 'normal', bypass: false, on: -1, clips: Array(COLS).fill(null), autopilot: AUTOPILOT(), fx: [], transform: IDENT_TR(), transition: 0, transMode: 'alpha', transOpt: MIXER_OPT(), blendOpt: MIXER_OPT(), prev: null, group: null, solo: false, bus: null, ghost: null });
 // deck: guarda uma linha de clipes por camada (cells[layer.id]); a camada mostra a linha do deck atual em L.clips
 let dseq = 1, gseq = 1;
 const mkDeck = (name) => ({ id: dseq++, name: name || 'Deck ' + dseq, color: '', closed: false, cells: {}, sel: null, selLayer: null });
@@ -634,12 +634,25 @@ function render() {
   // linha da composição, como a primeira linha do Resolume: ✕ tira tudo do ar, B desliga a saída sem tirar nada do ar,
   // ◀ ‖ ▶ tocam todos os clipes no ar para trás, pausam ou para a frente, |◀ ▶| disparam a coluna anterior e a próxima
   const corner = el('div', 'gh corner comp' + (state.compBypass ? ' off' : ''));
+  // M e S da composição, como no Resolume: faders deitados de master e velocidade (os mesmos do painel Composição)
+  const hfader = (cls, label, title, get, set, txt) => {
+    const f = el('div', 'hf ' + cls); f.title = title; const fi = el('i'); f.append(fi, el('span', '', label));
+    const show = () => { const p = Math.max(0, Math.min(1, get())); fi.style.width = (p * 100) + '%'; f.dataset.v = txt ? txt() : Math.round(p * 100) + '%'; };
+    show();
+    const put = (e) => { const r = f.getBoundingClientRect(); set(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))); show(); if (panels.tab === 'comp') panels.render(); };
+    f.onpointerdown = (e) => { if (e.button !== 0) return; e.stopPropagation(); e.preventDefault(); f.setPointerCapture(e.pointerId); put(e); f.onpointermove = put; };
+    f.onpointerup = f.onpointercancel = () => { f.onpointermove = null; };
+    f.onclick = (e) => e.stopPropagation();
+    f.ondblclick = (e) => { e.stopPropagation(); if (cls === 's') { state.speed = 1; applySpeed(); } else { set(1); } show(); if (panels.tab === 'comp') panels.render(); };
+    return f;
+  };
   const cb = (cls, txt, title, fn) => { const b = el('button', cls, txt); b.type = 'button'; b.title = title; b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; };
   const add = cb('add', '+', 'Nova camada, por cima das outras', () => { state.layers.unshift(mkLayer(state.layers.length + 1)); state.selLayer = 0; if (state.sel) state.sel.l++; render(); });
   corner.append(
     cb('x', '✕', 'Tirar tudo do ar', stopAll),
     cb('by' + (state.compBypass ? ' act' : ''), 'B', 'Bypass da composição: a saída fica no fundo, sem tirar nada do ar', () => { state.compBypass = engine.compBypass = !state.compBypass; render(); }),
-    el('span', 't', 'Composição'),
+    hfader('m', 'M', 'Master da composição: brilho geral de tudo que sai', () => state.master, v => { state.master = v; engine.master = state.master * state.opacity; }),
+    hfader('s', 'S', 'Velocidade da composição: multiplica a velocidade de todos os vídeos (0,1× a 4×)', () => (state.speed - 0.1) / 3.9, v => { state.speed = Math.round((0.1 + v * 3.9) * 100) / 100; applySpeed(); }, () => state.speed.toFixed(2).replace('.', ',') + '×'),
     cb('tr', '◀', 'Tocar para trás todos os clipes no ar', () => playAll(-1)), cb('tr', '‖', 'Pausar todos os clipes no ar', () => playAll(0)), cb('tr', '▶', 'Tocar todos os clipes no ar', () => playAll(1)),
     cb('tr', '|◀', 'Disparar a coluna anterior', () => stepColumn(-1)), cb('tr', '▶|', 'Disparar a próxima coluna', () => stepColumn(1)), add);
   corner.onclick = () => { panels.tab = 'comp'; render(); };
@@ -671,15 +684,40 @@ function render() {
     const bx = btn('x', '✕', 'Tirar a camada do ar', () => eject(li)); bx.dataset.op = 'X';
     const bo = btn('by' + (L.bypass ? ' act' : ''), 'B', 'Bypass: desligar ou ligar a camada sem perder o clipe', () => { L.bypass = !L.bypass; render(); }); bo.dataset.op = 'B';
     const bs = btn('so' + (L.solo ? ' act' : ''), 'S', 'Solo: só esta camada aparece', () => { L.solo = !L.solo; render(); }); bs.dataset.op = 'S';
-    const fd = el('div', 'fader'); fd.title = 'Opacidade da camada: arraste para cima ou para baixo; duplo clique volta a 100%';
-    const fi = el('i'), fk = el('b'); fd.append(fi, fk);
-    const showOp = () => { const p = Math.round(L.opacity * 100); fi.style.height = p + '%'; fk.style.bottom = 'calc(' + p + '% - 2px)'; fd.dataset.v = p; };
-    showOp();
-    const setOp = (e) => { const r = fd.getBoundingClientRect(); L.opacity = Math.max(0, Math.min(1, (r.bottom - e.clientY) / r.height)); showOp(); if (li === state.selLayer) panels.render(); };
-    fd.onpointerdown = (e) => { if (e.button !== 0) return; e.stopPropagation(); e.preventDefault(); fd.setPointerCapture(e.pointerId); setOp(e); fd.onpointermove = setOp; };
-    fd.onpointerup = fd.onpointercancel = () => { fd.onpointermove = null; };
-    fd.onclick = (e) => e.stopPropagation();
-    fd.ondblclick = (e) => { e.stopPropagation(); L.opacity = 1; showOp(); if (li === state.selLayer) panels.render(); };
+    // M, A e V como no Resolume 7.28: três faders verticais lado a lado — M é o master da camada, A o volume do áudio
+    // (só aparece com clipe que tem som) e V a opacidade; arrastar para cima ou para baixo, duplo clique volta a 100%
+    const vfader = (cls, label, title, get, set) => {
+      const fd = el('div', 'fader ' + cls); fd.title = title;
+      const fi = el('i'), fk = el('b'), lb = el('span', 'lb', label); fd.append(fi, fk, lb);
+      const show = () => { const p = Math.round(get() * 100); fi.style.height = p + '%'; fk.style.bottom = 'calc(' + p + '% - 2px)'; fd.dataset.v = p; };
+      show();
+      const put = (e) => { const r = fd.getBoundingClientRect(); set(Math.max(0, Math.min(1, (r.bottom - e.clientY) / r.height))); show(); if (li === state.selLayer) panels.render(); };
+      fd.onpointerdown = (e) => { if (e.button !== 0) return; e.stopPropagation(); e.preventDefault(); fd.setPointerCapture(e.pointerId); put(e); fd.onpointermove = put; };
+      fd.onpointerup = fd.onpointercancel = () => { fd.onpointermove = null; };
+      fd.onclick = (e) => e.stopPropagation();
+      fd.ondblclick = (e) => { e.stopPropagation(); set(1); show(); if (li === state.selLayer) panels.render(); };
+      return fd;
+    };
+    const temSom = L.clips.some(c => c && c.kind === 'video' && c.wave);
+    const faders = el('div', 'faders');
+    faders.append(
+      vfader('m', 'M', 'Master da camada: multiplica a opacidade', () => L.master ?? 1, v => { L.master = v; }),
+      temSom ? vfader('a', 'A', 'Volume do áudio da camada', () => L.volume ?? 1, v => { L.volume = v; }) : el('div', 'fader none'),
+      vfader('v', 'V', 'Opacidade da camada', () => L.opacity, v => { L.opacity = v; }));
+    // T e Alph: duração e modo da transição da camada (os mesmos do painel Camada)
+    const tt = el('div', 'tt'); tt.title = 'T: duração da transição ao trocar de clipe (0 corta seco, até 10 s). Arraste para os lados; duplo clique zera.';
+    const tf = el('i'); tt.append(tf, el('span', '', 'T'));
+    const showT = () => { const v = L.transition || 0; tf.style.width = (v / 10 * 100) + '%'; tt.dataset.v = v.toFixed(1); tt.classList.toggle('on', v > 0); };
+    showT();
+    const putT = (e) => { const r = tt.getBoundingClientRect(); L.transition = Math.round(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * 100) / 10; showT(); if (li === state.selLayer) panels.render(); };
+    tt.onpointerdown = (e) => { if (e.button !== 0) return; e.stopPropagation(); e.preventDefault(); tt.setPointerCapture(e.pointerId); putT(e); tt.onpointermove = putT; };
+    tt.onpointerup = tt.onpointercancel = () => { tt.onpointermove = null; };
+    tt.onclick = (e) => e.stopPropagation(); tt.ondblclick = (e) => { e.stopPropagation(); L.transition = 0; showT(); };
+    const ta = el('select', 'alph'); ta.title = 'Modo da transição da camada';
+    for (const [id, name] of [['random', 'Ao acaso'], ...MIXER_OPTS]) { const o = el('option', '', name); o.value = id; ta.appendChild(o); }
+    ta.value = L.transMode || 'alpha'; if (!ta.value) ta.value = 'alpha';
+    ta.onclick = (e) => e.stopPropagation(); ta.onpointerdown = (e) => e.stopPropagation();
+    ta.onchange = () => { L.transMode = ta.value; if (li === state.selLayer) panels.render(); };
     const pv = btn('st pv', '|◀', 'Clipe anterior da camada', () => stepClip(li, -1));
     const nx = btn('st nx', '▶|', 'Próximo clipe da camada', () => stepClip(li, 1));
     // modo de mistura da camada na própria faixa, como no Resolume (o mesmo controle do painel Camada)
@@ -692,7 +730,7 @@ function render() {
     const nm = el('div', 'nm'); nm.append(el('b', 'num', String(num)), document.createTextNode(L.name)); nm.title = 'Camada ' + num + (L.name !== 'Camada ' + num ? ': ' + L.name : '') + ': clique para selecionar';
     // A e B do crossfader: clicar no lado em que a camada já está tira ela do crossfader (o mesmo do menu da camada)
     const bus = (k) => btn('bus' + (L.bus === k ? ' act' : ''), k, k === 'A' ? 'Lado A do crossfader' : 'Lado B do crossfader', () => { L.bus = L.bus === k ? null : k; render(); });
-    lh.append(bx, bo, bs, fd, pv, nx, bl, nm, bus('A'), bus('B'));   // número da camada antes do nome: 1 é a de baixo (layers[0] é a de cima)
+    lh.append(bx, bo, bs, faders, tt, ta, pv, nx, bl, nm, bus('A'), bus('B'));   // número da camada antes do nome: 1 é a de baixo (layers[0] é a de cima)
     lh.onclick = () => { state.selLayer = li; state.selGroup = L.group; panels.tab = 'layer'; render(); };
     g.appendChild(lh);
     for (let c = 0; c < COLS; c++) {
@@ -1429,6 +1467,8 @@ function loop() {
   // o clipe só selecionado (prévia, fora do ar) também obedece ao transporte: ◀, entrada/saída e modo; o "limpa" não tira nada do ar
   { const s = selectedCell(); if (s && s.clip.kind === 'video' && liveClip(s.L) !== s.clip) C.tickTransport(s.clip, dt, layerSpeed(s.L)); }
   for (const L of clearAfterOnce.splice(0)) eject(state.layers.indexOf(L));   // Play Once & Clear: acabou, a camada sai do ar
+  // A (volume da camada): o ganho de cada clipe que toca na camada segue o fader
+  for (const L of state.layers) for (const c of [liveClip(L), L.prev && L.prev.clip]) if (c && c.gainNode && c._lv !== (L.volume ?? 1)) { c._lv = L.volume ?? 1; audio.apply(c); }
   tickXfade(now);
   panels.tick();
   // taxa de quadros da composição: desenha só quando passou 1/fps
