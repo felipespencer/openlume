@@ -74,6 +74,13 @@ if (prep.vazia >= 0) {
   check('Test Card aparece na tela 1 (barras de cor)', px.every(p => p.join() !== '0,0,0') && new Set(px.map(p => p.join())).size === 3, JSON.stringify(px));
   const sc = await ev(`JSON.stringify((() => { const s = ${P}.screens()[0]; const h = window.__projHelpers[s.id]; return h && h.card ? [h.card.name === s.name, h.card.w === s.w, h.card.h === s.h] : null; })())`);
   check('nome e tamanho da tela por cima do Test Card', sc === '[true,true,true]', sc);
+  // Felipe, 2026-11-03: com a Saída avançada aberta (aba Saída, grade ligada) o nome do Test Card sumia, e ao fechar também
+  await ev(`(() => { const p = ${P}; const s = p.screens()[0]; p.ao.show(); p.ao.setTab('out'); p.ao.select(s, s.items[0]); p.ao.grid = true; return 1; })()`); await wait(400);
+  const comAo = await ev(`JSON.stringify((() => { const h = window.__projHelpers[${P}.screens()[0].id]; return h ? [!!h.card, !!h.grid] : null; })())`);
+  check('Test Card mantém o nome com a Saída avançada aberta', comAo === '[true,true]', comAo);
+  await ev(`${P}.ao.hide(false); 1`); await wait(200);
+  const depoisAo = await ev(`JSON.stringify((() => { const h = window.__projHelpers[${P}.screens()[0].id]; return h ? [!!h.card, !!h.grid] : null; })())`);
+  check('Test Card mantém o nome depois de fechar a Saída avançada', depoisAo === '[true,false]', depoisAo);
   await ev(`${P}.toggleTestCard(); 1`); await wait(150);
   const px2 = JSON.parse(await ev(`JSON.stringify(${P}.probeScreen(${P}.screens()[0], [[0.2, 0.6], [0.92, 0.6]]))`));
   check('Test Card desliga e some da saída', await ev(`${P}.state.testCard === false && !window.__projHelpers[${P}.screens()[0].id]`) && px2[0].join() === px2[1].join(), JSON.stringify(px2));

@@ -102,7 +102,7 @@ export class AdvancedOutput {
   hide(cancel) {
     if (cancel) this.c.setScreens(M.deserialize(this.snapshot));
     this.open = false; $('ao').hidden = true; this.drawing = null; this.cursor = null; this.closeMenus();
-    this.c.helpers.clear(); this.c.onChange();
+    for (const sc of this.screens()) this.dropHelpers(sc); this.c.onChange();
   }
   screens() { return this.c.screens(); }
   curScreen() { return this.sel ? this.sel.screen : this.screens()[0]; }
@@ -198,13 +198,21 @@ export class AdvancedOutput {
   }
   publishHelpers() {
     const sc = this.curScreen(); if (!sc) return;
-    const h = {};
+    // só a grade e o cursor são da Saída avançada; Test Card, malha e Identificar ficam como estão (Felipe, 2026-11-03:
+    // com a Saída avançada aberta o nome do Test Card sumia, porque esta função regravava os ajudantes a cada quadro)
+    const h = { ...(window.__projHelpers[sc.id] || {}) }; delete h.grid; delete h.cursor; delete h.w; delete h.h;
     if (this.grid && this.tab === 'out') {
       const it = this.sel && this.sel.item;
       if (it && it.type === 'slice') h.grid = { name: it.name, outline: outlinePoints(it) };
       if (this.cursor) h.cursor = this.cursor;
     }
-    this.c.helpers.set(sc, h.grid || h.cursor ? h : null);
+    for (const o of this.screens()) if (o !== sc) this.dropHelpers(o);
+    this.c.helpers.set(sc, Object.keys(h).length ? h : null);
+  }
+  dropHelpers(sc) {
+    const cur = window.__projHelpers[sc.id]; if (!cur || (!cur.grid && !cur.cursor)) return;
+    const h = { ...cur }; delete h.grid; delete h.cursor; delete h.w; delete h.h;
+    this.c.helpers.set(sc, Object.keys(h).length ? h : null);
   }
   panDown(e) {
     if (!(this.pan || this.space) || e.button !== 0) return;

@@ -72,7 +72,7 @@
           ctx.strokeStyle = '#39FF14'; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
           ctx.beginPath(); h.grid.outline.forEach(function(p, i){ i ? ctx.lineTo(p[0] * kx, p[1] * ky) : ctx.moveTo(p[0] * kx, p[1] * ky); }); ctx.closePath(); ctx.stroke();
           ctx.setLineDash([]); ctx.fillStyle = '#39FF14'; ctx.font = 'bold 28px Segoe UI, sans-serif';
-          ctx.fillText(h.grid.name, h.grid.outline[0][0] * kx + 10, h.grid.outline[0][1] * ky + 34);
+          var gw = ctx.measureText(h.grid.name).width; ctx.fillText(h.grid.name, Math.min(Math.max(10, h.grid.outline[0][0] * kx + 10), ov.width - gw - 10), Math.min(Math.max(34, h.grid.outline[0][1] * ky + 34), ov.height - 10));
         }
         if(h.cursor){
           ctx.strokeStyle = '#ff3b3b'; ctx.lineWidth = 2;
