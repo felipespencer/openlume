@@ -21,7 +21,9 @@ status = "in_progress"
 plans_completed = 3
 
 [loop]
-position = "IDLE"
+position = "PLAN"
+plan = "02-04"
+plan_path = "phases/02-efeitos-do-resolume/02-04-PLAN.md"
 
 [satellite]
 groom = true
@@ -29,4 +31,4 @@ groom = true
 [stats]
 total_plans = 8
 total_phases = 0
-last_activity = "2026-11-03T16:00:00-03:00"
+last_activity = "2026-11-03T22:30:00-03:00"

@@ -83,7 +83,8 @@ imagem automaticamente; licença de cada modelo de `ai-models/` antes de embarca
 - [x] 02-01: bancada lado a lado (REST do Resolume + CDP do OpenLume + captura + diferença por pixel), fichas de controles pela API, e o 1º lote igualado: Delay RGB, Trails, Threshold — fechado em 2026-10-30; de quebra Background Removal, Shape Mask, YouTube e celular (SUMMARY)
 - [x] 02-02: Acuarela, Tilt Shift e CRT — fechado em 2026-11-02 com a beta.44; presets do CRT e outras diferenças abertas no SUMMARY
 - [x] 02-03: grade de clipes igual à do Resolume (miniatura no ar, nome na Prévia, ▶/■ de coluna, verde-água) — fechado em 2026-11-03 com a beta.47
-- [ ] 02-04 em diante: os outros 14 do Resolume 7.28 (Strokes, Grid Cloner, Slice Delay, SearchLight, WarpSpeed, LUT, Text Block, Text Animator, seis Depth) e o resto da lista de igualar
+- [ ] 02-04: camadas e decks como no Resolume (maquete aprovada em 2026-11-03)
+- [ ] 02-05 em diante: os outros 14 do Resolume 7.28 (Strokes, Grid Cloner, Slice Delay, SearchLight, WarpSpeed, LUT, Text Block, Text Animator, seis Depth) e o resto da lista de igualar
 
 ### Phase 3: Celular e plugins
 
