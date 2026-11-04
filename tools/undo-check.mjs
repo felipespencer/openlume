@@ -34,8 +34,8 @@ const { li, col } = prep;
 check('preparo: uma camada no ar e um clipe noutra casa', prep.on >= 0 && !!prep.kind, JSON.stringify(prep));
 
 // 1. arrastar a opacidade da camada e Ctrl+Z
-let r = await rectOf(`.lh[data-layer="${li}"] input[type=range]`);
-await drag(r.l + r.w * 0.95, r.y, r.l + r.w * 0.3, r.y); await wait(200);
+let r = await rectOf(`.lh[data-layer="${li}"] .fader`);   // fader de opacidade do painel da camada (02-04): arrastar para baixo
+await drag(r.x, r.t + r.h * 0.05, r.x, r.t + r.h * 0.7); await wait(200);
 const op1 = await ev(`${P}.state.layers[${li}].opacity`);
 check('arrastar o controle muda a opacidade da camada', op1 < prep.opac - 0.3, prep.opac + ' → ' + op1);
 await key('z', 'KeyZ', 90, 2); await wait(600);
@@ -63,8 +63,8 @@ const volta = JSON.parse(await ev(`(() => { const c = ${P}.state.layers[${li}].c
 check('Ctrl+Z traz o clipe de volta para a casa', !!volta && volta.kind === prep.kind && volta.src === prep.src, JSON.stringify(volta));
 
 // 3. menu Composição › Desfazer com clique real (depois de mudar a opacidade de novo)
-r = await rectOf(`.lh[data-layer="${li}"] input[type=range]`);
-await drag(r.l + r.w * 0.95, r.y, r.l + r.w * 0.5, r.y); await wait(200);
+r = await rectOf(`.lh[data-layer="${li}"] .fader`);
+await drag(r.x, r.t + r.h * 0.05, r.x, r.t + r.h * 0.5); await wait(200);
 const op3 = await ev(`${P}.state.layers[${li}].opacity`);
 r = await rectOf('#menubar .mb:nth-child(2)'); await click(r.x, r.y); await wait(200);
 let mi = JSON.parse(await ev("(()=>{ const it=[...document.querySelectorAll('.menu .mi')].find(e=>e.textContent.includes('Desfazer')); if(!it) return 'null'; const r=it.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2, off:it.classList.contains('off')||it.classList.contains('disabled')}); })()"));

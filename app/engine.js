@@ -478,6 +478,7 @@ void main(){ float sg = max(uSigma, 0.01); int R = int(ceil(sg * (uCos > 0.5 ? 1
   // layerIds: camadas que algum slice usa como fonte direta; cada uma ganha a sua textura.
   render(layers, layerIds = new Set(), time = performance.now() / 1000) {
     const gl = this.gl, W = this.W, H = this.H; this.time = time;
+    if (this.compBypass) layers = [];   // B da composição (linha de cima da grade): a saída fica no fundo, o que está no ar continua tocando
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.comp.fb);
     gl.viewport(0, 0, W, H);
     gl.clearColor(this.bg[0], this.bg[1], this.bg[2], 1); gl.clear(gl.COLOR_BUFFER_BIT);

@@ -389,7 +389,9 @@ function renderDecks() {
   const r = el('input'); r.type = 'range'; r.min = 0; r.max = 1000; r.value = Math.round(X.pos * 1000); r.title = 'Crossfader: esquerda mostra o bus A, direita o bus B';
   r.oninput = () => { X.pos = r.value / 1000; X.target = null; if (panels.tab === 'comp') panels.render(); };
   const nA = state.layers.filter(L => L.bus === 'A').length + state.groups.filter(g => g.bus === 'A').length, nB = state.layers.filter(L => L.bus === 'B').length + state.groups.filter(g => g.bus === 'B').length;
-  x.append(el('span', 'xl', 'Crossfader'), bA, el('span', 'xl', nA ? nA + ' no A' : 'A vazio'), r, el('span', 'xl', nB ? nB + ' no B' : 'B vazio'), bB);
+  // crossfader curto embaixo das camadas, como no Resolume; quantas camadas e grupos há em cada lado fica na dica
+  x.title = 'Crossfader: ' + (nA ? nA + ' no lado A' : 'lado A vazio') + ', ' + (nB ? nB + ' no lado B' : 'lado B vazio') + '. Esquerda mostra o A, direita o B.';
+  x.append(bA, r, bB);
 }
 // ---------- relógio de BPM ----------
 let lastBeatIdx = -1;
@@ -629,10 +631,19 @@ function render() {
   const g = $('grid'); g.style.setProperty('--cols', COLS);
   const wrap = $('gridWrap'), st = wrap.scrollTop, sl = wrap.scrollLeft;
   g.textContent = '';
-  const corner = el('div', 'gh corner'); corner.appendChild(el('span', '', 'Composição'));
-  const add = el('button', '', '+ camada'); add.type = 'button'; add.title = 'Nova camada, por cima das outras';
-  add.onclick = () => { state.layers.unshift(mkLayer(state.layers.length + 1)); state.selLayer = 0; if (state.sel) state.sel.l++; render(); };
-  corner.appendChild(add); g.appendChild(corner);
+  // linha da composição, como a primeira linha do Resolume: ✕ tira tudo do ar, B desliga a saída sem tirar nada do ar,
+  // ◀ ‖ ▶ tocam todos os clipes no ar para trás, pausam ou para a frente, |◀ ▶| disparam a coluna anterior e a próxima
+  const corner = el('div', 'gh corner comp' + (state.compBypass ? ' off' : ''));
+  const cb = (cls, txt, title, fn) => { const b = el('button', cls, txt); b.type = 'button'; b.title = title; b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; };
+  const add = cb('add', '+', 'Nova camada, por cima das outras', () => { state.layers.unshift(mkLayer(state.layers.length + 1)); state.selLayer = 0; if (state.sel) state.sel.l++; render(); });
+  corner.append(
+    cb('x', '✕', 'Tirar tudo do ar', stopAll),
+    cb('by' + (state.compBypass ? ' act' : ''), 'B', 'Bypass da composição: a saída fica no fundo, sem tirar nada do ar', () => { state.compBypass = engine.compBypass = !state.compBypass; render(); }),
+    el('span', 't', 'Composição'),
+    cb('tr', '◀', 'Tocar para trás todos os clipes no ar', () => playAll(-1)), cb('tr', '‖', 'Pausar todos os clipes no ar', () => playAll(0)), cb('tr', '▶', 'Tocar todos os clipes no ar', () => playAll(1)),
+    cb('tr', '|◀', 'Disparar a coluna anterior', () => stepColumn(-1)), cb('tr', '▶|', 'Disparar a próxima coluna', () => stepColumn(1)), add);
+  corner.onclick = () => { panels.tab = 'comp'; render(); };
+  g.appendChild(corner);
   for (let c = 0; c < COLS; c++) {
     // como no Resolume: ▶ (coluna com clipe) ou ■ (vazia) dispara; o nome só seleciona. Contorno verde-água = coluna no ar
     const tem = state.layers.some(L => L.clips[c]);
@@ -654,25 +665,34 @@ function render() {
     const lh = el('div', 'lh' + (li === state.selLayer ? ' sel' : '') + (L.bypass ? ' off' : '') + (grp ? ' ing' : ''));
     if (grp) lh.style.setProperty('--gc', grp.color || '#8b8d95');
     lh.dataset.layer = li;
-    const bb = el('div', 'b');
-    const bx = el('button', '', 'X'); bx.type = 'button'; bx.title = 'Tirar a camada do ar';
-    const bo = el('button', L.bypass ? 'act' : '', 'B'); bo.type = 'button'; bo.title = 'Desligar ou ligar a camada sem perder o clipe';
-    bx.onclick = (e) => { e.stopPropagation(); eject(li); };
-    bo.onclick = (e) => { e.stopPropagation(); L.bypass = !L.bypass; render(); };
-    const bs = el('button', L.solo ? 'act' : '', 'S'); bs.type = 'button'; bs.title = 'Solo: só esta camada aparece';
-    bs.onclick = (e) => { e.stopPropagation(); L.solo = !L.solo; render(); };
-    bb.append(bx, bo, bs);
-    const op = el('input'); op.type = 'range'; op.min = 0; op.max = 100; op.value = Math.round(L.opacity * 100); op.title = 'Opacidade da camada';
-    op.onclick = (e) => e.stopPropagation();
-    op.oninput = () => { L.opacity = op.value / 100; if (li === state.selLayer) panels.render(); };
-    const nm = el('div', 'nm'); const num = state.layers.length - li; nm.append(el('b', 'num', String(num)), document.createTextNode(L.name)); nm.title = 'Camada ' + num + (L.name !== 'Camada ' + num ? ': ' + L.name : '');
+    // painel da camada como no Resolume 7.28 (maquete aprovada em 2026-11-03): X grande, B e S, mistura embaixo,
+    // fader de opacidade no meio, ⏮ ⏭ à direita e, embaixo de tudo, a faixa do nome com A e B do crossfader
+    const btn = (cls, txt, title, fn) => { const b = el('button', cls, txt); b.type = 'button'; b.title = title; b.onclick = (e) => { e.stopPropagation(); fn(e); }; return b; };
+    const bx = btn('x', '✕', 'Tirar a camada do ar', () => eject(li)); bx.dataset.op = 'X';
+    const bo = btn('by' + (L.bypass ? ' act' : ''), 'B', 'Bypass: desligar ou ligar a camada sem perder o clipe', () => { L.bypass = !L.bypass; render(); }); bo.dataset.op = 'B';
+    const bs = btn('so' + (L.solo ? ' act' : ''), 'S', 'Solo: só esta camada aparece', () => { L.solo = !L.solo; render(); }); bs.dataset.op = 'S';
+    const fd = el('div', 'fader'); fd.title = 'Opacidade da camada: arraste para cima ou para baixo; duplo clique volta a 100%';
+    const fi = el('i'), fk = el('b'); fd.append(fi, fk);
+    const showOp = () => { const p = Math.round(L.opacity * 100); fi.style.height = p + '%'; fk.style.bottom = 'calc(' + p + '% - 2px)'; fd.dataset.v = p; };
+    showOp();
+    const setOp = (e) => { const r = fd.getBoundingClientRect(); L.opacity = Math.max(0, Math.min(1, (r.bottom - e.clientY) / r.height)); showOp(); if (li === state.selLayer) panels.render(); };
+    fd.onpointerdown = (e) => { if (e.button !== 0) return; e.stopPropagation(); e.preventDefault(); fd.setPointerCapture(e.pointerId); setOp(e); fd.onpointermove = setOp; };
+    fd.onpointerup = fd.onpointercancel = () => { fd.onpointermove = null; };
+    fd.onclick = (e) => e.stopPropagation();
+    fd.ondblclick = (e) => { e.stopPropagation(); L.opacity = 1; showOp(); if (li === state.selLayer) panels.render(); };
+    const pv = btn('st pv', '|◀', 'Clipe anterior da camada', () => stepClip(li, -1));
+    const nx = btn('st nx', '▶|', 'Próximo clipe da camada', () => stepClip(li, 1));
     // modo de mistura da camada na própria faixa, como no Resolume (o mesmo controle do painel Camada)
     const bl = el('select', 'blend'); bl.title = 'Mistura: como a camada entra sobre o que está embaixo';
     for (const [id, name] of MIXER_OPTS) { const o = el('option', '', name); o.value = id; bl.appendChild(o); }
     bl.value = L.blend === 'normal' ? 'alpha' : L.blend; if (bl.value !== (L.blend === 'normal' ? 'alpha' : L.blend)) bl.value = 'alpha';
     bl.onclick = (e) => e.stopPropagation(); bl.onpointerdown = (e) => e.stopPropagation();
     bl.onchange = () => { L.blend = bl.value; if (li === state.selLayer) panels.render(); };
-    lh.append(bb, nm, bl, op);   // número da camada antes do nome: 1 é a de baixo (layers[0] é a de cima)
+    const num = state.layers.length - li;
+    const nm = el('div', 'nm'); nm.append(el('b', 'num', String(num)), document.createTextNode(L.name)); nm.title = 'Camada ' + num + (L.name !== 'Camada ' + num ? ': ' + L.name : '') + ': clique para selecionar';
+    // A e B do crossfader: clicar no lado em que a camada já está tira ela do crossfader (o mesmo do menu da camada)
+    const bus = (k) => btn('bus' + (L.bus === k ? ' act' : ''), k, k === 'A' ? 'Lado A do crossfader' : 'Lado B do crossfader', () => { L.bus = L.bus === k ? null : k; render(); });
+    lh.append(bx, bo, bs, fd, pv, nx, bl, nm, bus('A'), bus('B'));   // número da camada antes do nome: 1 é a de baixo (layers[0] é a de cima)
     lh.onclick = () => { state.selLayer = li; state.selGroup = L.group; panels.tab = 'layer'; render(); };
     g.appendChild(lh);
     for (let c = 0; c < COLS; c++) {
@@ -1016,7 +1036,7 @@ function resetComposition() {
   dropAll();
   state.groups.length = 0; state.decks = [mkDeck('Deck 1')]; state.deck = 0; state.xfade = XFADE(); engine.xfade = state.xfade; state.selGroup = null; if (panels.tab === 'group') panels.tab = 'comp';
   Object.assign(state.bpm, BPM(), { taps: [], audio: audio.levels }); state.colSnap = {}; pending.length = 0; syncBpm(); Object.assign(audio.settings, { source: 'comp', gain: 1, fallback: 4 });
-  state.layers = [mkLayer(5), mkLayer(4), mkLayer(3), mkLayer(2), mkLayer(1)]; state.name = ''; state.sel = null; state.selLayer = 0; state.master = state.opacity = state.speed = 1; engine.master = 1;
+  state.layers = [mkLayer(5), mkLayer(4), mkLayer(3), mkLayer(2), mkLayer(1)]; state.name = ''; state.sel = null; state.selLayer = 0; state.master = state.opacity = state.speed = 1; engine.master = 1; state.compBypass = engine.compBypass = false;
   engine.compFx = []; engine.compTransform = IDENT_TR(); state.compAutopilot = AUTOPILOT(); state.colNames = {}; state.keymap = null; keymap.refresh(); setCols(8); applySettings(SETTINGS()); render(); renderScreens();
 }
 async function loadComposition(json, name) {
@@ -1028,7 +1048,7 @@ async function loadComposition(json, name) {
   if (d.bpm) Object.assign(state.bpm, { bpm: d.bpm.bpm || 120, snap: d.bpm.snap || 0, metronome: !!d.bpm.metronome, nudgePct: d.bpm.nudgePct || 5 }); state.colSnap = d.colSnap || {}; pending.length = 0; syncBpm(); Object.assign(audio.settings, d.audio); if (audio.settings.source === 'mic') audio.setSource('mic');
   state.decks = d.decks.length ? d.decks.map(k => { const dk = mkDeck(k.name); dk.color = k.color; dk.closed = k.closed; if (k.rows) k.rows.forEach((row, i) => { if (state.layers[i]) dk.cells[state.layers[i].id] = row; }); return dk; }) : [mkDeck('Deck 1')];
   state.deck = Math.min(d.deck || 0, state.decks.length - 1); for (const L of state.layers) state.decks[state.deck].cells[L.id] = L.clips;
-  state.keymap = d.keymap; keymap.refresh(); state.master = d.master; state.opacity = 1; state.speed = d.speed; engine.master = state.master; engine.compFx = d.compFx; engine.compTransform = d.compTransform; state.compAutopilot = d.compAutopilot; state.colNames = d.colNames; applySettings(d.settings);
+  state.keymap = d.keymap; keymap.refresh(); state.master = d.master; state.opacity = 1; state.speed = d.speed; engine.master = state.master; state.compBypass = engine.compBypass = !!d.compBypass; engine.compFx = d.compFx; engine.compTransform = d.compTransform; state.compAutopilot = d.compAutopilot; state.colNames = d.colNames; applySettings(d.settings);
   for (const L of state.layers) if (L.on >= 0 && L.clips[L.on]) C.startClip(L.clips[L.on], layerSpeed(L)); else L.on = -1;
   if (d.screens && d.screens.length) setScreens(d.screens);
   if (d.laser) { laser.frames = d.laser.frames; laser.settings = d.laser.settings; laser.active = d.laser.active; laser.sel = laser.frames[0] || null; if (laser.open) laser.refresh(); }
@@ -1096,7 +1116,7 @@ async function restoreComp(json) {
     if (d.bpm) Object.assign(state.bpm, { bpm: d.bpm.bpm || 120, snap: d.bpm.snap || 0, metronome: !!d.bpm.metronome, nudgePct: d.bpm.nudgePct || 5 }); state.colSnap = d.colSnap || {}; syncBpm(); Object.assign(audio.settings, d.audio);
     state.decks = d.decks.length ? d.decks.map(k => { const dk = mkDeck(k.name); dk.color = k.color; dk.closed = k.closed; if (k.rows) k.rows.forEach((row, i) => { if (state.layers[i]) dk.cells[state.layers[i].id] = row; }); return dk; }) : [mkDeck('Deck 1')];
     state.deck = Math.min(d.deck || 0, state.decks.length - 1); for (const L of state.layers) state.decks[state.deck].cells[L.id] = L.clips;
-    state.master = d.master; state.speed = d.speed; engine.master = state.master; engine.compFx = d.compFx; engine.compTransform = d.compTransform; state.compAutopilot = d.compAutopilot; state.colNames = d.colNames; applySettings(d.settings);
+    state.master = d.master; state.speed = d.speed; engine.master = state.master; state.compBypass = engine.compBypass = !!d.compBypass; engine.compFx = d.compFx; engine.compTransform = d.compTransform; state.compAutopilot = d.compAutopilot; state.colNames = d.colNames; applySettings(d.settings);
     state.selLayer = Math.max(0, Math.min(state.selLayer, state.layers.length - 1)); if (state.sel && (state.sel.l >= state.layers.length || state.sel.c >= COLS)) state.sel = null;
     if (!screensSame && d.screens && d.screens.length) swapScreens(d.screens);
     if (!laserSame && d.laser) { laser.frames = d.laser.frames; laser.settings = d.laser.settings; laser.active = null; laser.sel = laser.frames[0] || null; if (laser.open) laser.refresh(); }

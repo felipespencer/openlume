@@ -19,7 +19,7 @@ const isTextField = (t) => t && ((t.tagName === 'INPUT' && !['range', 'checkbox'
 const shortTitle = (t) => (t || '').split(/[:.(]/)[0].trim();
 const TR_NAMES = { '◀': 'Direção para trás', '‖': 'Pausar', '▶': 'Direção para a frente', '|◀': 'Ir para a entrada', '▶|': 'Ir para a saída', '−1q': 'Um quadro para trás', '+1q': 'Um quadro para a frente' };
 const LAYER_OPS = { X: ['Tirar do ar', 'Tira a camada do ar.'], B: ['Bypass', 'Desliga ou liga a camada sem perder o clipe.'], S: ['Solo', 'Só esta camada aparece.'] };
-const CANDIDATES = '#grid .cell, #grid button.gh.col, #grid .lh .b button, #grid .sceneBtn, #clipPan .tbtns button[data-k], #bpmBar button, #xfade button, #btnLaser, #btnRec, #btnOut';
+const CANDIDATES = '#grid .cell, #grid button.gh.col, #grid .lh button[data-op], #grid .sceneBtn, #clipPan .tbtns button[data-k], #bpmBar button, #xfade button, #btnLaser, #btnRec, #btnOut';
 
 export class KeyMap {
   // c: { state, trigger(li, col), eject(li), triggerColumn(col), selectedClip(), selectLayer(li), C, layerSpeed(L), render(), toast, browser, textBox(título, rótulo, valor), editorOpen() }
@@ -41,8 +41,8 @@ export class KeyMap {
       return { kind: 'clip', a: N - li, b: col, uid: clip ? clip.id : null, name: clip ? clip.name : '', title: 'Clipe', help: 'Aperte uma tecla para tocar este clipe (casa vazia: tira a camada do ar).' };
     }
     if (e.matches('#grid button.gh.col')) { const col = +e.dataset.col; return { kind: 'col', a: col, b: null, title: 'Coluna', help: 'Aperte uma tecla para disparar a coluna inteira.' }; }
-    if (e.matches('#grid .lh .b button')) {
-      const lh = e.closest('.lh'), li = +lh.dataset.layer, L = S.layers[li], op = e.textContent.trim();
+    if (e.matches('#grid .lh button[data-op]')) {
+      const lh = e.closest('.lh'), li = +lh.dataset.layer, L = S.layers[li], op = e.dataset.op;
       if (!L || !LAYER_OPS[op]) return null;
       return { kind: 'layer', a: N - li, b: op, uid: L.id, name: L.name, title: LAYER_OPS[op][0], help: LAYER_OPS[op][1] };
     }
